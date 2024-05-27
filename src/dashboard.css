@@ -1,0 +1,52 @@
+.dashboard-container {
+  display: flex;
+  font-family: 'Arial', sans-serif;
+}
+
+.sidebar {
+  width: 200px;
+  background-color: #282c34;
+  color: white;
+  padding: 20px;
+}
+
+.sidebar ul {
+  list-style: none;
+  padding: 0;
+}
+
+.sidebar ul li {
+  padding: 10px 0;
+  cursor: pointer;
+}
+
+.main-content {
+  flex-grow: 1;
+  padding: 20px;
+}
+
+.header {
+  background-color: #f0f0f0;
+  padding: 10px 20px;
+}
+
+.overview,
+.sales-orders,
+.kpis {
+  margin-top: 20px;
+  border: 1px solid #ccc;
+  padding: 20px;
+}
+
+.stock-graph {
+  background-color: #e0e0e0;
+  /* Placeholder color */
+  height: 200px;
+  margin-top: 20px;
+}
+
+.kpis div {
+  margin-bottom: 10px;
+}
+
+/* Add your own customizations to better fit your design needs */
