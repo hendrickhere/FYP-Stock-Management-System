@@ -1,0 +1,49 @@
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0;
+  background-color: white;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  width: 100%;
+  max-height: 20vh;
+  position: fixed;
+  top: 0;
+  z-index: 2;
+}
+
+.user-icon {
+  margin-right: 5%;
+  font-size: 300%;
+  padding-left: 10%;
+}
+
+.header .user-info {
+  display: flex;
+  align-items: center;
+  font-weight: 500;
+  width: fit-content;
+}
+
+.header .system-name {
+  font-weight: bold;
+  font-size: 24px;
+  margin-top: 20px;
+  margin-bottom: 20px;
+  margin-right: 20px;
+}
+
+.chat {
+  border: none;
+  margin-right: 4vh;
+  font-size: 3vh;
+  cursor: pointer;
+}
+
+.notification {
+  border: none;
+  margin-right: 4vh;
+  font-size: 4vh;
+  cursor: pointer;
+  margin-top: 3vh;
+}

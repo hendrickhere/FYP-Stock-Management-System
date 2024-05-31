@@ -1,58 +1,46 @@
 import React, { useState } from 'react';
 import './dashboard.css'; 
+import Sidebar from './sidebar';
+import Header from './header';
+
 
 function Dashboard() {
   return (
     <div className="dashboard-container">
+      <Header/> 
       <Sidebar />
       <MainContent />
     </div>
   );
 }
 
-function Sidebar() {
-  return (
-    <nav className="sidebar">
-      <ul>
-        <li>Dashboard</li>
-        <li>Inventory</li>
-        <li>Sales</li>
-        <li>Purchases</li>
-        <li>Stakeholders</li>
-        <li>Appointments</li>
-        <li>Logout</li>
-      </ul>
-    </nav>
-  );
-}
-
 function MainContent() {
   return (
-    <div className="main-content">
-      <Header />
+    <div className='main-content'>
+    <div className="main-content-left">
       <Overview />
+      <StockGraph/>
       <SalesOrders />
+    </div>
+    <div className='main-content-right'>
       <KPIs />
     </div>
-  );
-}
-
-function Header() {
-  return (
-    <header>
-      <h1>Manager Dashboard - John Doc</h1>
-    </header>
+    </div>
   );
 }
 
 function Overview() {
   return (
     <div className="overview">
-      <h2>Stock Report</h2>
-      {/* Placeholder for graph */}
-      <div className="stock-graph">Graph here</div>
+      <h2>Overview</h2>
     </div>
   );
+}
+
+function StockGraph() {
+  return (
+    <div className="stock-graph">Stock Graph</div>
+  )
 }
 
 function SalesOrders() {
@@ -70,12 +58,42 @@ function SalesOrders() {
 function KPIs() {
   return (
     <div className="kpis">
-      <div>Today's Sale: RM10,000</div>
-      <div>Registered Customers: 2,000</div>
-      <div>Products: 498</div>
-      <div>Daily Appointments: 15</div>
-      <div>Fast Moving Items: Battery 1, Battery 2</div>
+      <RegisteredCustomers />
+      <TodaySales />
+      <TotalProductsRegistered />
+      <DailyAppointments />
+      <FastMovingItems />
     </div>
+  );
+}
+
+function RegisteredCustomers() {
+    return (
+      <div>Registered Customers: 2,000</div>
+    );
+}
+
+function TodaySales() {
+  return(
+      <div>Today's Sale: RM10,000</div>
+  );
+}
+
+function TotalProductsRegistered() {
+  return(
+      <div>Products: 498</div>
+  );
+}
+
+function DailyAppointments() {
+  return(
+    <div>Daily Appointments: 15</div>
+  );
+}
+
+function FastMovingItems() {
+  return(
+    <div>Fast Moving Items: Battery 1, Battery 2</div>
   );
 }
 
