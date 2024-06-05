@@ -26,23 +26,29 @@ function Login() {
   const toggleSignUp = () => {
     setIsSignUp(!isSignUp);
     const container = document.getElementById('container');
-    if (isSignUp) container.classList.add("active");
-    else container.classList.remove("active");
+    if (isSignUp) {
+      container.classList.remove("active");
+    }
+    else {
+      container.classList.add("active");
+    }
   }
 
   // Handle form submission for both sign up and sign in
   const handleSubmit = async (event) => {
     event.preventDefault();
-    const userData = {
-      username: name, 
-      email,
-      password,
-      role
-    };
+    
+      const userData = {
+        username: name, 
+        created_at: new Date().toISOString(),
+        email,
+        password, 
+        role,
+      }    
 
     try {
       const endpoint = isSignUp ? 'signup' : 'login';
-      const response = await axios.post(`http://localhost:3001/api/${endpoint}`, userData);
+      const response = await axios.post(`http://localhost:3001/api/user/${endpoint}`, userData);
       if (response.data.message === 'User created') {
         alert('Signup successful, please log in.');
         setIsSignUp(false);
