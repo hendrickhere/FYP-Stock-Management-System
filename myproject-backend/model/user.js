@@ -1,5 +1,7 @@
 const { DataTypes } = require("sequelize");
 const sequelize = require("../db-config");
+const Organization = require ("./organization");
+const SalesOrder = require("./salesOrder");
 
 const User = sequelize.define(
   "user",
@@ -38,3 +40,5 @@ const User = sequelize.define(
 );
 
 module.exports = User;
+
+
