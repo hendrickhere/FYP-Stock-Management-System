@@ -33,6 +33,10 @@ const SalesOrder = sequelize.define(
             type:DataTypes.STRING, 
             allowNull: true, 
         },
+        status_id: {
+            type: DataTypes.INTEGER,
+            allowNull: false,
+        }, 
     },
     {
         timestamps: false,

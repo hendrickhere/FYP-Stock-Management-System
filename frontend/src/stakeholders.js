@@ -1,5 +1,5 @@
 import React from "react";
-import './stakeholders.css';
+import './styles/stakeholders.css';
 import Header from './header';
 import Sidebar from './sidebar';
 

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import './header.css';
+import './styles/header.css';
 import { FaRegCircleUser } from "react-icons/fa6";
 import { IoChatbubbleEllipsesOutline } from "react-icons/io5";
 import { IoIosNotificationsOutline } from "react-icons/io";

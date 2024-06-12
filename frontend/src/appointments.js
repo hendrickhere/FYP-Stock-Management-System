@@ -1,5 +1,5 @@
 import React from "react";
-import './appointments.css';
+import './styles/appointments.css';
 import Header from './header';
 import Sidebar from './sidebar';
 

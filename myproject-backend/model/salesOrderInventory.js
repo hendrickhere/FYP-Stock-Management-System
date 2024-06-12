@@ -26,6 +26,14 @@ const SalesOrderInventory = sequelize.define(
           quantity: {
             type: DataTypes.INTEGER,
             allowNull: false, 
+          },
+          price: {
+            type: DataTypes.FLOAT,
+            allowNull: false,
+          },
+          status_id: {
+            type: DataTypes.INTEGER,
+            allowNull: false,
           }
     }, {
         timestamps: false,

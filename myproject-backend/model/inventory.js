@@ -39,6 +39,10 @@ const Inventory = sequelize.define(
             type: DataTypes.STRING, 
             allowNull: false, 
         }, 
+        dimensions_unit: {
+            type: DataTypes.STRING,
+            allowNull: false,
+        },
         manufacturer: {
             type: DataTypes.STRING, 
             allowNull: false,
@@ -47,6 +51,10 @@ const Inventory = sequelize.define(
             type: DataTypes.FLOAT, 
             allowNull: true, 
         },
+        weight_unit: {
+            type: DataTypes.STRING,
+            allowNull: false,
+        },
         is_expiry_goods: {
             type: DataTypes.BOOLEAN, 
             allowNull: false, 
@@ -54,7 +62,23 @@ const Inventory = sequelize.define(
         expiry_date: {
             type: DataTypes.DATE, 
             allowNull: true, 
-        }
+        },
+        status_id:{
+            type: DataTypes.INTEGER, 
+            allowNull: false
+        },
+        price: {
+            type: DataTypes.FLOAT,
+            allowNull: false,
+        },
+        description: {
+            type: DataTypes.STRING,
+            allowNull: true, 
+        },
+        images: {
+            type: DataTypes.JSONB,
+            allowNull: true, 
+        },
     }
 )
 

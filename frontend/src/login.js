@@ -1,9 +1,12 @@
-import React, { useState } from 'react';
-import './login.css'; 
+import React, { useState, useContext } from 'react';
+import './styles/login.css'; 
 import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
+import styles from './styles/login.module.css';
+import { GlobalContext } from './globalContext';
 
 function Login() {
+  const {username, setUsername} = useContext(GlobalContext); 
   // State variables to handle user inputs and form status
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
@@ -57,6 +60,7 @@ function Login() {
         setName('');
       } else if (response.data.message === 'Login successful') {
         alert('Login successful!');
+        setUsername(response.data.user.username);
         navigate('/dashboard');
       } else {
         alert(response.data.message);
@@ -68,7 +72,7 @@ function Login() {
   }
 
     return (
-      <div className="container" id="container">
+      <div className='container flex bg-white rounded-[30px] relative overflow-hidden w-[768px] max-w-full min-h-[480px]' id="container">
         <div className={`form-container sign-up ${isSignUp ? '' : 'hidden'}`}>
           <form onSubmit={handleSubmit}>
             <h1>Create Account</h1>
@@ -98,12 +102,12 @@ function Login() {
             <div className="toggle-panel toggle-left">
               <h2>Welcome Back!</h2>
               <p>Enter your personal details to use all of stock management features</p>
-              <button className="hidden" id="login" onClick={() => toggleSignUp(false)}>Sign In</button>
+              <button className={styles.hidden} id="login" onClick={() => toggleSignUp(false)}>Sign In</button>
             </div>
             <div className="toggle-panel toggle-right">
               <h2>Hello!</h2>
               <p>Register with your personal details to use all of stock management features</p>
-              <button className="hidden" id="register" onClick={() => toggleSignUp(true)}>Sign Up</button>
+              <button className={styles.hidden} id="register" onClick={() => toggleSignUp(true)}>Sign Up</button>
             </div>
           </div>
         </div>

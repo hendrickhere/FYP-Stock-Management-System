@@ -1,5 +1,5 @@
 import React from "react";
-import './purchases.css';
+import './styles/purchases.css';
 import Header from './header';
 import Sidebar from './sidebar';
 

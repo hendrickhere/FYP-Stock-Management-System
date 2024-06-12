@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import './sidebar.css'
+import './styles/sidebar.css'
 import { Link } from 'react-router-dom';
 import { FaHome} from 'react-icons/fa';
 import { MdOutlineInventory2 } from "react-icons/md";
@@ -22,7 +22,7 @@ function Sidebar() {
         <div className='sign'>
         <GrLogout className='logout-icon'/>
         </div>
-        <div class="logout-text">Logout</div>
+        <div className="logout-text">Logout</div>
       </button>
     </nav>
   );

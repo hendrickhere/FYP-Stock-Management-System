@@ -22,7 +22,7 @@ exports.login = async (req, res) => {
   const loginData = req.body;
   try {
     const user = await UserService.login(loginData);
-    res.status(200).send({ message: "Login successful", role: user.role });
+    res.status(200).send({ message: "Login successful", user: user });
   } catch (err) {
     if (err.message === "Invalid Credentials") {
       res.status(403).send({ message: err.message });
@@ -122,7 +122,7 @@ exports.udpateInventory = async (req, res) => {
   const inventoryData = req.body; 
 
   try{
-    const inventoryUpdate = await UserService.udpateInventory(username, inventoryUUID, inventoryData);
+    const inventoryUpdate = await UserService.updateInventory(username, inventoryUUID, inventoryData);
     res.status(200).send({inventory: inventoryUpdate, message: "Inventory updated successfully."})
   } catch (err){
     if(err.message === "Inventory not found"){
@@ -170,4 +170,40 @@ exports.addSalesOrder = async (req, res) => {
   }
 }
 
+exports.getSalesOrder = async (req, res) => {
+  const username = req.params.username; 
+
+  try{
+    const salesOrders = await UserService.getSalesOrder(username); 
+    res.status(200).send({salesOrders: salesOrders, message: "Sales Orders retrieved successfully."});
+  } catch (err){
+    if(err.message === "User not found"){
+      res.status(401).send({message: err.message});
+    } else if(err.message === "Sales Orders not found."){
+      res.status(404).send({message: err.message});
+    } else{ 
+      res.status(500).send({message: err.message});
+    }
+  }
+}
+
+exports.deleteInventory = async (req, res) => {
+  const username = req.params.username;
+  const inventoryUUID = req.params.inventoryuuid;
+
+  try {
+    const status = await UserService.deleteInventory(username, inventoryUUID);
+    res.status(200).send({ status: status, message: "Inventory deleted successfully" });
+    
+  } catch (err) {
+    if (err.message === "User not found") {
+      res.status(401).send({ message: err.message });
+    } else if (err.message === "Inventory not found.") {
+      res.status(404).send({ message: err.message });
+    } else {
+      res.status(500).send({ message: err.message });
+    }
+  }
+}
+ 
 

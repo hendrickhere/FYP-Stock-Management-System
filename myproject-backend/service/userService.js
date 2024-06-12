@@ -1,6 +1,7 @@
 const bcrypt = require("bcryptjs");
 const sequelize = require("../db-config");
 
+
 const {Customer, User, SalesOrder, Inventory, Organization, SalesOrderInventory} = require("../model/association");
 
 async function getUserByUsername(username) {
@@ -24,6 +25,7 @@ async function getCustomerByUUID(uuid){
 async function getInventoryByUUID(uuid) {
   const inventory = await Inventory.findOne({
     where: {
+      status_id: 1, 
       inventory_uuid: uuid,
     }
   }); 
@@ -169,10 +171,15 @@ exports.addInventory = async (username, inventoryData) => {
     unit,
     brand,
     dimensions,
+    dimensionsUnit,
     manufacturer,
     weight,
+    weightUnit,
     isExpiryGoods,
     expiryDate,
+    price,
+    description,
+    images
   } = inventoryData;
   if (user) {
     const inventory = await Inventory.create({
@@ -182,12 +189,18 @@ exports.addInventory = async (username, inventoryData) => {
       unit: unit,
       brand: brand,
       dimensions: dimensions,
+      dimensions_unit: dimensionsUnit, 
       manufacturer: manufacturer,
       weight: weight,
+      weight_unit: weightUnit,
       is_expiry_goods: isExpiryGoods,
       expiry_date: expiryDate,
       user_id: user.user_id,
       organization_id: user.organization_id,
+      status_id: 1,
+      price: price,
+      description: description,
+      images: images, 
     });
     if (!inventory) {
       throw new Error("Failed to create inventory");
@@ -198,7 +211,7 @@ exports.addInventory = async (username, inventoryData) => {
   }
 };
 
-exports.udpateInventory = async (username, inventoryUUID, updateData) => {
+exports.updateInventory = async (username, inventoryUUID, updateData) => {
   const user = await getUserByUsername(username);
   const {
     inventoryName,
@@ -225,6 +238,7 @@ exports.udpateInventory = async (username, inventoryUUID, updateData) => {
     expiry_date: expiryDate,
     user_id: user.user_id,
     organization_id: user.organization_id,
+    status_id: 1
   };
   if (user) {
     const updated = await Inventory.update(dbData, {
@@ -256,6 +270,7 @@ exports.getAllInventory = async (username) => {
   const inventories = await Inventory.findAll({
     where: {
       organization_id: user.organization_id, 
+      status_id: 1,
     }
   }); 
   if(!inventories){
@@ -289,6 +304,7 @@ exports.addSalesOrder = async (username, salesOrderData) => {
         customer_id: customer.customer_id,
         user_id: user.user_id,
         organization_id: user.organization_id,
+        status_id: 1,
       },
       { transaction }
     );
@@ -303,11 +319,15 @@ exports.addSalesOrder = async (username, salesOrderData) => {
       if(!itemObj){
         throw new Error(`Inventory item not found for UUID: ${item.uuid}`);
       }
+
+      const price = itemObj.price * item.quantity;
       await SalesOrderInventory.create(
         {
           sales_order_id: salesOrder.sales_order_id,
           inventory_id: itemObj.inventory_id,
           quantity: item.quantity,
+          status_id: 1,
+          price: price
         },
         { transaction }
       );
@@ -333,3 +353,110 @@ exports.addSalesOrder = async (username, salesOrderData) => {
     throw new Error(err.message);
   }
 };
+
+exports.getSalesOrder = async (username) => {
+  const user = await getUserByUsername(username);
+  if (!user) {
+    throw new Error("User not found");
+  }
+
+  const salesOrders = await SalesOrder.findAll({
+    where: { organization_id: user.organization_id },
+    include: [
+      {
+        model: Inventory,
+        through: {
+          model: SalesOrderInventory,
+          attributes: ["quantity", "price"],
+        },
+      },
+      {
+        model: Customer,
+        attributes: [
+          "customer_uuid",
+          "customer_name",
+          "customer_designation",
+          "customer_company",
+          "shipping_address",
+        ],
+      },
+    ],
+  });
+  const totalPricePromises = salesOrders.map(async (order) => {
+    const total = await SalesOrderInventory.findOne({
+    where: { sales_order_id: order.sales_order_id },
+      attributes: [[sequelize.literal('SUM(price * quantity)'), 'total_price']],
+      raw: true
+    });
+    return { sales_order_id: order.sales_order_id, total_price: total.total_price };
+  });
+  
+  const totalPrices = await Promise.all(totalPricePromises);
+
+  const salesOrdersWithTotalPrice = salesOrders.map(order => {
+    const totalPrice = totalPrices.find(tp => tp.sales_order_id === order.sales_order_id).total_price;
+    return {
+      ...order.toJSON(),
+      total_price: totalPrice
+    };
+  });
+
+  
+  if(!salesOrdersWithTotalPrice){
+    throw new Error("Sales Orders not found.");
+  }
+  return salesOrdersWithTotalPrice; 
+
+}
+
+exports.deleteInventory = async (username, inventoryuuid) => {
+  const user = await getUserByUsername(username);
+  const itemObj = await getInventoryByUUID(inventoryuuid);
+  const transaction = await sequelize.transaction();
+  if(!user){
+    throw new Error("User not found");
+  }
+  try{
+    const inventory = await Inventory.update(
+      {status_id: 0},
+      {
+        where : {
+          inventory_id: itemObj.inventory_id,
+          status_id: 1
+        }, 
+        transaction,
+      }, 
+    )
+  
+    if(!inventory){
+      throw new Error("Inventory not found"); 
+    } 
+  
+    const salesOrderInventory = await SalesOrderInventory.findAll({
+      where: {inventory_id: itemObj.inventory_id},
+      transaction,
+    })
+  
+    for (const entry of salesOrderInventory) {
+      await SalesOrderInventory.update(
+        { status_id: 0 },
+        {
+          where: { inventory_id: entry.inventory_id, status_id: 1 },
+          transaction,
+        }
+      );
+    }
+  
+    if(!salesOrderInventory) {
+      throw new Error("Sales Order Inventory not found");
+    }
+    transaction.commit();
+    return inventory;
+    
+  } catch(err){
+    transaction.rollback();
+    throw new Error(err.message);
+  }
+}
+
+
