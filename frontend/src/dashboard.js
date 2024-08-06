@@ -16,7 +16,7 @@ function Dashboard() {
 
 function MainContent() {
   return (
-    <div className='main-content'>
+    <div className='main-content-dashboard'>
     <div className="main-content-left">
       <Overview />
       <StockGraph/>

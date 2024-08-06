@@ -25,11 +25,11 @@ body{
   overflow: hidden;
 }
 
-.main-content {
+.main-content-dashboard {
   display: flex;
   flex-direction: row;
   flex-grow: 1;
-  padding: 3%;
+  padding-right: 1%;
   padding-top: 1%;
   padding-bottom: 1%;
   background-color: #E5E9EC;
