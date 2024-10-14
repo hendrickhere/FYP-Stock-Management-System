@@ -25,9 +25,9 @@ app.use('/api', appointmentsRouter);
 app.use("/api/user", userRoutes); 
 app.use("/api/sales", salesRoutes); 
 
-sequelize.sync().then(() => {
-  console.log('Database & tables created!');
-});
+// sequelize.sync().then(() => {
+//   console.log('Database & tables created!');
+// });
 
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);

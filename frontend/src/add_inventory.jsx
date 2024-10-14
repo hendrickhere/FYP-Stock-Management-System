@@ -1,4 +1,4 @@
-import React, { useState, useContext } from "react";
+import React, { useState, useContext, useEffect } from "react";
 import "./styles/appointments.css";
 import Header from "./header";
 import Sidebar from "./sidebar";
@@ -6,22 +6,46 @@ import DragDropImageUploader from "./dragDropImageUploader";
 import DimensionsInput from "./dimensions_input";
 import axios from 'axios';
 import { GlobalContext } from "./globalContext";
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 
 function AddInventory() {
+  const location = useLocation()
+  const {inventoryuuid, isAdd} = location.state;
+  const {username} = useContext(GlobalContext);
+  const [data, setData] = useState({});
+  const [loading, setLoading] = useState(true);
+
+
+  useEffect(() => {
+    const fetchData = async () => {
+      try{
+        const response = await axios.get(`http://localhost:3002/api/user/${username}/${inventoryuuid}`);
+        setData(response.data.status);
+      } catch (error){
+        console.error("Error fetching data:", error);
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    if(!isAdd){
+      fetchData();
+    } else{
+      setLoading(false);
+    }
+  }, []);
   return (
     <div className="appointments-container">
       <Header />
       <Sidebar />
-      <MainContent />
+      {!loading && (<MainContent data={isAdd ? {} : data} isAdd={isAdd}/>)}
     </div>
   );
 }
 
-function MainContent() {
+function MainContent({data, isAdd}) {
   const navigation = useNavigate();
   const {username} = useContext(GlobalContext);
-  async function handleSubmit() {}
 
   function handleNameChange(event) {
     setInventoryName(() => event.target.value);
@@ -55,16 +79,15 @@ function MainContent() {
     setPrice(() => event.target.value);
   }
 
-  const [inventoryName, setInventoryName] = useState("");
-  const [skuNumber, setSkuNumber] = useState("");
-  const [unit, setUnit] = useState("none");
+  const [inventoryName, setInventoryName] = useState(isAdd ? "" : data.product_name);
+  const [skuNumber, setSkuNumber] = useState(isAdd ? "" : data.sku_number);
+  const [unit, setUnit] = useState(isAdd ? "none" : data.unit);
   const [images, setImages] = useState([]);
   const [height, setHeight] = useState("");
   const [width, setWidth] = useState("");
   const [length, setLength] = useState("");
   const [manufacturer, setManufacturer] = useState("");
   const [brand, setBrand] = useState("");
-  const isAdd = false;
   const [weight, setWeight] = useState("");
   const [isExpiryChecked, setIsExpiryChecked] = useState(false);
   const [expiryDate, setExpiryDate] = useState(null);
@@ -119,8 +142,8 @@ function MainContent() {
   async function handleSubmit(e){
     const imageStore = await extractBase64Strings(images);
     const obj = {
-      inventoryName: inventoryName, 
-      inventoryStock: quantity,
+      productName: inventoryName, 
+      productStockk: quantity,
       skuNumber: skuNumber, 
       unit: unit,
       brand: brand, 
@@ -140,7 +163,7 @@ function MainContent() {
 
     try{
       axios.post(
-        `http://localhost:3001/api/user/${username}/addInventory`,
+        `http://localhost:3002/api/user/${username}/addInventory`,
         obj
       ).then(() => {
         window.alert("Inventory added successfully");
@@ -154,7 +177,7 @@ function MainContent() {
 
 
   return (
-    <div className="ml-[220px] mt-[80px] min-h-screen">
+    <div className="ml-[220px] mt-[80px] h-auto overflow-auto">
       <div className="flex ms-5 mb-2 me-5 mt-5">
         <p className="flex-1 font-bold text-3xl ms-5" type="submit">
           Add Inventory

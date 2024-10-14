@@ -51,7 +51,7 @@ function Login() {
 
     try {
       const endpoint = isSignUp ? 'signup' : 'login';
-      const response = await axios.post(`http://localhost:3001/api/user/${endpoint}`, userData);
+      const response = await axios.post(`http://localhost:3002/api/user/${endpoint}`, userData);
       if (response.data.message === 'User created') {
         alert('Signup successful, please log in.');
         setIsSignUp(false);

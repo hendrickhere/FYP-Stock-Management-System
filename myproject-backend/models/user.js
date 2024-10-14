@@ -4,12 +4,19 @@ const Organization = require ("./organization");
 const SalesOrder = require("./salesOrder");
 
 const User = sequelize.define(
-  "user",
+  "users",
   {
     user_id: {
       type: DataTypes.INTEGER,
       autoIncrement: true,
       primaryKey: true,
+    },
+    organization_id: {
+      type: DataTypes.INTEGER,
+      references: {
+        model: "organizations",
+        key: "organization_id"
+      }
     },
     username: {
       type: DataTypes.STRING,

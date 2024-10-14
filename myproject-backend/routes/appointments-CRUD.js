@@ -6,7 +6,7 @@ const router = express.Router();
 router.get('/appointments', async (req, res) => {
     try {
         const result = await pool.query(`
-            SELECT 
+            SELECT  
                 a.appointment_id, 
                 a.customer_id, 
                 c.name, 
@@ -17,7 +17,7 @@ router.get('/appointments', async (req, res) => {
                 a.time_slot, 
                 a.technician, 
                 a.status, 
-                a.location
+                a.location 
             FROM 
                 appointment a
             JOIN 

@@ -40,7 +40,7 @@ function MainContent() {
       setShowCustomer(false);
       return;
     }
-    await axios.get(`http://localhost:3001/api/user/${username}/customers`).then((response) => {
+    await axios.get(`http://localhost:3002/api/user/${username}/customers`).then((response) => {
       setCustomerData(response.data);
       setLoading(false);
       setShowCustomer(true);
@@ -98,14 +98,14 @@ function MainContent() {
       deliveryMethod: deliveryMethod,
       customerUUID: selectedCustomer.customer_uuid,
       itemsList: items.map(item => ({
-        uuid: item.inventory_uuid,
+        uuid: item.product_uuid,
         quantity: item.quantity
       }))
     }
 
     console.log(obj);
 
-    axios.post(`http://localhost:3001/api/user/${username}/salesOrder`, obj).then((_) => {
+    axios.post(`http://localhost:3002/api/user/${username}/salesOrder`, obj).then((_) => {
       window.alert('Sales order created successfully!');
       navigation(-1);
     })

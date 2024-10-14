@@ -1,4 +1,4 @@
-import React from "react";
+import React, {useState, useEffect} from "react";
 import './styles/purchases.css';
 import Header from './header';
 import Sidebar from './sidebar';

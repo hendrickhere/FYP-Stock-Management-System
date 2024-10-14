@@ -14,7 +14,7 @@ const ItemTable = (props) => {
 
   const handleItemClick = async (index) => {
     setLoading(() => true);
-    await axios.get(`http://localhost:3001/api/user/${username}/inventories`).then((response) => {
+    await axios.get(`http://localhost:3002/api/user/${username}/inventories`).then((response) => {
         setProductData(() => response.data);
         setLoading(() => false);
       })

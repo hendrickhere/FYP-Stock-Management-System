@@ -4,7 +4,7 @@ const sequelize = require("../db-config");
 
 
 const SalesOrder = sequelize.define(
-    "sales_order",
+    "sales_orders",
     {
         sales_order_id: {
             type: DataTypes.INTEGER, 

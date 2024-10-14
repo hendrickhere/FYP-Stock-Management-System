@@ -26,15 +26,15 @@ const ProductTable = (props) => {
             {products.inventories.map((product, index) => (
               <tr key={product.id} className="border-b hover:bg-gray-100">
                 <td className="px-4 py-2"><input type="radio" name="selectedProduct" /></td>
-                <td className="px-4 py-2">{product.inventory_name}</td>
+                <td className="px-4 py-2">{product.product_name}</td>
                 <td className="px-4 py-2">{product.sku_number}</td>
                 <td className="px-4 py-2">{product.brand}</td>
                 <td className="px-4 py-2">{product.manufacturer}</td>
                 <td className="px-4 py-2">{product.expiry_date ?? "N/A"}</td>
                 <td className="px-4 py-2">{product.price}</td>
-                <td className="px-4 py-2">{product.inventory_stock}</td>
+                <td className="px-4 py-2">{product.product_stock}</td>
                 <td className="px-4 py-2 flex gap-2">
-                  <FaEdit className="text-gray-500 hover:text-gray-700 cursor-pointer" onClick={() => handleEditData} />
+                  <FaEdit className="text-gray-500 hover:text-gray-700 cursor-pointer" onClick={() => handleEditData(index)} />
                   <FaTrashAlt className="text-red-500 hover:text-red-700 cursor-pointer" onClick={() => handleDeleteData(index)}/>
                   <FaEllipsisV className="text-gray-500 hover:text-gray-700 cursor-pointer" />
                 </td>

@@ -19,7 +19,7 @@ function Inventory() {
 }
 
 function MainContent () {
-  const {username} = useContext(GlobalContext);
+  const { username } = useContext(GlobalContext);
   const [loading, setLoading] = useState(false);
   const [data, setData] = useState();
   const navigation = useNavigate();
@@ -27,9 +27,9 @@ function MainContent () {
   const [render, setRender] = useState("false");
 
   async function fetchInventories() {
-    console.log(`http://localhost:3001/api/user/${username}/inventories`);
+    //console.log(`http://localhost:3002/api/user/${username}/inventories`);
     await axios
-      .get(`http://localhost:3001/api/user/${username}/inventories`)
+      .get(`http://localhost:3002/api/user/${username}/inventories`)
       .then((response) => {
         setData(() => response.data);
         console.log(`response is here! + ${response.data}`);
@@ -44,7 +44,7 @@ function MainContent () {
     if (confirm) {
       await axios
         .put(
-          `http://localhost:3001/api/user/${username}/${data.inventories[index].inventory_uuid}/delete`
+          `http://localhost:3002/api/user/${username}/${data.inventories[index].product_uuid}/delete`
         )
         .then(() => {
           window.alert("Inventory successfully deleted");
@@ -59,8 +59,8 @@ function MainContent () {
   }, [render]);
 
  
-  function handleEditData(){
-    navigation('/inventory/add_inventory');
+  function handleEditData(index){
+    navigation('/inventory/add_inventory', {state: {inventoryuuid: data.inventories[index].product_uuid, isAdd: false}});
   }
 
   function handleDeleteData(index){
@@ -72,7 +72,7 @@ function MainContent () {
   }
 
   function navigateToAddProductPage(){
-    navigation('/inventory/add_inventory');
+    navigation('/inventory/add_inventory', {state: {uuid: "", isAdd: true}});
   }
   return (
     <div className="ml-[260px] mt-[90px]">

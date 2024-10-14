@@ -2,7 +2,7 @@ const bcrypt = require("bcryptjs");
 const sequelize = require("../db-config");
 
 
-const {Customer, User, SalesOrder, Inventory, Organization, SalesOrderInventory} = require("../model/association");
+const {Customer, User, SalesOrder, Inventory, Organization, SalesOrderInventory} = require("../models/association");
 
 async function getUserByUsername(username) {
   const user = await User.findOne({
@@ -26,7 +26,7 @@ async function getInventoryByUUID(uuid) {
   const inventory = await Inventory.findOne({
     where: {
       status_id: 1, 
-      inventory_uuid: uuid,
+      product_uuid: uuid,
     }
   }); 
   return inventory; 
@@ -183,8 +183,8 @@ exports.addInventory = async (username, inventoryData) => {
   } = inventoryData;
   if (user) {
     const inventory = await Inventory.create({
-      inventory_name: inventoryName,
-      inventory_stock: inventoryStock,
+      product_name: inventoryName,
+      product_stock: inventoryStock,
       sku_number: skuNumber,
       unit: unit,
       brand: brand,
@@ -226,8 +226,8 @@ exports.updateInventory = async (username, inventoryUUID, updateData) => {
     expiryDate,
   } = updateData;
   const dbData = {
-    inventory_name: inventoryName,
-    inventory_stock: inventoryStock,
+    product_name: inventoryName,
+    product_stock: inventoryStock,
     sku_number: skuNumber,
     unit: unit,
     brand: brand,
@@ -243,14 +243,14 @@ exports.updateInventory = async (username, inventoryUUID, updateData) => {
   if (user) {
     const updated = await Inventory.update(dbData, {
       where: {
-        inventory_uuid: inventoryUUID,
+        product_uuid: inventoryUUID,
         user_id: user.user_id,
       },
     });
     if (updated) {
       const updatedInventory = await Inventory.findOne({
         where: {
-          inventory_uuid: inventoryUUID,
+          product_uuid: inventoryUUID,
         },
       });
       return updatedInventory;
@@ -324,7 +324,7 @@ exports.addSalesOrder = async (username, salesOrderData) => {
       await SalesOrderInventory.create(
         {
           sales_order_id: salesOrder.sales_order_id,
-          inventory_id: itemObj.inventory_id,
+          product_id: itemObj.product_id,
           quantity: item.quantity,
           status_id: 1,
           price: price
@@ -332,15 +332,15 @@ exports.addSalesOrder = async (username, salesOrderData) => {
         { transaction }
       );
 
-      const leftoverStock = itemObj.inventory_stock - item.quantity;
+      const leftoverStock = itemObj.product_stock - item.quantity;
       if(leftoverStock < 0){
         throw new Error("Unable to create sales order due to low stock volume, please try again after stock volume is increased.")
       }
       await Inventory.update(
-        { inventory_stock: leftoverStock },
+        { product_stock: leftoverStock },
         {
           where: {
-            inventory_id: itemObj.inventory_id,
+            product_id: itemObj.product_id,
           },
           transaction,
         }
@@ -421,7 +421,7 @@ exports.deleteInventory = async (username, inventoryuuid) => {
       {status_id: 0},
       {
         where : {
-          inventory_id: itemObj.inventory_id,
+          product_id: itemObj.product_id,
           status_id: 1
         }, 
         transaction,
@@ -433,7 +433,7 @@ exports.deleteInventory = async (username, inventoryuuid) => {
     } 
   
     const salesOrderInventory = await SalesOrderInventory.findAll({
-      where: {inventory_id: itemObj.inventory_id},
+      where: {product_id: itemObj.product_id},
       transaction,
     })
   
@@ -441,7 +441,7 @@ exports.deleteInventory = async (username, inventoryuuid) => {
       await SalesOrderInventory.update(
         { status_id: 0 },
         {
-          where: { inventory_id: entry.inventory_id, status_id: 1 },
+          where: { product_id: entry.product_id, status_id: 1 },
           transaction,
         }
       );
@@ -457,6 +457,20 @@ exports.deleteInventory = async (username, inventoryuuid) => {
     transaction.rollback();
     throw new Error(err.message);
   }
+}
+
+exports.getInventory = async (username, inventoryUUID) => {
+  const user = await getUserByUsername(username);
+
+  if(user === null){
+    throw new Error("User not found");
+  } 
+  const itemObj = await getInventoryByUUID(inventoryUUID);
+
+  if(itemObj === null){
+    throw new Error("Inventory not found");
+  }
+  return itemObj; 
 }
 
 

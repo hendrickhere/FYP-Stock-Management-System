@@ -36,8 +36,8 @@ function MainContent() {
   }, [render]);
 
   async function fetchSalesOrder(){
-    console.log(`http://localhost:3001/api/user/${username}/salesOrders`);
-    await axios.get(`http://localhost:3001/api/user/${username}/salesOrders`).then((response) => {
+    console.log(`http://localhost:3002/api/user/${username}/salesOrders`);
+    await axios.get(`http://localhost:3002/api/user/${username}/salesOrders`).then((response) => {
       setData(() => response.data);
       console.log(`response is here! + ${response.data}`);
       setLoading(() => false);

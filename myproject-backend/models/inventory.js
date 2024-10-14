@@ -1,25 +1,25 @@
 const { DataTypes } = require("sequelize");
 const sequelize = require("../db-config");
 
-const Inventory = sequelize.define(
-    "inventory",
+const Product = sequelize.define(
+    "products",
     {
-        inventory_id:{
+        product_id:{
             type: DataTypes.INTEGER, 
             autoIncrement: true,
             primaryKey: true,
             allowNull: false, 
         },
-        inventory_uuid : {
+        product_uuid : {
             type: DataTypes.UUID, 
             defaultValue: sequelize.literal('uuid_generate_v4()'),
             unique: true, 
         },
-        inventory_name: {
+        product_name: {
             type: DataTypes.STRING,
             allowNull: false,   
         },
-        inventory_stock: {
+        product_stock: {
             type: DataTypes.INTEGER,
             allowNull: false,
         },
@@ -79,9 +79,24 @@ const Inventory = sequelize.define(
             type: DataTypes.JSONB,
             allowNull: true, 
         },
+        createdAt: {
+            type: DataTypes.DATE,
+            allowNull: false,
+            defaultValue: DataTypes.NOW,
+            field: 'created_at', 
+        },
+        updatedAt: {
+            type: DataTypes.DATE,
+            allowNull: false,
+            defaultValue: DataTypes.NOW,
+            field: 'updated_at',
+        },
+    },
+    {
+        timestamps: true,
     }
 )
 
 
 
-module.exports = Inventory; 
+module.exports = Product; 

@@ -1,4 +1,4 @@
-const {User, SalesOrder, SalesOrderInventory} = require("../model/association");
+const {User, SalesOrder, SalesOrderInventory} = require("../models/association");
 
 
 async function getSalesOrderByUUID(salesOrderUUID) {

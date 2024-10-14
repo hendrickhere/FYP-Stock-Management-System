@@ -6,7 +6,7 @@
     "configurations": [
         {
             "name": "Launch Backend",
-            "program": "myproject-backend/database.js",
+            "program": "myproject-backend/server.js",
             "request": "launch",
             "skipFiles": [
                 "<node_internals>/**"
@@ -18,7 +18,7 @@
             "request": "launch",
             "name": "nodemon",
             "runtimeExecutable": "nodemon",
-            "program": "$myproject-backend/database.js",
+            "program": "$myproject-backend/server.js",
             "restart": true,
             "console": "integratedTerminal",
             "internalConsoleOptions": "neverOpen",

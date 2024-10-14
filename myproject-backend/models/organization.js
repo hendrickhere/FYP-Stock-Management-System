@@ -2,7 +2,7 @@ const { DataTypes } = require("sequelize");
 const sequelize = require("../db-config");
 
 const Organization = sequelize.define(
-    "organization",
+    "organizations",
     {
         organization_id: {
             type: DataTypes.INTEGER,
@@ -19,19 +19,9 @@ const Organization = sequelize.define(
             type: DataTypes.STRING, 
             allowNull: false, 
         }, 
-        organization_contact: {
-            type: DataTypes.STRING, 
-            allowNull: false, 
-        }, 
-        created_at: {
-            type: DataTypes.DATE,
-            allowNull: true, 
-            defaultValue: DataTypes.NOW,
-        }
-
     },
     {
-        timestamps: false
+        timestamps: true
     },
 )
 
