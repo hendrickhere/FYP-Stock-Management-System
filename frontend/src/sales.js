@@ -9,10 +9,12 @@ import SalesTable from './salesOrderTable';
 
 function Sales() {
   return (
-    <div className="sales-container">
-      <MainContent />
-      <Header />
+    <div className="flex flex-col h-screen w-full">
+      <Header/> 
+      <div className="flex flex-row flex-grow">
       <Sidebar />
+      <MainContent />
+      </div>
     </div>
   );
 }
@@ -45,7 +47,7 @@ function MainContent() {
   }
 
   return (
-    <div className="ml-[235px] mt-[80px] overflow-y-auto">
+    <div className="flex-1 ml-52 p-4 overflow-y-auto">
       <div className="flex flex-row">
         <h1 className="text-2xl font-bold">Sales Order</h1>
         <input

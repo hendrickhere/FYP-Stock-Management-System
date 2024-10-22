@@ -1,5 +1,6 @@
 const bcrypt = require("bcryptjs");
 const sequelize = require("../db-config");
+const jwt = require("jsonwebtoken");
 const {Customer, User, SalesOrder, Product, Organization, SalesOrderProduct} = require ("../models/association");
 
 
@@ -10,6 +11,25 @@ async function getUserByUsername(username) {
     },
   });
   return user.dataValues;
+}
+
+async function getUserById(userId) {
+  try {
+    const user = await User.findOne({
+      where: {
+        user_id: userId,
+      },
+    });
+
+    if (!user) {
+      throw new Error("User not found");
+    }
+    
+    return user.dataValues;
+  } catch (error) {
+    console.error("Error fetching user by ID:", error);
+    throw error;
+  }
 }
 
 async function getCustomerByUUID(uuid){
@@ -75,7 +95,13 @@ exports.login = async (loginData) => {
     const user = result.dataValues;
     const isValid = await bcrypt.compare(password, user.password_hash);
     if (isValid) {
-      return user;
+      const token = jwt.sign(
+        { id: user.user_id, username: user.username },
+        'secretkey123', // Secret key for JWT - make sure this matches authMiddleware
+        { expiresIn: '1h' } // Token validity
+      );
+
+      return { message: 'Login successful', token, user: { username: user.username } };
     } else {
       throw new Error("Invalid Credentials");
     }
@@ -83,6 +109,40 @@ exports.login = async (loginData) => {
     throw new Error("User not found");
   }
 };
+
+exports.verifyUser = async (email, password) => {
+  try {
+    console.log("Verifying user with email:", email);
+    // Find user by email
+    const result = await User.findOne({
+      where: {
+        email: email,
+      },
+    });
+
+    if (!result) {
+      console.log("User not found with email:", email);
+      return null;
+    }
+
+    const user = result.dataValues;
+
+    // Verify the password using bcrypt
+    console.log("Comparing passwords...");
+    const isValid = await bcrypt.compare(password, user.password_hash);
+    if (!isValid) {
+      console.log("Invalid password for user:", email);
+      return null;
+    }
+
+    console.log("User verified successfully:", email);
+    return user;
+  } catch (error) {
+    console.error("Error verifying user:", error);
+    throw new Error("Error during user verification");
+  }
+};
+
 
 exports.addCustomer = async (customerData, username) => {
   const {
@@ -481,5 +541,7 @@ exports.getInventory = async (username, inventoryUUID) => {
   }
   return itemObj; 
 }
+
+exports.getUserById = getUserById;
 
 

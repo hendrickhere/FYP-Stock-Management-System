@@ -10,12 +10,14 @@ import ProductTable from "./inventoryTable";
 
 function Inventory() {
   return (
-    <div className="inventory-container">
-      <Header/>
-      <Sidebar/>
-      <MainContent/>
+    <div className="flex flex-col h-screen w-full">
+      <Header/> 
+      <div className="flex flex-row flex-grow">
+      <Sidebar />
+      <MainContent />
+      </div>
     </div>
-  )
+  );
 }
 
 function MainContent () {
@@ -75,7 +77,7 @@ function MainContent () {
     navigation('/inventory/add_inventory', {state: {uuid: "", isAdd: true}});
   }
   return (
-    <div className="ml-[260px] mt-[90px]">
+    <div className="flex-auto ml-52 p-4">
       <div className="flex flex-row">
         <h1 className="text-2xl font-bold">Inventory</h1>
         <input
@@ -88,7 +90,7 @@ function MainContent () {
       <div className="flex flex-column">
         <div className="flex flex-row">
           <button
-            className="flex items-center space-x-2 px-4 py-2 bg-white text-green-700 font-medium rounded-lg shadow hover:bg-green-600 hover:text-white focus:outline-none focus:ring-2 focus:ring-green-400 focus:ring-opacity-75"
+            className="flex items-center mt-3 space-x-2 px-4 py-2 bg-white text-green-700 font-medium rounded-lg shadow hover:bg-green-600 hover:text-white focus:outline-none focus:ring-2 focus:ring-green-400 focus:ring-opacity-75"
             onClick={navigateToAddProductPage}
           >
             <svg
@@ -109,7 +111,7 @@ function MainContent () {
           </button>
         </div>
       </div>
-      <div className="flex-1 mt-[20px]">
+      <div className="flex-1 mt-[20px] w-full">
         {!loading && data && (
           <ProductTable
             products={data}

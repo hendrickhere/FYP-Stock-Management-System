@@ -5,7 +5,7 @@ import { useNavigate } from 'react-router-dom';
 import styles from './styles/login.module.css';
 import { GlobalContext } from './globalContext';
 
-function Login() {
+function Login({ onLoginSuccess }) {
   const {username, setUsername} = useContext(GlobalContext); 
   // State variables to handle user inputs and form status
   const [name, setName] = useState('');
@@ -60,6 +60,7 @@ function Login() {
         setName('');
       } else if (response.data.message === 'Login successful') {
         alert('Login successful!');
+        localStorage.setItem('token', response.data.token);
         setUsername(response.data.user.username);
         navigate('/dashboard');
       } else {
