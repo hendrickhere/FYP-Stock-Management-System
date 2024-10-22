@@ -40,15 +40,33 @@ const Customer = sequelize.define(
             type: DataTypes.STRING, 
             allowNull: false, 
         }, 
+        user_id: {
+            type: DataTypes.INTEGER,
+            allowNull: false,
+            references: {
+                model: "users",
+                key: "user_id"
+            },
+        },
         shipping_address: {
             type: DataTypes.STRING, 
             allowNull: false, 
         },
-        created_at: {
+        createdAt: {
+            field: "created_at",
+            type: DataTypes.DATE, 
+            allowNull: false, 
+            defaultValue: DataTypes.NOW,
+        },
+        updatedAt: {
+            field: "updated_at",
             type: DataTypes.DATE, 
             allowNull: false, 
             defaultValue: DataTypes.NOW,
         }
+    },
+    {
+        timestamps: true,
     }
 )
 

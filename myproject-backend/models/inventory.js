@@ -96,6 +96,13 @@ const Product = sequelize.define(
         timestamps: true,
     }
 )
+Product.associate = (models) => {
+    Product.belongsToMany(models.SalesOrder, {
+      through: models.SalesOrderInventory,  
+      foreignKey: 'product_id',             
+      otherKey: 'sales_order_id',           
+    });
+  };
 
 
 

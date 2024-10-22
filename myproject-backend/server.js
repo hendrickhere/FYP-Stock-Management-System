@@ -6,7 +6,7 @@ const sequelize = require('./db-config.js');
 const purchasesRouter = require('./routes/purchases-CRUD');
 const stakeholdersRouter = require('./routes/stakeholders-CRUD');
 const productsRouter = require('./routes/product-CRUD');
-const appointmentsRouter = require('./routes/appointments-CRUD');
+const appointmentsRouter = require('./routes/appointmentRoutes');
 const userRoutes = require('./routes/userRoutes.js');
 const salesRoutes = require('./routes/salesRoutes.js');
 
@@ -21,7 +21,7 @@ app.use(bodyParser.urlencoded({ extended: true }));
 app.use('/api/purchases', purchasesRouter);
 app.use('/api/stakeholders', stakeholdersRouter);
 app.use('/api/products', productsRouter);
-app.use('/api', appointmentsRouter);
+app.use('/api/appointment', appointmentsRouter);
 app.use("/api/user", userRoutes); 
 app.use("/api/sales", salesRoutes); 
 
