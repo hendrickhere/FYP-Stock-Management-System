@@ -46,4 +46,4 @@ const Appointment = sequelize.define("appointments", {
   },
 });
 
-export default Appointment; 
+module.exports=Appointment; 

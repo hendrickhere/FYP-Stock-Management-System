@@ -1,8 +1,7 @@
 const bcrypt = require("bcryptjs");
 const sequelize = require("../db-config");
+const {Customer, User, SalesOrder, Product, Organization, SalesOrderProduct} = require ("../models/association");
 
-
-const {Customer, User, SalesOrder, Inventory, Organization, SalesOrderInventory} = require("../models/association");
 
 async function getUserByUsername(username) {
   const user = await User.findOne({
@@ -23,7 +22,7 @@ async function getCustomerByUUID(uuid){
 }
 
 async function getInventoryByUUID(uuid) {
-  const inventory = await Inventory.findOne({
+  const inventory = await Product.findOne({
     where: {
       status_id: 1, 
       product_uuid: uuid,
@@ -124,15 +123,21 @@ exports.addCustomer = async (customerData, username) => {
   }
 };
 
-exports.getAllCustomers = async (username) => {
+exports.getAllCustomers = async (username, pageNumber, pageSize) => {
   const user = await getUserByUsername(username);
+  
   if (user) {
     const customers = await Customer.findAll({
-      where: {
-        user_id: user.user_id,
-      },
+      include: [
+        {
+          model: User,
+          where: {
+            organization_id: user.organization_id, 
+          }, 
+          attributes: []
+        },
+      ]
     });
-
     if (!customers) {
       throw new Error("No customers found.");
     }
@@ -182,7 +187,7 @@ exports.addInventory = async (username, inventoryData) => {
     images
   } = inventoryData;
   if (user) {
-    const inventory = await Inventory.create({
+    const inventory = await Product.create({
       product_name: inventoryName,
       product_stock: inventoryStock,
       sku_number: skuNumber,
@@ -241,14 +246,14 @@ exports.updateInventory = async (username, inventoryUUID, updateData) => {
     status_id: 1
   };
   if (user) {
-    const updated = await Inventory.update(dbData, {
+    const updated = await Product.update(dbData, {
       where: {
         product_uuid: inventoryUUID,
         user_id: user.user_id,
       },
     });
     if (updated) {
-      const updatedInventory = await Inventory.findOne({
+      const updatedInventory = await Product.findOne({
         where: {
           product_uuid: inventoryUUID,
         },
@@ -267,7 +272,7 @@ exports.getAllInventory = async (username) => {
   if (!user) {
     throw new Error("User not found");
   };
-  const inventories = await Inventory.findAll({
+  const inventories = await Product.findAll({
     where: {
       organization_id: user.organization_id, 
       status_id: 1,
@@ -321,7 +326,7 @@ exports.addSalesOrder = async (username, salesOrderData) => {
       }
 
       const price = itemObj.price * item.quantity;
-      await SalesOrderInventory.create(
+      await SalesOrderProduct.create(
         {
           sales_order_id: salesOrder.sales_order_id,
           product_id: itemObj.product_id,
@@ -336,7 +341,7 @@ exports.addSalesOrder = async (username, salesOrderData) => {
       if(leftoverStock < 0){
         throw new Error("Unable to create sales order due to low stock volume, please try again after stock volume is increased.")
       }
-      await Inventory.update(
+      await Product.update(
         { product_stock: leftoverStock },
         {
           where: {
@@ -364,9 +369,9 @@ exports.getSalesOrder = async (username) => {
     where: { organization_id: user.organization_id },
     include: [
       {
-        model: Inventory,
+        model: Product,
         through: {
-          model: SalesOrderInventory,
+          model: SalesOrderProduct,
           attributes: ["quantity", "price"],
         },
       },
@@ -382,32 +387,36 @@ exports.getSalesOrder = async (username) => {
       },
     ],
   });
-  const totalPricePromises = salesOrders.map(async (order) => {
-    const total = await SalesOrderInventory.findOne({
-    where: { sales_order_id: order.sales_order_id },
-      attributes: [[sequelize.literal('SUM(price * quantity)'), 'total_price']],
-      raw: true
-    });
-    return { sales_order_id: order.sales_order_id, total_price: total.total_price };
-  });
-  
-  const totalPrices = await Promise.all(totalPricePromises);
 
-  const salesOrdersWithTotalPrice = salesOrders.map(order => {
-    const totalPrice = totalPrices.find(tp => tp.sales_order_id === order.sales_order_id).total_price;
+  if (!salesOrders || salesOrders.length === 0) {
+    throw new Error("Sales Orders not found.");
+  }
+
+  const totalPriceResults = await SalesOrderProduct.findAll({
+    where: {
+      sales_order_id: salesOrders.map((order) => order.sales_order_id),
+    },
+    attributes: [
+      "sales_order_id",
+      [sequelize.literal("SUM(price * quantity)"), "total_price"],
+    ],
+    group: ["sales_order_id"],
+    raw: true,
+  });
+
+  const salesOrdersWithTotalPrice = salesOrders.map((order) => {
+    const totalPriceEntry = totalPriceResults.find(
+      (tp) => tp.sales_order_id === order.sales_order_id
+    );
     return {
       ...order.toJSON(),
-      total_price: totalPrice
+      total_price: totalPriceEntry ? totalPriceEntry.total_price : 0, 
     };
   });
 
-  
-  if(!salesOrdersWithTotalPrice){
-    throw new Error("Sales Orders not found.");
-  }
-  return salesOrdersWithTotalPrice; 
+  return salesOrdersWithTotalPrice;
+};
 
-}
 
 exports.deleteInventory = async (username, inventoryuuid) => {
   const user = await getUserByUsername(username);
@@ -417,7 +426,7 @@ exports.deleteInventory = async (username, inventoryuuid) => {
     throw new Error("User not found");
   }
   try{
-    const inventory = await Inventory.update(
+    const inventory = await Product.update(
       {status_id: 0},
       {
         where : {
@@ -432,13 +441,13 @@ exports.deleteInventory = async (username, inventoryuuid) => {
       throw new Error("Inventory not found"); 
     } 
   
-    const salesOrderInventory = await SalesOrderInventory.findAll({
+    const salesOrderInventory = await SalesOrderProduct.findAll({
       where: {product_id: itemObj.product_id},
       transaction,
     })
   
     for (const entry of salesOrderInventory) {
-      await SalesOrderInventory.update(
+      await SalesOrderProduct.update(
         { status_id: 0 },
         {
           where: { product_id: entry.product_id, status_id: 1 },

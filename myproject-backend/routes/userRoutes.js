@@ -11,14 +11,15 @@ router.post('/:username/addCustomer', UserController.addCustomer);
 router.get('/:username/customers', UserController.getAllCustomers);
 router.get('/:username/customer/:customeruuid', UserController.getCustomer);
 
+router.post('/:username/salesOrder', UserController.addSalesOrder);
+router.get('/:username/salesOrders', UserController.getSalesOrder);
+
 router.post('/:username/addInventory', UserController.addInventory);
 router.get('/:username/inventories', UserController.getAllInventory);
 router.put('/:username/:inventoryuuid/editInventory', UserController.updateInventory);
 router.put('/:username/:inventoryuuid/delete', UserController.deleteInventory);
 router.get("/:username/:inventoryuuid", UserController.getInventory);
 
-router.post('/:username/salesOrder', UserController.addSalesOrder);
-router.get('/:username/salesOrders', UserController.getSalesOrder);
 
 
 

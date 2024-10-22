@@ -1,9 +1,10 @@
 const Customer = require('./customer');
 const User = require('./user');
 const SalesOrder = require('./salesOrder');
-const Inventory = require("./inventory");
+const Product = require("./inventory");
 const Organization = require("./organization");
-const SalesOrderInventory = require("./salesOrderInventory");
+const SalesOrderProduct = require("./salesOrderInventory");
+const Appointments = require("./appointment");
 
 
 //#region Customer and SalesOrder
@@ -30,15 +31,15 @@ Organization.hasMany(SalesOrder, {
   })
 //#endregion
 
-//#region SalesOrder and Inventory 
+//#region SalesOrder and Product 
 //(many to many)
-SalesOrder.belongsToMany(Inventory, {
-  through: SalesOrderInventory,
+SalesOrder.belongsToMany(Product, {
+  through: SalesOrderProduct,
   foreignKey: "sales_order_id",
 });
-Inventory.belongsToMany(SalesOrder, {
-  through: SalesOrderInventory,
-  foreignKey: "inventory_id",
+Product.belongsToMany(SalesOrder, {
+  through: SalesOrderProduct,
+  foreignKey: "product_id",
 });
 //#endregion
 
@@ -47,14 +48,14 @@ User.hasMany(Customer, {foreignKey: 'user_id', onDelete: 'CASCADE'});
 Customer.belongsTo(User, {foreignKey : 'user_id', onDelete: 'CASCADE'});
 //#endregion
 
-//#region Organization and Inventory
-Organization.hasMany(Inventory, {foreignKey: 'organization_id', onDelete: 'CASCADE'});
-Inventory.belongsTo(Organization, {foreignKey: 'organization_id', onDelete: 'CASCADE'});
+//#region Organization and Product
+Organization.hasMany(Product, {foreignKey: 'organization_id', onDelete: 'CASCADE'});
+Product.belongsTo(Organization, {foreignKey: 'organization_id', onDelete: 'CASCADE'});
 //#endregion
 
-//#region User and Inventory
-Inventory.belongsTo(User, {foreignKey: "user_id"});
-User.hasMany(Inventory, {foreignKey: "user_id"}); 
+//#region User and Product
+Product.belongsTo(User, {foreignKey: "user_id"});
+User.hasMany(Product, {foreignKey: "user_id"}); 
 //#endregion
 
 //#region User and Organization
@@ -62,4 +63,8 @@ User.belongsTo(Organization, {foreignKey: 'organization_id', onDelete: 'CASCADE'
 Organization.hasMany(User, {foreignKey: 'organization_id', onDelete: 'CASCADE'});
 //#endregion
 
-module.exports = {Customer, User, SalesOrder, Inventory, Organization, SalesOrderInventory}
+Appointments.belongsTo(Customer, {foreignKey: 'customer_id', onDelete: "CASCAD"});
+Customer.hasMany(Appointments, {foreignKey: 'customer_id', onDelete: "CASCADE"});
+
+
+module.exports = {Customer, User, SalesOrder, Product, Organization, SalesOrderProduct, Appointments}
