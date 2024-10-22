@@ -1,0 +1,10 @@
+{
+  "dependencies": {
+    "browserify-zlib": "^0.2.0",
+    "dotenv": "^16.4.5",
+    "jsonwebtoken": "^9.0.2",
+    "openai": "^4.67.3",
+    "querystring-browser": "^1.0.4",
+    "stream-browserify": "^3.0.0"
+  }
+}

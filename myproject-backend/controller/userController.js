@@ -1,4 +1,26 @@
 const UserService = require("../service/userService");
+const jwt = require('jsonwebtoken');
+
+exports.getCurrentUser = async (req, res) => {
+  try {
+    console.log("Received request to fetch current user"); // Log that request was received
+    console.log("Request User ID:", req.user?.id); // Log the user ID from req
+    // Assuming `req.user` is populated by the auth middleware
+    const user = await UserService.getUserById(req.user.id);
+    if (!user) {
+      console.log("User not found with ID:", req.user.id);
+      return res.status(404).json({ message: 'User not found' });
+    }
+    console.log("User data fetched successfully:", user.username);
+    return res.status(200).json({ username: user.username }); // Make sure to return the username
+  } catch (error) {
+    console.error("Error fetching current user:", error);
+    return res.status(500).json({ message: 'Server error', error: error.message });
+  }
+  console.log('Fetching user with ID:', req.user.id); // Check if the ID is correct
+
+};
+
 
 exports.signup = async (req, res) => {
   console.log("Received signup data:", req.body);
@@ -19,16 +41,31 @@ exports.signup = async (req, res) => {
 };
 
 exports.login = async (req, res) => {
-  const loginData = req.body;
   try {
-    const user = await UserService.login(loginData);
-    res.status(200).send({ message: "Login successful", user: user });
-  } catch (err) {
-    if (err.message === "Invalid Credentials") {
-      res.status(403).send({ message: err.message });
-    } else if (err.message === "User not found") {
-      res.status(404).send({ message: err.message });
+    console.log("Login request received:", req.body); // Log incoming request
+
+    const { email, password } = req.body;
+
+    // Validate that required fields are provided
+    if (!email || !password) {
+      return res.status(400).json({ message: "Email and password are required" });
     }
+
+    // Call verifyUser from UserService
+    const user = await UserService.verifyUser(email, password);
+    if (!user) {
+      return res.status(401).json({ message: 'Invalid credentials' }); // Return if credentials are invalid
+    }
+
+    // Generate a JWT token for the verified user
+    console.log("Generating token for user:", user.username);
+    const token = jwt.sign({ id: user.user_id, username: user.username }, 'secretkey123', { expiresIn: '1h' });
+
+    // Return token and user details to frontend
+    res.status(200).json({ message: 'Login successful', token, user: { username: user.username } });
+  } catch (error) {
+    console.error("Error during login:", error);
+    res.status(500).json({ message: 'Server error', error: error.message });
   }
 };
 

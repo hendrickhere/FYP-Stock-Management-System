@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const UserController = require('../controller/userController');
+const authMiddleware = require('../backend-middleware/authMiddleware');
 
 //add here, and then construct the controller and service method, service is 
 //data access layer, while controller is the presentation layer
@@ -19,6 +20,10 @@ router.get("/:username/:inventoryuuid", UserController.getInventory);
 
 router.post('/:username/salesOrder', UserController.addSalesOrder);
 router.get('/:username/salesOrders', UserController.getSalesOrder);
+
+router.get('/current', authMiddleware, UserController.getCurrentUser);
+
+
 
 
 

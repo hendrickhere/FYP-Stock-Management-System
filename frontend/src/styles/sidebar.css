@@ -1,6 +1,6 @@
 .sidebar {
   display: flex;
-  width: 14vw;
+  width: 13rem;
   background-color: #38304C;
   color: black;
   display: flex;
@@ -10,8 +10,7 @@
   padding-right: 20px;
   position: fixed;
   bottom: 0;
-  top: 9.2vh;
-  z-index: 1;
+  top:5rem;
 }
 
 .sidebar-icon {

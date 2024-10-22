@@ -1,8 +1,8 @@
 {
   "development": {
     "username": "postgres",
-    "password": "CKlim@98305751",
-    "database": "stocksavvy",
+    "password": "FHchen@123456",
+    "database": "Stock_Management",
     "host": "127.0.0.1",
     "dialect": "postgres"
   }

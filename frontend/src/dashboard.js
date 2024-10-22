@@ -1,28 +1,38 @@
 import React, { useState } from 'react';
-import './styles/dashboard.css'; 
 import Sidebar from './sidebar';
 import Header from './header';
 
 
 function Dashboard() {
   return (
-    <div className="dashboard-container">
+    <div className="flex flex-col h-screen w-full">
       <Header/> 
+      <div className="flex flex-row flex-grow">
       <Sidebar />
       <MainContent />
+      </div>
     </div>
   );
 }
 
 function MainContent() {
   return (
-    <div className='main-content-dashboard'>
-    <div className="main-content-left">
+    <div className="flex 
+                    flex-grow 
+                    flex-row 
+                    bg-gray-100 
+                    ml-52
+                    p-4
+                    ">
+    <div className="flex 
+                    flex-col 
+                    flex-grow 
+                    pr-6">
       <Overview />
       <StockGraph/>
       <SalesOrders />
     </div>
-    <div className='main-content-right'>
+    <div className="flex flex-col grow-0">
       <KPIs />
     </div>
     </div>
@@ -31,22 +41,22 @@ function MainContent() {
 
 function Overview() {
   return (
-    <div className="overview">
-      <h2>Overview</h2>
+    <div className="">
+      <h2 className="font-bold text-2xl">Overview</h2>
     </div>
   );
 }
 
 function StockGraph() {
   return (
-    <div className="stock-graph">Stock Graph</div>
+    <div className="bg-white p-6 mt-6 rounded-lg shadow-md flex-grow">Stock Graph</div>
   )
 }
 
 function SalesOrders() {
   return (
-    <div className="sales-orders">
-      <h2>Sales Order Summary</h2>
+    <div className="bg-white p-6 mt-6 rounded-lg shadow-md flex-grow">
+      <h2 className="font-bold text-lg">Sales Order Summary</h2>
       {/* Placeholder for sales orders data */}
       <table>
         {/* Table rows and cells */}
@@ -55,9 +65,9 @@ function SalesOrders() {
   );
 }
 
-function KPIs() {
+function KPIs({label, value}) {
   return (
-    <div className="kpis">
+    <div className="text-blue-600 mb-4 p-4 bg-white rounded-lg shadow-md font-medium flex-grow">
       <RegisteredCustomers />
       <TodaySales />
       <TotalProductsRegistered />

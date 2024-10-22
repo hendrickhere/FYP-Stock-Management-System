@@ -1,9 +1,15 @@
 const Customer = require('./customer');
+console.log('Customer model loaded:', Customer); // Debugging log
 const User = require('./user');
+console.log('User model loaded:', User); // Debugging log
 const SalesOrder = require('./salesOrder');
+console.log('SalesOrder model loaded:', SalesOrder); // Debugging log
 const Inventory = require("./inventory");
+console.log('Inventory model loaded:', Inventory); // Debugging log
 const Organization = require("./organization");
+console.log('Organization model loaded:', Organization); // Debugging log
 const SalesOrderInventory = require("./salesOrderInventory");
+console.log('SalesOrderInventory model loaded:', SalesOrderInventory); // Debugging log
 
 
 //#region Customer and SalesOrder
