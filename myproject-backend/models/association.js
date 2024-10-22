@@ -10,8 +10,10 @@ const Organization = require("./organization");
 console.log('Organization model loaded:', Organization); // Debugging log
 const SalesOrderInventory = require("./salesOrderInventory");
 console.log('SalesOrderInventory model loaded:', SalesOrderInventory); // Debugging log
-
-
+const Product = require('./inventory');
+console.log('Product model loaded:', Product); // Debugging log
+const Appointment = require('./appointment');
+console.log('Appointment model loaded:', Appointment);
 
 //#region Customer and SalesOrder
 //(one to many)
@@ -40,11 +42,11 @@ Organization.hasMany(SalesOrder, {
 //#region SalesOrder and Product 
 //(many to many)
 SalesOrder.belongsToMany(Product, {
-  through: SalesOrderProduct,
+  through: SalesOrderInventory,
   foreignKey: "sales_order_id",
 });
 Product.belongsToMany(SalesOrder, {
-  through: SalesOrderProduct,
+  through: SalesOrderInventory,
   foreignKey: "product_id",
 });
 //#endregion
@@ -69,8 +71,8 @@ User.belongsTo(Organization, {foreignKey: 'organization_id', onDelete: 'CASCADE'
 Organization.hasMany(User, {foreignKey: 'organization_id', onDelete: 'CASCADE'});
 //#endregion
 
-Appointments.belongsTo(Customer, {foreignKey: 'customer_id', onDelete: "CASCAD"});
-Customer.hasMany(Appointments, {foreignKey: 'customer_id', onDelete: "CASCADE"});
+Appointment.belongsTo(Customer, {foreignKey: 'customer_id', onDelete: "CASCAD"});
+Customer.hasMany(Appointment, {foreignKey: 'customer_id', onDelete: "CASCADE"});
 
 
-module.exports = {Customer, User, SalesOrder, Product, Organization, SalesOrderProduct, Appointments}
+module.exports = {Customer, User, SalesOrder, Product, Organization, SalesOrderInventory, Appointment}
