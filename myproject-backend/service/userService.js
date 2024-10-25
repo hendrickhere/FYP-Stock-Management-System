@@ -51,6 +51,27 @@ async function getInventoryByUUID(uuid) {
   return inventory; 
 }
 
+// Function to store refresh token in the database
+async function storeRefreshToken(userId, refreshToken) {
+  try {
+    await User.update({ refreshToken }, { where: { user_id: userId } });
+    console.log('Refresh token stored successfully');
+  } catch (error) {
+    console.error('Error storing refresh token:', error);
+  }
+}
+
+// Function to verify the refresh token in the database
+async function verifyRefreshToken(userId, refreshToken) {
+  try {
+    const user = await User.findOne({ where: { user_id: userId, refreshToken } });
+    return user ? true : false;
+  } catch (error) {
+    console.error('Error verifying refresh token:', error);
+    return false;
+  }
+}
+
 exports.signup = async (userData) => {
   const { username, email, password, role, created_at } = userData;
 
@@ -95,13 +116,29 @@ exports.login = async (loginData) => {
     const user = result.dataValues;
     const isValid = await bcrypt.compare(password, user.password_hash);
     if (isValid) {
-      const token = jwt.sign(
+      // Generate access token
+      const accessToken = jwt.sign(
         { id: user.user_id, username: user.username },
-        'secretkey123', // Secret key for JWT - make sure this matches authMiddleware
-        { expiresIn: '1h' } // Token validity
+        'secretkey123', // Secret key for JWT 
+        { expiresIn: '15m' } // Access token valid for 15 minutes
       );
 
-      return { message: 'Login successful', token, user: { username: user.username } };
+      // Generate refresh token
+      const refreshToken = jwt.sign(
+        { id: user.user_id, username: user.username },
+        'refresh-secretkey', // Secret key for refresh token
+        { expiresIn: '30d' } // Refresh token valid for 30 days
+      );
+
+      // Store the refresh token in the database
+      await storeRefreshToken(user.user_id, refreshToken);
+
+      return { 
+        message: 'Login successful', 
+        accessToken, 
+        refreshToken, 
+        user: { username: user.username }
+      };
     } else {
       throw new Error("Invalid Credentials");
     }
@@ -543,5 +580,6 @@ exports.getInventory = async (username, inventoryUUID) => {
 }
 
 exports.getUserById = getUserById;
-
+exports.storeRefreshToken = storeRefreshToken;
+exports.verifyRefreshToken = verifyRefreshToken
 
