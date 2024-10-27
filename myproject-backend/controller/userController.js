@@ -1,5 +1,34 @@
 const UserService = require("../service/userService");
 const jwt = require('jsonwebtoken');
+const {
+  ACCESS_TOKEN_SECRET,
+  REFRESH_TOKEN_SECRET,
+  ACCESS_TOKEN_EXPIRY,
+  REFRESH_TOKEN_EXPIRY
+} = require('../config/config');
+
+const generateAccessToken = (user) => {
+  return jwt.sign(
+    { 
+      id: user.user_id, 
+      username: user.username 
+    },
+    ACCESS_TOKEN_SECRET,
+    { expiresIn: ACCESS_TOKEN_EXPIRY }
+  );
+};
+
+// Function to generate a refresh token
+const generateRefreshToken = (user) => {
+  return jwt.sign(
+    { 
+      id: user.user_id, 
+      username: user.username 
+    },
+    REFRESH_TOKEN_SECRET,
+    { expiresIn: REFRESH_TOKEN_EXPIRY }
+  );
+};
 
 exports.getCurrentUser = async (req, res) => {
   try {
@@ -21,6 +50,40 @@ exports.getCurrentUser = async (req, res) => {
 
 };
 
+exports.refreshToken = async (req, res) => {
+  const { refreshToken } = req.body;
+
+  if (!refreshToken) {
+    return res.status(401).json({ message: 'Refresh token is required' });
+  }
+
+  try {
+    const user = await UserService.getUserByRefreshToken(refreshToken);
+    
+    if (!user) {
+      return res.status(401).json({ message: 'Invalid refresh token' });
+    }
+
+    jwt.verify(refreshToken, REFRESH_TOKEN_SECRET, (err, decoded) => {
+      if (err) {
+        return res.status(401).json({ message: 'Invalid refresh token' });
+      }
+
+      const accessToken = generateAccessToken(user);
+      const newRefreshToken = generateRefreshToken(user);
+
+      UserService.storeRefreshToken(user.user_id, newRefreshToken);
+
+      res.status(200).json({
+        accessToken,
+        refreshToken: newRefreshToken
+      });
+    });
+  } catch (error) {
+    console.error("Error refreshing token:", error);
+    res.status(500).json({ message: 'Server error' });
+  }
+};
 
 exports.signup = async (req, res) => {
   console.log("Received signup data:", req.body);
@@ -57,12 +120,16 @@ exports.login = async (req, res) => {
       return res.status(401).json({ message: 'Invalid credentials' }); // Return if credentials are invalid
     }
 
-    // Generate a JWT token for the verified user
+    // Generate an access token and a refresh token for the verified user
     console.log("Generating token for user:", user.username);
-    const token = jwt.sign({ id: user.user_id, username: user.username }, 'secretkey123', { expiresIn: '1h' });
+    const accessToken = generateAccessToken(user);
+    const refreshToken = generateRefreshToken(user);
 
-    // Return token and user details to frontend
-    res.status(200).json({ message: 'Login successful', token, user: { username: user.username } });
+    // Store the refresh token in the user's database record
+    await UserService.storeRefreshToken(user.user_id, refreshToken);
+
+    // Return tokens and user details
+    res.status(200).json({ message: 'Login successful', accessToken, refreshToken, user: { username: user.username } });
   } catch (error) {
     console.error("Error during login:", error);
     res.status(500).json({ message: 'Server error', error: error.message });

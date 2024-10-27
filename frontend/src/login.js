@@ -60,7 +60,9 @@ function Login({ onLoginSuccess }) {
         setName('');
       } else if (response.data.message === 'Login successful') {
         alert('Login successful!');
-        localStorage.setItem('token', response.data.token);
+        localStorage.setItem('accessToken', response.data.accessToken);
+        localStorage.setItem('refreshToken', response.data.refreshToken);
+        localStorage.setItem('username', response.data.user.username);
         setUsername(response.data.user.username);
         navigate('/dashboard');
       } else {
