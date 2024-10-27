@@ -21,6 +21,15 @@ SalesOrder.belongsTo(Customer, { foreignKey: "customer_id" });
 Customer.hasMany(SalesOrder, { foreignKey: "customer_id" });
 //#endregion 
 
+SalesOrder.hasMany(SalesOrderInventory, {
+    foreignKey: 'sales_order_id',
+    as: 'items'
+});
+
+SalesOrderInventory.belongsTo(SalesOrder, {
+    foreignKey: 'sales_order_id'
+});
+
 //#region Order and User 
 //(one to many)
 SalesOrder.belongsTo(User, { foreignKey: "user_id", onDelete: "CASCADE" });

@@ -1,10 +1,9 @@
 import React, { useState, useEffect, useContext } from "react";
-import "./styles/sales.css";
 import Header from "./header";
 import Sidebar from "./sidebar";
 import { useNavigate } from 'react-router-dom';
 import { GlobalContext } from "./globalContext";
-import axios from "axios";
+import axiosInstance from './axiosConfig';
 import SalesTable from './salesOrderTable';
 
 function Sales() {
@@ -37,17 +36,34 @@ function MainContent() {
     fetchSalesOrder();
   }, [render]);
 
-  async function fetchSalesOrder(){
-    console.log(`http://localhost:3002/api/user/${username}/salesOrders`);
-    await axios.get(`http://localhost:3002/api/user/${username}/salesOrders`).then((response) => {
-      setData(() => response.data);
-      console.log(`response is here! + ${response.data}`);
-      setLoading(() => false);
-    })
+  async function fetchSalesOrder() {
+      try {
+          setLoading(true);
+          const encodedUsername = encodeURIComponent(username);
+          console.log('Fetching sales orders for username:', encodedUsername);
+          
+          const response = await axiosInstance.get(`/sales/user/${encodedUsername}`);
+          console.log('API Response:', response.data);
+          
+          if (response.data && Array.isArray(response.data.salesOrders)) {
+              setData(response.data);
+          } else {
+              console.error('Unexpected response format:', response.data);
+              setData({ salesOrders: [] });  // Set empty array instead of null
+          }
+      } catch (error) {
+          console.error('Error fetching sales orders:', error);
+          if (error.response) {
+              console.error('Error response:', error.response.data);
+          }
+          setData({ salesOrders: [] });  // Set empty array instead of null
+      } finally {
+          setLoading(false);
+      }
   }
 
   return (
-    <div className="flex-1 ml-52 p-4 overflow-y-auto">
+    <div className="flex-auto ml-52 p-4">
       <div className="flex flex-row">
         <h1 className="text-2xl font-bold">Sales Order</h1>
         <input
@@ -56,7 +72,10 @@ function MainContent() {
           value={filter}
           onChange={handleFilterChange}
         />
-        <button className="ml-[150px] flex items-center space-x-2 px-4 py-2 bg-white text-green-700 font-medium rounded-lg shadow hover:bg-green-600 hover:text-white focus:outline-none focus:ring-2 focus:ring-green-400 focus:ring-opacity-75"
+        </div>
+        <div className="flex flex-column">
+        <div className="flex flex-row">
+        <button className="flex items-center mt-3 space-x-2 px-4 py-2 bg-white text-green-700 font-medium rounded-lg shadow hover:bg-green-600 hover:text-white focus:outline-none focus:ring-2 focus:ring-green-400 focus:ring-opacity-75"
           onClick={navigateToAddSalesPage}>
             <svg
               class="w-5 h-5"
@@ -74,8 +93,9 @@ function MainContent() {
             </svg>
             <span>Create Order</span>
           </button>
+        </div>  
       </div>
-      <div className="flex-1 mt-[20px]">
+      <div className="flex-1 mt-[20px] w-full">
         
         {!loading && data && (
           <SalesTable

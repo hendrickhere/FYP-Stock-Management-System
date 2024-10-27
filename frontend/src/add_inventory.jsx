@@ -177,7 +177,7 @@ function MainContent({data, isAdd}) {
 
 
   return (
-    <div className="ml-[220px] mt-[80px] h-auto overflow-auto">
+    <div className="ml-52 h-auto overflow-auto">
       <div className="flex ms-5 mb-2 me-5 mt-5">
         <p className="flex-1 font-bold text-3xl ms-5" type="submit">
           Add Inventory

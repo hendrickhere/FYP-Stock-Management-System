@@ -6,7 +6,7 @@ import { useNavigate } from 'react-router-dom';
 import axios from 'axios'; 
 import { GlobalContext } from "./globalContext";
 import ProductTable from "./inventoryTable";
-
+import { CiExport } from "react-icons/ci";
 
 function Inventory() {
   return (
@@ -88,7 +88,7 @@ function MainContent () {
           onChange={handleFilterChange}
         />
       </div>
-      <div className="flex flex-column">
+        <div className="flex flex-column">
         <div className="flex flex-row">
           <button
             className="flex items-center mt-3 space-x-2 px-4 py-2 bg-white text-green-700 font-medium rounded-lg shadow hover:bg-green-600 hover:text-white focus:outline-none focus:ring-2 focus:ring-green-400 focus:ring-opacity-75"
@@ -109,6 +109,10 @@ function MainContent () {
               ></path>
             </svg>
             <span>Add Product</span>
+          </button>
+          <button className="flex items-center mt-3 space-x-2 px-4 py-2 bg-white font-medium rounded-lg shadow focus:outline-none focus:ring-2 ml-3">
+            <CiExport />
+            <span>Export</span>
           </button>
         </div>
       </div>
