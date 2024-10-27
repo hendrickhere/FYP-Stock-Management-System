@@ -5,7 +5,7 @@ import { FaTrashAlt, FaEdit, FaEllipsisV } from 'react-icons/fa';
 const ProductTable = (props) => {
     const {products, handleDeleteData, handleEditData} = props;
   return (
-    <div className="container mx-auto p-4 flex flex-col">
+    <div className="container mr-auto ml-0 p-4 flex flex-col">
       <h2 className="text-2xl font-bold mb-4">Product List</h2>
       <div className="overflow-x-auto">
         <table className="min-w-full bg-white border border-gray-300 rounded-lg shadow-md">
