@@ -84,6 +84,7 @@ function MainContent () {
           className="ml-[30px] mb-2 h-8 w-80 border-2 me-4 border-border-grey ps-2 rounded-lg"
           type="text"
           value={filter}
+          placeholder="Search"
           onChange={handleFilterChange}
         />
       </div>

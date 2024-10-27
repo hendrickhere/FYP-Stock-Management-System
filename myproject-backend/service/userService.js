@@ -61,14 +61,15 @@ async function storeRefreshToken(userId, refreshToken) {
   }
 }
 
-// Function to verify the refresh token in the database
-async function verifyRefreshToken(userId, refreshToken) {
+// Function to get user by refresh token
+async function getUserByRefreshToken(refreshToken) {
   try {
-    const user = await User.findOne({ where: { user_id: userId, refreshToken } });
-    return user ? true : false;
+    const user = await User.findOne({ where: { refreshToken } });
+    if (!user) throw new Error('User not found');
+    return user.dataValues;
   } catch (error) {
-    console.error('Error verifying refresh token:', error);
-    return false;
+    console.error('Error getting user by refresh token:', error);
+    throw error;
   }
 }
 
@@ -581,5 +582,5 @@ exports.getInventory = async (username, inventoryUUID) => {
 
 exports.getUserById = getUserById;
 exports.storeRefreshToken = storeRefreshToken;
-exports.verifyRefreshToken = verifyRefreshToken
+exports.getUserByRefreshToken = getUserByRefreshToken;
 

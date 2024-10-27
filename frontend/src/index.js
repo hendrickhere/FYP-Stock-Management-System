@@ -11,6 +11,7 @@ import Appointments from './appointments';
 import AddSales from './add_sales';
 import AddInventory from './add_inventory';
 import { GlobalProvider } from './globalContext';
+import Chatbot from './chatbotUI/chatbot';
 import './styles/tailwind.css';
 import './styles/login.css';
 
@@ -30,6 +31,7 @@ ReactDOM.render(
           <Route path="/appointments" element={<Appointments />} />
           <Route path="/sales/add_sales" element={<AddSales />}></Route>
           <Route path="/inventory/add_inventory" element={<AddInventory/>}></Route>
+          <Route path="/chatbot" element={<Chatbot/>}></Route>
         </Routes>
       </Router>
     </GlobalProvider>

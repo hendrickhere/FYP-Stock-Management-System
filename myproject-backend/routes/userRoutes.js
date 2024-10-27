@@ -23,18 +23,9 @@ router.get("/:username/:inventoryuuid", UserController.getInventory);
 
 
 router.get('/current', authMiddleware, UserController.getCurrentUser);
-
-
-
-
-
-
-
+router.post('/refresh-token', UserController.refreshToken);
 
 
 //router.post('/:username/registerOrganization', UserController.registerOrganization);
-
-
-
-
+console.log('UserRoutes loaded successfully');
 module.exports = router;
