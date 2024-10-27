@@ -1,5 +1,5 @@
 const { username } = require('../env');
-const {Appointments, User, Customer, Organization} = require('../models/association');
+const {Appointment, User, Customer, Organization} = require('../models/association');
 
 exports.getAllAppointmentWithCustomersId = async (customerId) => {
     const appointments = await Appointments.findAll(
@@ -11,6 +11,27 @@ exports.getAllAppointmentWithCustomersId = async (customerId) => {
     );
 
     return appointments; 
+}
+
+exports.insertAppointment = async (requestBody) => {
+  const { customer_id, service_type, appointment_date, time_slot, technician, status, location } = requestBody;
+  try {
+    const result = await Appointment.create({
+      customer_id: customer_id,
+      service_type: service_type,
+      appointment_date: appointment_date,
+      time_slot: time_slot,
+      technician: technician,
+      status: status,
+      location: location,
+    });
+    const message = "Appointment created: " + result.toJSON();
+    console.log(message);
+    return true; 
+  } catch (err) {
+    console.error("Error creating appointment:", err);
+    throw new err; 
+  }
 }
 
 exports.getAllAppointmentWithUsername = async (username, pageNumber, pageSize) => {
@@ -47,3 +68,61 @@ exports.getAllAppointmentWithUsername = async (username, pageNumber, pageSize) =
     
       return appointments;
 }
+
+exports.updateAppointment = async (appointmentId, requestBody) => {
+  const {
+    customer_id,
+    service_type,
+    appointment_date,
+    time_slot,
+    technician,
+    status,
+    location,
+  } = requestBody;
+
+  try {
+    const [affectedRows, updatedAppointments] = await Appointment.update(
+      {
+        customer_id: customer_id,
+        service_type: service_type,
+        appointment_date: appointment_date,
+        time_slot: time_slot,
+        technician: technician,
+        status: status,
+        location: location,
+      },
+      {
+        where: {
+          appointment_id: appointmentId,
+        },
+        returning: true,
+      }
+    );
+
+    if (affectedRows === 0) {
+      return null;
+    }
+
+    return updatedAppointments[0];
+  } catch (err) {
+    console.error("Error updating appointment:", error);
+    throw err;
+  }
+};
+
+exports.deleteAppointment = async (appointmentId) => {
+  try {
+    const result = await Appointment.destroy({
+      where: {
+        appointmentId: appointmentId,
+      },
+    });
+
+    if (deletedCount === 0) {
+      return false;
+    }
+    return true;
+  } catch (err) {
+    throw err;
+  }
+};

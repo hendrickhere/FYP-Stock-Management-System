@@ -1,3 +1,5 @@
 node_modules
 .env
 
+myproject-backend/env.js
+myproject-backend/config/config.json
