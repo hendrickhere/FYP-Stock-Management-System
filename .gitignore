@@ -3,3 +3,7 @@ node_modules
 
 myproject-backend/env.js
 myproject-backend/config/config.json
+myproject-backend/config/config.json
+myproject-backend/env.js
+myproject-backend/chatbot-api/chatBotServer.js
+/myproject-backend/config

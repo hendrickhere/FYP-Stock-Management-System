@@ -6,6 +6,7 @@ import { useNavigate } from 'react-router-dom';
 import axios from 'axios'; 
 import { GlobalContext } from "./globalContext";
 import PurchaseTable from "./purchaseTable";
+import instance from "./axiosConfig";
 
 function Purchases() {
   return(
@@ -25,14 +26,18 @@ function MainContent() {
   const [filter, setFilter] = useState("");
   const [render, setRender] = useState("false");
 
-  async function fetchPurchases() {
-    await axios
-    .get('http://localhost:3002/api/user/${username}/purchases')
-    .then((response) => {
-      setData(() => response.data);
-      console.log('response is here! + ${response.data}');
-      setLoading(() => false);
-    });
+  async function fetchPurchases(pageNumber, pageSize) {
+    try{
+      await instance
+      .get(`http://localhost:3002/api/purchases/${username}?pageNumber=${pageNumber}&pageSize=${pageSize}`)
+      .then((response) => {
+        setData(() => response.data);
+        console.log(`response is here! + ${response.data}`);
+        setLoading(() => false);
+      });
+    } catch (err){
+      console.error(err);
+    } 
   }
 
   async function deletePurchases(index) {
@@ -41,7 +46,7 @@ function MainContent() {
     );
     if (confirm) {
       await axios.put(
-        'http://localhost:3002/api/user/${username}/${data.purchases[index].purchases_order_id}/delete'
+        `http://localhost:3002/api/user/${username}/${data.purchases[index].purchases_order_id}/delete`
       )
       .then(() => {
         window.alert("Purchase Oder successfully deleted");
@@ -52,7 +57,7 @@ function MainContent() {
   }
 
   useEffect(() => {
-    fetchPurchases();
+    fetchPurchases(1, 10);
   }, [render]);
 
   function handleEditData(index) {

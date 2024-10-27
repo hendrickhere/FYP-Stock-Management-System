@@ -1,6 +1,5 @@
 const jwt = require('jsonwebtoken');
 const { ACCESS_TOKEN_SECRET } = require('../config/config.js');
-const UserService = require('../service/userService');
 
 module.exports = (req, res, next) => {
   try {

@@ -1,9 +1,9 @@
 const express = require('express');
 const router = express.Router();
 const axios = require('axios');
-const dotenv = require('dotenv');
+// const dotenv = require('dotenv');
 
-dotenv.config();
+// dotenv.config();
 
 const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
 

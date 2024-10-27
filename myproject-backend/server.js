@@ -3,7 +3,7 @@ const path = require('path');
 const bodyParser = require('body-parser');
 const cors = require('cors');
 const sequelize = require('./db-config.js');
-const purchasesRouter = require('./routes/purchases-CRUD');
+const purchasesRouter = require('./routes/purchaseRoutes.js');
 const stakeholdersRouter = require('./routes/stakeholders-CRUD');
 const productsRouter = require('./routes/product-CRUD');
 const appointmentsRouter = require('./routes/appointmentRoutes');
@@ -21,12 +21,13 @@ app.use(cors());
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
 
-app.use('/api/user', userRoutes);
+
 // Refresh token endpoint
 app.post('/api/token/refresh', userController.refreshToken);
 
 // API routes
 app.use(authMiddleware);
+app.use('/api/user', userRoutes);
 app.use('/api/purchases', purchasesRouter);
 app.use('/api/stakeholders', stakeholdersRouter);
 app.use('/api/products', productsRouter);

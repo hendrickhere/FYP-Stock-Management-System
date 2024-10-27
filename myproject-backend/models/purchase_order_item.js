@@ -42,4 +42,4 @@ const PurhcaseOrderItem = sequelize.define("purchase_order_items", {
     }
 });
 
-export default PurhcaseOrderItem;
+module.exports=PurhcaseOrderItem;
