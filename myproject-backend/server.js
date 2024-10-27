@@ -24,6 +24,8 @@ app.use(bodyParser.urlencoded({ extended: true }));
 
 // Refresh token endpoint
 app.post('/api/token/refresh', userController.refreshToken);
+app.post('/api/user/login', userController.login);
+app.post('/api/user/signup', userController.signup);
 
 // API routes
 app.use(authMiddleware);
