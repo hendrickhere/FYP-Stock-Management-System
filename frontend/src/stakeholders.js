@@ -127,7 +127,7 @@ function MainContent() {
               : 'bg-gray-50 hover:bg-gray-100'
           }`}
           style={{
-            marginBottom: '-1px', // Creates seamless connection with table below
+            marginBottom: '-4px', 
             borderBottom: view === 'vendor' ? '1px solid white' : 'none', // Hides the table border underneath
           }}
         >
@@ -165,7 +165,7 @@ function MainContent() {
 
       {/* Tables */}
       <div className="bg-white rounded-lg shadow-md">
-        <div className="border-t border-gray-200"> {/* Add top border for seamless connection */}
+        <div className="border-t border-gray-200"> 
           {loading && (
             <div className="p-8 text-center text-gray-500">Loading...</div>
           )}
