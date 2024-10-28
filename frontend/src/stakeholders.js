@@ -1,12 +1,31 @@
-import React, {useState, useEffect} from "react";
-import './styles/stakeholders.css';
+import React, { useState, useEffect, useContext } from "react";
 import Header from './header';
 import Sidebar from './sidebar';
-import axios from 'axios';
+import { useNavigate } from 'react-router-dom';
+import axiosInstance from './axiosConfig';
+import { Plus } from 'lucide-react';
+import VendorTable from './vendorTable';
+import CustomerTable from './customerTable';
+import StaffTable from './staffTable';
 
 function Stakeholders() {
+  return (
+    <div className="flex flex-col h-screen w-full">
+      <Header/> 
+      <div className="flex flex-row flex-grow">
+        <Sidebar />
+        <MainContent />
+      </div>
+    </div>
+  );
+}
+
+function MainContent() {
   const [view, setView] = useState('vendor');
-  const [data, setData] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [data, setData] = useState(null);
+  const [filter, setFilter] = useState("");
+  const navigation = useNavigate();
 
   useEffect(() => {
     fetchData();
@@ -14,331 +33,170 @@ function Stakeholders() {
 
   const fetchData = async () => {
     try {
-      const response = await axios.get(`http://localhost:3002/api/stakeholders/${view}s`);
+      setLoading(true);
+      const response = await axiosInstance.get(`/stakeholders/${view}s`);
       setData(response.data);
     } catch (error) {
-      console.error("Error fetching data", error);
+      console.error("Error fetching data:", error);
+      setData({ [view + 's']: [] });
+    } finally {
+      setLoading(false);
     }
   };
 
-  return (
-    <div className="stakeholders-container">
-      <Header />
-      <Sidebar />
-      <MainContent view={view} setView={setView} data={data} fetchData={fetchData} />
-    </div>
-  )
-}
-
-function MainContent({ view, setView, data, fetchData }) {
-  const [showModal, setShowModal] = useState(false);
-  const [modalType, setModalType] = useState('');
-  const [currentData, setCurrentData] = useState(null);
-
-  const handleAdd = (type) => {
-    setModalType(type);
-    setCurrentData(null);
-    setShowModal(true);
-  };
-
-  const handleEdit = (type, item) => {
-    setModalType(type);
-    setCurrentData(item);
-    setShowModal(true);
-  };
-
-  return (
-    <div className="main-content-stakeholders">
-      <MainContentTop />
-      <MainContentAddButtons handleAdd={handleAdd} />
-      <MainContentViewButtons setView={setView} />
-      <ViewTable view={view} data={data} fetchData={fetchData} handleEdit={handleEdit} />
-      {showModal && (
-        <AddModal 
-          type={modalType} 
-          setShowModal={setShowModal} 
-          fetchData={fetchData} 
-          currentData={currentData} 
-        />
-      )}
-    </div>
-  )
-}
-
-function MainContentTop() {
-  return (
-    <div className="title-and-searchbox-div">
-      <h2 className="stakeholders-title">Stakeholders</h2>
-      <input type="text" placeholder="Search" className="search-stakeholders"></input>
-    </div>
-  )
-}
-
-function MainContentAddButtons({ handleAdd }) {
-  return (
-    <div className="add-stakeholders-buttons">
-      <button className="add-vendor-button" onClick={() => handleAdd('vendor')}>Add vendor</button>
-      <button className="add-customer-button" onClick={() => handleAdd('customer')}>Add customer</button>
-      <button className="add-staff-button" onClick={() => handleAdd('staff')}>Add staff</button>
-    </div>
-  )
-}
-
-function MainContentViewButtons({ setView }) {
-  return (
-    <div className="view-stakeholders-buttons">
-      <button className="view-vendor-button" onClick={() => setView('vendor')}>Vendor</button>
-      <button className="view-customer-button" onClick={() => setView('customer')}>Customer</button>
-      <button className="view-staff-button" onClick={() => setView('staff')}>Staff</button>
-    </div>
-  )
-}
-
-function ViewTable({ view, data, fetchData, handleEdit }) {
-  return (
-    <div className="display-stakeholders-div">
-      {view === 'vendor' && <VendorTable data={data} fetchData={fetchData} handleEdit={handleEdit} />}
-      {view === 'customer' && <CustomerTable data={data} fetchData={fetchData} handleEdit={handleEdit} />}
-      {view === 'staff' && <StaffTable data={data} fetchData={fetchData} handleEdit={handleEdit} />}
-    </div>
-  )
-}
-
-function VendorTable({ data, fetchData, handleEdit }) {
-  return (
-    <div>
-      <h3>Vendors</h3>
-      <table>
-        <thead>
-          <tr>
-            <th>Vendor ID</th>
-            <th>Name</th>
-            <th>Contact Person</th>
-            <th>Phone Number</th>
-            <th>Address</th>
-            <th>Status</th>
-            <th>Actions</th>
-          </tr>
-        </thead>
-        <tbody>
-          {data.map(vendor => (
-            <VendorTableRow key={vendor.vendor_id} vendor={vendor} fetchData={fetchData} handleEdit={handleEdit} />
-          ))}
-        </tbody>
-      </table>
-    </div>
-  )
-}
-
-function CustomerTable({ data, fetchData, handleEdit }) {
-  return (
-    <div>
-      <h3>Customers</h3>
-      <table>
-        <thead>
-          <tr>
-            <th>Customer ID</th>
-            <th>Name</th>
-            <th>Email</th>
-            <th>Phone Number</th>
-            <th>Address</th>
-            <th>Registration Date</th>
-            <th>Status</th>
-            <th>Actions</th>
-          </tr>
-        </thead>
-        <tbody>
-          {data.map(customer => (
-            <CustomerTableRow key={customer.customer_id} customer={customer} fetchData={fetchData} handleEdit={handleEdit} />
-          ))}
-        </tbody>
-      </table>
-    </div>
-  )
-}
-
-function StaffTable({ data, fetchData, handleEdit }) {
-  return (
-    <div>
-      <h3>Staffs</h3>
-      <table>
-        <thead>
-          <tr>
-            <th>Staff ID</th>
-            <th>Name</th>
-            <th>Position</th>
-            <th>Phone Number</th>
-            <th>Address</th>
-            <th>Hire Date</th>
-            <th>Status</th>
-            <th>Actions</th>
-          </tr>
-        </thead>
-        <tbody>
-          {data.map(staff => (
-            <StaffTableRow key={staff.staff_id} staff={staff} fetchData={fetchData} handleEdit={handleEdit} />
-          ))}
-        </tbody>
-      </table>
-    </div>
-  )
-}
-
-function VendorTableRow({ vendor, fetchData, handleEdit }) {
-  const handleDelete = async () => {
-    try {
-      await axios.delete(`http://localhost:3002/api/stakeholders/vendors/${vendor.vendor_id}`);
-      fetchData();
-    } catch (error) {
-      console.error("Error deleting vendor", error);
+  const handleDeleteData = async (index) => {
+    const confirm = window.confirm(
+      `Are you sure you want to delete this ${view}?`
+    );
+    if (confirm) {
+      try {
+        await axiosInstance.delete(`/stakeholders/${view}s/${data[view + 's'][index][view + '_id']}`);
+        window.alert(`${view.charAt(0).toUpperCase() + view.slice(1)} successfully deleted`);
+        fetchData();
+      } catch (error) {
+        console.error(`Error deleting ${view}:`, error);
+      }
     }
   };
 
-  return (
-    <tr>
-      <td>{vendor.vendor_id}</td>
-      <td>{vendor.name}</td>
-      <td>{vendor.contact_person}</td>
-      <td>{vendor.phone_number}</td>
-      <td>{vendor.address}</td>
-      <td>{vendor.status}</td>
-      <td>
-        <button onClick={() => handleEdit('vendor', vendor)}>Edit</button>
-        <button onClick={handleDelete}>Delete</button>
-      </td>
-    </tr>
-  )
-}
-
-function CustomerTableRow({ customer, fetchData, handleEdit }) {
-  const handleDelete = async () => {
-    try {
-      await axios.delete(`http://localhost:3002/api/stakeholders/customers/${customer.customer_id}`);
-      fetchData();
-    } catch (error) {
-      console.error("Error deleting customer", error);
-    }
-  };
-
-  return (
-    <tr>
-      <td>{customer.customer_id}</td>
-      <td>{customer.name}</td>
-      <td>{customer.email}</td>
-      <td>{customer.phone_number}</td>
-      <td>{customer.address}</td>
-      <td>{customer.registration_date}</td>
-      <td>{customer.status}</td>
-      <td>
-        <button onClick={() => handleEdit('customer', customer)}>Edit</button>
-        <button onClick={handleDelete}>Delete</button>
-      </td>
-    </tr>
-  )
-}
-
-function StaffTableRow({ staff, fetchData, handleEdit }) {
-  const handleDelete = async () => {
-    try {
-      await axios.delete(`http://localhost:3002/api/stakeholders/staffs/${staff.staff_id}`);
-      fetchData();
-    } catch (error) {
-      console.error("Error deleting staff", error);
-    }
-  };
-
-  return (
-    <tr>
-      <td>{staff.staff_id}</td>
-      <td>{staff.name}</td>
-      <td>{staff.position}</td>
-      <td>{staff.phone_number}</td>
-      <td>{staff.address}</td>
-      <td>{staff.hire_date}</td>
-      <td>{staff.status}</td>
-      <td>
-        <button onClick={() => handleEdit('staff', staff)}>Edit</button>
-        <button onClick={handleDelete}>Delete</button>
-      </td>
-    </tr>
-  )
-}
-
-function AddModal({ type, setShowModal, fetchData, currentData }) {
-  const [formData, setFormData] = useState(currentData || {});
-
-  const handleChange = (e) => {
-    const { name, value } = e.target;
-    setFormData({
-      ...formData,
-      [name]: value
+  const handleEditData = (index) => {
+    navigation(`/stakeholders/edit_${view}`, {
+      state: { 
+        id: data[view + 's'][index][view + '_id'],
+        data: data[view + 's'][index],
+        type: view 
+      }
     });
   };
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    try {
-      if (currentData) {
-        await axios.put(`http://localhost:3002/api/stakeholders/${type}s/${currentData[`${type}_id`]}`, formData);
-      } else {
-        await axios.post(`http://localhost:3002/api/stakeholders/${type}s`, formData);
-      }
-      fetchData();
-      setShowModal(false);
-    } catch (error) {
-      console.error("Error adding data", error);
-    }
+  const handleFilterChange = (event) => {
+    setFilter(event.target.value);
+  };
+
+  const handleAdd = (type) => {
+    navigation(`/stakeholders/add_${type}`, {
+      state: { type }
+    });
   };
 
   return (
-    <div className="modal">
-      <div className="modal-content">
-        <span className="close" onClick={() => setShowModal(false)}>&times;</span>
-        <h2>{currentData ? `Edit ${type}` : `Add ${type}`}</h2>
-        <form onSubmit={handleSubmit}>
-          {type === 'vendor' && (
-            <>
-              <input type="text" name="name" placeholder="Name" value={formData.name || ''} onChange={handleChange} required />
-              <input type="text" name="contact_person" placeholder="Contact Person" value={formData.contact_person || ''} onChange={handleChange} required />
-              <input type="text" name="phone_number" placeholder="Phone Number" value={formData.phone_number || ''} onChange={handleChange} required />
-              <input type="text" name="address" placeholder="Address" value={formData.address || ''} onChange={handleChange} required />
-              <select name="status" value={formData.status || ''} onChange={handleChange} required>
-              <option value="Active">Active</option>
-              <option value="Inactive">Inactive</option>
-              </select>
-            </>
+    <div className="flex-auto ml-52 p-4">
+      <div className="flex flex-row">
+        <h1 className="text-2xl font-bold">Stakeholders</h1>
+        <input
+          className="ml-32 mb-2 h-8 w-80 border-2 me-4 border-border-grey ps-2 rounded-lg"
+          type="text"
+          placeholder="Search"
+          value={filter}
+          onChange={handleFilterChange}
+        />
+      </div>
+
+      {/* Action Buttons */}
+      <div className="flex mt-3 mb-7">
+        <button
+          onClick={() => handleAdd('vendor')}
+          className="flex items-center gap-2 px-4 py-2 font-medium text-green-700 bg-white rounded-lg shadow-sm hover:shadow transition-all duration-200"
+        >
+          <Plus className="h-5 w-5 text-green-700" />
+          <span>Add vendor</span>
+        </button>
+        <button
+          onClick={() => handleAdd('staff')}
+          className="flex items-center gap-2 px-4 py-2 ml-10 font-medium text-green-700 bg-white rounded-lg shadow-sm hover:shadow transition-all duration-200"
+        >
+          <Plus className="h-5 w-5 text-green-700" />
+          <span>Add staff</span>
+        </button>
+        <button
+          onClick={() => handleAdd('customer')}
+          className="flex items-center gap-2 px-4 py-2 ml-10 font-medium text-green-700 bg-white rounded-lg shadow-sm hover:shadow transition-all duration-200"
+        >
+          <Plus className="h-5 w-5 text-green-700" />
+          <span>Add customer</span>
+        </button>
+      </div>
+
+      {/* Category Tabs */}
+      <div className="flex gap-1 relative mb-0">
+        <button
+          onClick={() => setView('vendor')}
+          className={`px-6 py-2 rounded-t-lg transition-all duration-200 ${
+            view === 'vendor' 
+              ? 'bg-white text-purple-400 shadow-[0_-1px_3px_rgba(0,0,0,0.1)] z-10 font-semibold' 
+              : 'bg-gray-50 hover:bg-gray-100'
+          }`}
+          style={{
+            marginBottom: '-1px', // Creates seamless connection with table below
+            borderBottom: view === 'vendor' ? '1px solid white' : 'none', // Hides the table border underneath
+          }}
+        >
+          Vendors
+        </button>
+        <button
+          onClick={() => setView('customer')}
+          className={`px-6 py-2 rounded-t-lg transition-all duration-200 ${
+            view === 'customer' 
+              ? 'bg-white text-purple-400 shadow-[0_-1px_3px_rgba(0,0,0,0.1)] z-10 font-semibold' 
+              : 'bg-gray-50 hover:bg-gray-100'
+          }`}
+          style={{
+            marginBottom: '-1px',
+            borderBottom: view === 'customer' ? '1px solid white' : 'none',
+          }}
+        >
+          Customers
+        </button>
+        <button
+          onClick={() => setView('staff')}
+          className={`px-6 py-2 rounded-t-lg transition-all duration-200 ${
+            view === 'staff' 
+              ? 'bg-white text-purple-400 shadow-[0_-1px_3px_rgba(0,0,0,0.1)] z-10 font-semibold' 
+              : 'bg-gray-50 hover:bg-gray-100'
+          }`}
+          style={{
+            marginBottom: '-1px',
+            borderBottom: view === 'staff' ? '1px solid white' : 'none',
+          }}
+        >
+          Staffs
+        </button>
+      </div>
+
+      {/* Tables */}
+      <div className="bg-white rounded-lg shadow-md">
+        <div className="border-t border-gray-200"> {/* Add top border for seamless connection */}
+          {loading && (
+            <div className="p-8 text-center text-gray-500">Loading...</div>
           )}
-          {type === 'customer' && (
-            <>
-              <input type="text" name="name" placeholder="Name" value={formData.name || ''} onChange={handleChange} required />
-              <input type="email" name="email" placeholder="Email" value={formData.email || ''} onChange={handleChange} required />
-              <input type="text" name="phone_number" placeholder="Phone Number" value={formData.phone_number || ''} onChange={handleChange} required />
-              <input type="text" name="address" placeholder="Address" value={formData.address || ''} onChange={handleChange} required />
-              <input type="date" name="registration_date" placeholder="Registration Date" value={formData.registration_date || ''} onChange={handleChange} required />
-              <select name="status" value={formData.status || ''} onChange={handleChange} required>
-              <option value="Active">Active</option>
-              <option value="Inactive">Inactive</option>
-              </select>
-            </>
+          
+          {!loading && data && view === 'vendor' && (
+            <VendorTable
+              vendors={data.vendors}
+              handleDeleteData={handleDeleteData}
+              handleEditData={handleEditData}
+            />
           )}
-          {type === 'staff' && (
-            <>
-              <input type="text" name="name" placeholder="Name" value={formData.name || ''} onChange={handleChange} required />
-              <input type="text" name="position" placeholder="Position" value={formData.position || ''} onChange={handleChange} required />
-              <input type="text" name="phone_number" placeholder="Phone Number" value={formData.phone_number || ''} onChange={handleChange} required />
-              <input type="text" name="address" placeholder="Address" value={formData.address || ''} onChange={handleChange} required />
-              <input type="date" name="hire_date" placeholder="Hire Date" value={formData.hire_date || ''} onChange={handleChange} required />
-              <select name="status" value={formData.status || ''} onChange={handleChange} required>
-              <option value="Employed">Employed</option>
-              <option value="Unemployed">Unemployed</option>
-              </select>
-            </>
+          
+          {!loading && data && view === 'customer' && (
+            <CustomerTable
+              customers={data.customers}
+              handleDeleteData={handleDeleteData}
+              handleEditData={handleEditData}
+            />
           )}
-          <button type="submit">Submit</button>
-        </form>
+          
+          {!loading && data && view === 'staff' && (
+            <StaffTable
+              staffs={data.staffs}
+              handleDeleteData={handleDeleteData}
+              handleEditData={handleEditData}
+            />
+          )}
+        </div>
       </div>
     </div>
-  )
+  );
 }
 
 export default Stakeholders;

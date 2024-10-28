@@ -3,17 +3,22 @@ import './styles/purchases.css';
 import Header from './header';
 import Sidebar from './sidebar';
 import { useNavigate } from 'react-router-dom';
-import axios from 'axios'; 
+import axiosInstance from './axiosConfig';
 import { GlobalContext } from "./globalContext";
 import PurchaseTable from "./purchaseTable";
 import instance from "./axiosConfig";
+import { 
+  Receipt, BadgeDollarSign, ClipboardList, 
+} from 'lucide-react';
 
 function Purchases() {
   return(
-    <div className="purchases-container">
-      <Header/>
-      <Sidebar/>
-      <MainContent/>
+    <div className="flex flex-col h-screen w-full">
+      <Header/> 
+      <div className="flex flex-row flex-grow">
+      <Sidebar />
+      <MainContent />
+      </div>
     </div>
   )
 }
@@ -26,18 +31,40 @@ function MainContent() {
   const [filter, setFilter] = useState("");
   const [render, setRender] = useState("false");
 
+  const ActionButton = ({ icon: Icon, label, onClick, variant = "default" }) => {
+  const baseStyles = "flex items-center ml-10 mt-3 space-x-2 px-4 py-2 rounded-lg shadow transition-all duration-200 font-medium focus:outline-none focus:ring-2 focus:ring-opacity-50";
+  
+  const variants = {
+    default: "bg-white hover:bg-gray-50 text-gray-700 hover:text-gray-900 focus:ring-gray-300",
+    primary: "bg-white text-green-700 hover:bg-green-600 hover:text-white focus:ring-green-400",
+    warning: "bg-white text-orange-700 hover:bg-orange-600 hover:text-white focus:ring-orange-400"
+  };
+
+  return (
+    <button 
+      className={`${baseStyles} ${variants[variant]}`}
+      onClick={onClick}
+    >
+      {Icon && <Icon className="w-5 h-5" />}
+      <span>{label}</span>
+    </button>
+    );
+  };
+
   async function fetchPurchases(pageNumber, pageSize) {
-    try{
-      await instance
-      .get(`http://localhost:3002/api/purchases/${username}?pageNumber=${pageNumber}&pageSize=${pageSize}`)
-      .then((response) => {
-        setData(() => response.data);
-        console.log(`response is here! + ${response.data}`);
-        setLoading(() => false);
-      });
-    } catch (err){
-      console.error(err);
-    } 
+      try {
+          setLoading(true);
+          const response = await instance.get(
+              `http://localhost:3002/api/purchases/${username}?pageNumber=${pageNumber}&pageSize=${pageSize}`
+          );
+          console.log('Purchase orders response:', response.data);
+          setData(response.data);
+      } catch (err) {
+          console.error('Error fetching purchase orders:', err);
+          setData({ purchases: [] }); // Set empty array on error
+      } finally {
+          setLoading(false);
+      }
   }
 
   async function deletePurchases(index) {
@@ -45,7 +72,7 @@ function MainContent() {
       "Are you dure you want to delete this purchase order?"
     );
     if (confirm) {
-      await axios.put(
+      await axiosInstance.put(
         `http://localhost:3002/api/user/${username}/${data.purchases[index].purchases_order_id}/delete`
       )
       .then(() => {
@@ -77,11 +104,11 @@ function MainContent() {
   }
 
   return (
-    <div className="ml-[260px] mt-[90px]">
+    <div className="flex-auto ml-52 p-4">
       <div className="flex flex-row">
-        <h1 className="text-2xl font-bold">Purchase Order</h1>
+        <h1 className="text-2xl font-bold">Purchases</h1>
         <input
-          className="ml-[30px] mb-2 h-8 w-80 border-2 me-4 border-border-grey ps-2 rounded-lg"
+          className="ml-32 mb-2 h-8 w-80 border-2 me-4 border-border-grey ps-2 rounded-lg"
           type="text"
           placeholder="Search"
           value={filter}
@@ -89,9 +116,9 @@ function MainContent() {
         />
       </div>
       <div className="flex flex-column">
-        <div className="flex flex-row">
+        <div className="flex flex-row my-3">
           <button
-            className="flex items-center space-x-2 px-4 py-2 bg-white text-green-700 font-medium rounded-lg shadow hover:bg-green-600 hover:text-white focus:outline-none focus:ring-2 focus:ring-green-400 focus:ring-opacity-75"
+            className="flex items-center mt-3 space-x-2 px-4 py-2 bg-white text-green-700 font-medium rounded-lg shadow hover:bg-green-600 hover:text-white focus:outline-none focus:ring-2 focus:ring-green-400 focus:ring-opacity-75"
             onClick={navigateToAddPurchasesPage}
           >
             <svg
@@ -110,12 +137,27 @@ function MainContent() {
             </svg>
             <span>Add Purchase Order</span>
           </button>
+          <ActionButton
+            icon={BadgeDollarSign}
+            label="Manage Tax"
+            onClick={() => console.log('Manage Tax')}
+          />
+          <ActionButton
+            icon={ClipboardList}
+            label="Record Expenses"
+            onClick={() => console.log('Record Expenses')}
+          />
+          <ActionButton
+            icon={Receipt}
+            label="Create Bill"
+            onClick={() => console.log('Create Bill')}
+          />
         </div>
       </div>
       <div className="flex-1 mt-[20px]">
         {!loading && data && (
           <PurchaseTable
-            products={data}
+            purchases={data}
             handleDeleteData={handleDeleteData}
             handleEditData={handleEditData}
           />
