@@ -1,6 +1,7 @@
 import React, { useState } from "react";
+import { Send, PlusCircle } from 'lucide-react';
 
-export default function Input({ onSend }) {
+export default function Input({ onSend, disabled }) {
   const [text, setText] = useState("");
 
   const handleInputChange = e => {
@@ -9,34 +10,43 @@ export default function Input({ onSend }) {
 
   const handleSend = e => {
     e.preventDefault();
+    if (!text.trim() || disabled) return;
     onSend(text);
     setText("");
   };
 
   return (
-    <div className="relative">
-      <form onSubmit={handleSend}>
+    <div className="px-4 py-3">
+      <form onSubmit={handleSend} className="flex items-center gap-2">
+        <button
+          type="button"
+          className={`p-2 transition-colors ${
+            disabled ? 'text-gray-300' : 'text-gray-400 hover:text-purple-600'
+          }`}
+          disabled={disabled}
+        >
+          <PlusCircle className="w-6 h-6" />
+        </button>
         <input
           type="text"
           onChange={handleInputChange}
-          className="w-full p-4 pl-2 ml-2 mr-5 pr-14 text-lg font-mono border-t border-[#eee] rounded-b-lg"
           value={text}
-          placeholder="Enter your message here"
+          disabled={disabled}
+          placeholder={disabled ? "Bot is currently offline..." : "Message Stocksavvy Assistant..."}
+          className={`flex-1 px-4 py-2 rounded-full focus:outline-none focus:ring-2 focus:ring-purple-500 focus:bg-white ${
+            disabled ? 'bg-gray-100 text-gray-400' : 'bg-gray-100'
+          }`}
         />
-        <button className="absolute right-0 top-0 p-4 bg-transparent border-0">
-          <svg
-            version="1.1"
-            xmlns="http://www.w3.org/2000/svg"
-            width="20"
-            height="20"
-            viewBox="0 0 500 500"
-          >
-            <g>
-              <g>
-                <polygon points="0,497.25 535.5,267.75 0,38.25 0,216.75 382.5,267.75 0,318.75" />
-              </g>
-            </g>
-          </svg>
+        <button 
+          type="submit"
+          className={`p-2 rounded-full transition-colors ${
+            !disabled && text.trim() 
+              ? 'text-purple-600 hover:bg-purple-50' 
+              : 'text-gray-300'
+          }`}
+          disabled={disabled || !text.trim()}
+        >
+          <Send className="w-6 h-6" />
         </button>
       </form>
     </div>

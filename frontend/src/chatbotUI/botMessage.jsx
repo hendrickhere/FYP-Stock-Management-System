@@ -1,21 +1,22 @@
-import React, { useState, useEffect } from "react";
+import React from "react";
+import { Bot } from 'lucide-react';
+import Loader from './loader';
 
-export default function BotMessage({ fetchMessage }) {
-  const [isLoading, setLoading] = useState(true);
-  const [message, setMessage] = useState("");
-
-  useEffect(() => {
-    async function loadMessage() {
-      const msg = await fetchMessage();
-      setLoading(false);
-      setMessage(msg);
-    }
-    loadMessage();
-  }, [fetchMessage]);
-
+export default function BotMessage({ text, isLoading = false, isError = false }) {
   return (
-    <div className="message-container">
-      <div className="float-left p-4 m-1 min-w-[40px] rounded-[20px_20px_20px_1px] bg-[#00aaa5] text-white">{isLoading ? "..." : message}</div>
+    <div className="flex items-start gap-2 max-w-[80%]">
+      <div className="flex-shrink-0 w-8 h-8 rounded-full bg-purple-100 flex items-center justify-center">
+        <Bot className="w-5 h-5 text-purple-600" />
+      </div>
+      <div 
+        className={`px-4 py-2 rounded-2xl rounded-tl-none ${
+          isError 
+            ? 'bg-red-50 text-red-600' 
+            : 'bg-gray-100 text-gray-800'
+        }`}
+      >
+        {isLoading ? <Loader /> : text}
+      </div>
     </div>
   );
 }
