@@ -11,10 +11,11 @@ exports.getAllPurchase = async (req, res) => {
       pageNumber,
       pageSize
     );
-    if(result === null){
-        res.status(404).send({message: "No purchase orders found"});
+    if (result.length === 0) {
+      res.status(404).send({ message: "No purchase orders found" });
+    } else {
+      res.status(200).send({ data: result });
     }
-    res.status(200).send({data: result});
   } catch (err) {
     res.status(500).send({ message: err.message });
   }

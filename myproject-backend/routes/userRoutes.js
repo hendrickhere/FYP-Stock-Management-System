@@ -5,8 +5,8 @@ const authMiddleware = require('../backend-middleware/authMiddleware');
 
 //add here, and then construct the controller and service method, service is 
 //data access layer, while controller is the presentation layer
-router.post('/signup', UserController.signup);
-router.post('/login', UserController.login);
+// router.post('/signup', UserController.signup);
+// router.post('/login', UserController.login);
 
 router.post('/:username/addCustomer', UserController.addCustomer);
 router.get('/:username/customers', UserController.getAllCustomers);

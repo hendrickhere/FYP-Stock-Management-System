@@ -75,9 +75,8 @@ Product.belongsToMany(PurchaseOrder, {
   otherKey: "purchase_order_id",
 });
 
-User.hasMany(PurchaseOrder, {foreignKey: "user_id", onDelete:'CASCADE'});
-PurchaseOrder.belongsTo(User, {foreignKey: 'user_id', onDelete: 'CASCADE'});
-
+PurchaseOrder.belongsTo(User, { foreignKey: 'user_id', as: 'user' });
+User.hasMany(PurchaseOrder, { foreignKey: 'user_id' });
 
 //#region User and Customer
 User.hasMany(Customer, {foreignKey: 'user_id', onDelete: 'CASCADE'}); 
@@ -95,8 +94,8 @@ User.hasMany(Product, {foreignKey: "user_id"});
 //#endregion
 
 //#region User and Organization
-User.belongsTo(Organization, {foreignKey: 'organization_id', onDelete: 'CASCADE'});
-Organization.hasMany(User, {foreignKey: 'organization_id', onDelete: 'CASCADE'});
+User.belongsTo(Organization, { foreignKey: 'organization_id', as: 'organization' });
+Organization.hasMany(User, { foreignKey: 'organization_id' });
 //#endregion
 
 Appointment.belongsTo(Customer, {foreignKey: 'customer_id', onDelete: "CASCAD"});

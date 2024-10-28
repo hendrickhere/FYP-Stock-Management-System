@@ -11,32 +11,29 @@ exports.getAllPurchases = async (username, pageNumber, pageSize) => {
     if (!user) {
       throw new Error("No user found");
     }
+    const organizationId = user.organization_id;
 
     const purchases = await PurchaseOrder.findAll({
       include: [
         {
           model: User,
+          as: 'user', 
           attributes: ["username"],
-          where: { username: username },
-          include: [
-            {
-              model: Organization,
-              attributes: ["organization_name"],
-            },
-          ],
+          where: { organization_id: organizationId }, 
         },
         {
           model: Product,
-          through: { attributes: [] },
+          through: { attributes: [] }, 
+          attributes: ["product_name", "sku_number", "price"],
         },
       ],
       limit: pageSize,
-    offset: offset,
+      offset: offset,
     });
 
     return purchases;
   } catch (err) {
-    console.error("Error fetching purchase orders:", error);
+    console.error("Error fetching purchase orders:", err);
     throw err;
   }
 };
