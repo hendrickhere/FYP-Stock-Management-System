@@ -23,8 +23,8 @@ const SalesTable = ({ salesOrders }) => {
     const orders = Array.isArray(salesOrders.salesOrders) ? salesOrders.salesOrders : [];
 
   return (
-    <div className="container mx-auto p-4 flex flex-col">
-      <h2 className="text-2xl font-bold mb-4">Sales Orders</h2>
+    <div className="container mr-auto ml-0 p-4 flex flex-col">
+      <h2 className="text-2xl font-bold mb-4">Sales List</h2>
       <div className="overflow-x-auto">
         <table className="min-w-full bg-white border border-gray-300 rounded-lg shadow-md">
           <thead>

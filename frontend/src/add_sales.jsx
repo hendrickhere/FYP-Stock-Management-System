@@ -1,5 +1,4 @@
 import React, { useEffect, useState, useContext, useRef } from "react";
-import "./styles/appointments.css";
 import Header from "./header";
 import Sidebar from "./sidebar";
 import axios from "axios";

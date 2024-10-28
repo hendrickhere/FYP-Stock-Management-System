@@ -3,7 +3,7 @@ import './styles/inventory.css';
 import Header from './header';
 import Sidebar from './sidebar';
 import { useNavigate } from 'react-router-dom';
-import axios from 'axios'; 
+import axiosInstance from './axiosConfig';
 import { GlobalContext } from "./globalContext";
 import ProductTable from "./inventoryTable";
 import { CiExport } from "react-icons/ci";
@@ -30,7 +30,7 @@ function MainContent () {
 
   async function fetchInventories() {
     //console.log(`http://localhost:3002/api/user/${username}/inventories`);
-    await axios
+    await axiosInstance
       .get(`http://localhost:3002/api/user/${username}/inventories`)
       .then((response) => {
         setData(() => response.data);
@@ -44,7 +44,7 @@ function MainContent () {
       "Are you sure you want to delete this inventory?"
     );
     if (confirm) {
-      await axios
+      await axiosInstance
         .put(
           `http://localhost:3002/api/user/${username}/${data.inventories[index].product_uuid}/delete`
         )
@@ -81,7 +81,7 @@ function MainContent () {
       <div className="flex flex-row">
         <h1 className="text-2xl font-bold">Inventory</h1>
         <input
-          className="ml-[30px] mb-2 h-8 w-80 border-2 me-4 border-border-grey ps-2 rounded-lg"
+          className="ml-32 mb-2 h-8 w-80 border-2 me-4 border-border-grey ps-2 rounded-lg"
           type="text"
           value={filter}
           placeholder="Search"
@@ -89,7 +89,7 @@ function MainContent () {
         />
       </div>
         <div className="flex flex-column">
-        <div className="flex flex-row">
+        <div className="flex flex-row my-3">
           <button
             className="flex items-center mt-3 space-x-2 px-4 py-2 bg-white text-green-700 font-medium rounded-lg shadow hover:bg-green-600 hover:text-white focus:outline-none focus:ring-2 focus:ring-green-400 focus:ring-opacity-75"
             onClick={navigateToAddProductPage}
@@ -110,7 +110,7 @@ function MainContent () {
             </svg>
             <span>Add Product</span>
           </button>
-          <button className="flex items-center mt-3 space-x-2 px-4 py-2 bg-white font-medium rounded-lg shadow focus:outline-none focus:ring-2 ml-3">
+          <button className="flex items-center mt-3 ml-10 space-x-2 px-4 py-2 bg-white font-medium rounded-lg shadow focus:outline-none focus:ring-2 ml-3">
             <CiExport />
             <span>Export</span>
           </button>

@@ -1,5 +1,4 @@
 import React, { useState, useContext, useEffect } from "react";
-import "./styles/appointments.css";
 import Header from "./header";
 import Sidebar from "./sidebar";
 import DragDropImageUploader from "./dragDropImageUploader";
