@@ -1,5 +1,4 @@
 import React, {useState, useEffect, useContext} from "react";
-import './styles/inventory.css';
 import Header from './header';
 import Sidebar from './sidebar';
 import { useNavigate } from 'react-router-dom';
@@ -110,7 +109,7 @@ function MainContent () {
             </svg>
             <span>Add Product</span>
           </button>
-          <button className="flex items-center mt-3 ml-10 space-x-2 px-4 py-2 bg-white font-medium rounded-lg shadow focus:outline-none focus:ring-2 ml-3">
+          <button className="flex items-center mt-3 ml-10 space-x-2 px-4 py-2 bg-white font-medium rounded-lg shadow focus:outline-none focus:ring-2">
             <CiExport />
             <span>Export</span>
           </button>

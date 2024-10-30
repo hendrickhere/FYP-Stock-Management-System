@@ -1,47 +1,50 @@
 import React, { useState, useContext } from 'react';
-import axios from 'axios';
+import instance from "./axiosConfig";
 import { GlobalContext } from "./globalContext";
+import { Card, CardContent } from "./ui/card";
+import { AlertCircle, Plus, X, Search } from "lucide-react";
 
-const ItemTable = (props) => {
-    const {items, setItems} = props;
-    const {username} = useContext(GlobalContext);
+const ItemTable = ({ items, setItems }) => {
+  const { username } = useContext(GlobalContext);
   const [showModal, setShowModal] = useState(false);
   const [currentIndex, setCurrentIndex] = useState();
-  
-  const[productData, setProductData] = useState([]);
+  const [productData, setProductData] = useState([]);
   const [loading, setLoading] = useState(false);
   const [taxAmount, setTaxAmount] = useState(0);
 
   const handleItemClick = async (index) => {
-    setLoading(() => true);
-    await axios.get(`http://localhost:3002/api/user/${username}/inventories`).then((response) => {
-        setProductData(() => response.data);
-        setLoading(() => false);
-      })
-    setCurrentIndex(index);
-    setShowModal(true);
-    
+    setLoading(true);
+    try {
+      const response = await instance.get(`http://localhost:3002/api/user/${username}/inventories`);
+      setProductData(response.data);
+      setCurrentIndex(index);
+      setShowModal(true);
+    } catch (error) {
+      console.error("Failed to fetch inventory items:", error);
+    } finally {
+      setLoading(false);
+    }
   };
-  
 
   const updateQuantity = (quantity, index) => {
     const newItems = [...items];
-    newItems[currentIndex].quantity = quantity; 
+    newItems[index].quantity = quantity;
     setItems(newItems);
-  }
+  };
 
   const handleQuantityChange = (event, index) => {
-    if(event.target.value < 0 ){
-        return; 
-    }
-    updateQuantity(event.target.value, index);
-  }
+    const value = parseFloat(event.target.value);
+    if (value < 0) return;
+    updateQuantity(value, index);
+  };
 
   const updateItems = (inventory) => {
     const newItems = [...items];
-    newItems[currentIndex] = inventory;
+    newItems[currentIndex] = {
+      ...inventory,
+      quantity: 1 // Default quantity for new items
+    };
     setItems(newItems);
-    console.log(items);
     closeModal();
   };
 
@@ -50,101 +53,100 @@ const ItemTable = (props) => {
   };
 
   const addNewRow = () => {
-    setItems(() => 
-        [...items, {}]
-    );
-  }
+    setItems([...items, {}]);
+  };
 
   const deleteItem = (index) => {
-    setItems(() => items.filter((_, i) => i !== index));
-  }
+    setItems(items.filter((_, i) => i !== index));
+  };
 
-  const handleFocus = (index) => {
-    if(currentIndex === index){
-        return; 
-    }
-    setCurrentIndex(() => index);
-  }
+  const calculateTotal = (item) => {
+    if (!item.price || !item.quantity) return 0;
+    return (item.price * item.quantity * (1 + taxAmount)).toFixed(2);
+  };
 
-  const handleTaxChange = (event) => {
-    setTaxAmount(() => parseFloat(event.target.value));
-  }
-  
   return (
-    <div className="bg-white p-4 rounded-lg shadow-lg">
-      <div className="flex justify-between items-center mb-4">
-        <h1 className="text-xl font-bold">Item Table</h1>
-        {/* <button className="text-blue-500">Bulk Actions</button> */}
-      </div>
-      <div className="overflow-x-auto">
-        <table className="min-w-full bg-white">
-          <thead>
-            <tr className="w-full bg-gray-100 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
-              <th className="px-4 py-3">Item Details</th>
-              <th className="px-4 py-3">Quantity</th>
-              <th className="px-4 py-3">Rate</th>
-              <th className="px-4 py-3">Tax</th>
-              <th className="px-4 py-3">Amount</th>
-              <th className="px-4 py-3"></th>
+    <div className="space-y-4">
+      <div className="overflow-x-auto rounded-lg border border-gray-200">
+        <table className="min-w-full divide-y divide-gray-200">
+          <thead className="bg-gray-50">
+            <tr>
+              <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                Item Details
+              </th>
+              <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                Quantity
+              </th>
+              <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                Rate (MYR)
+              </th>
+              <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                Tax
+              </th>
+              <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                Amount (MYR)
+              </th>
+              <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                Actions
+              </th>
             </tr>
           </thead>
-          <tbody>
+          <tbody className="bg-white divide-y divide-gray-200">
             {items.map((item, index) => (
-              <tr className="border-b">
-                <td className="px-4 py-3 flex items-center">
-                  <input
-                    type="text"
-                    value={item.inventory_name ?? ""}
-                    placeholder="Type or click to select an item."
-                    className="ml-4 flex-1 text-gray-500 bg-transparent border-none focus:outline-none"
+              <tr key={index} className="hover:bg-gray-50">
+                <td className="px-6 py-4">
+                  <button
+                    type="button"
                     onClick={() => handleItemClick(index)}
-                  />
+                    className="w-full text-left text-sm text-gray-900 hover:text-blue-600 focus:outline-none"
+                  >
+                    {item.inventory_name || "Click to select an item"}
+                    {!item.inventory_name && (
+                      <span className="text-gray-400 text-xs block">
+                        Browse inventory items
+                      </span>
+                    )}
+                  </button>
                 </td>
-                <td className="px-4 py-3">
+                <td className="px-6 py-4">
                   <input
                     type="number"
-                    value={item.quantity ?? 0}
-                    className="w-full text-center border rounded-lg focus:outline-none focus:ring focus:border-blue-300"
+                    min="0"
+                    value={item.quantity || ''}
                     onChange={(e) => handleQuantityChange(e, index)}
+                    className="w-24 px-2 py-1 text-sm border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    placeholder="0"
                   />
                 </td>
-                <td className="px-4 py-3">
+                <td className="px-6 py-4">
                   <input
                     type="number"
-                    value={item.price}
-                    className="w-full text-center border rounded-lg focus:outline-none focus:ring focus:border-blue-300"
-                    onFocus={() => handleFocus(index)}
+                    value={item.price || ''}
+                    readOnly
+                    className="w-32 px-2 py-1 text-sm border rounded-md bg-gray-50"
+                    placeholder="0.00"
                   />
                 </td>
-                <td className="px-4 py-3 relative">
-                  <select className="w-full border rounded-lg py-1 px-2 focus:outline-none focus:ring focus:border-blue-300" onChange={handleTaxChange}>
-                    <option value={0}>Select a Tax</option>
-                    <option value={0.06}>{"SST (6%)"}</option>
+                <td className="px-6 py-4">
+                  <select
+                    className="w-32 px-2 py-1 text-sm border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    value={taxAmount}
+                    onChange={(e) => setTaxAmount(parseFloat(e.target.value))}
+                  >
+                    <option value={0}>No Tax</option>
+                    <option value={0.06}>SST (6%)</option>
                   </select>
                 </td>
-                <td className="px-4 py-3 font-bold text-center">
-                  {item.price * item.quantity * (1 + taxAmount) ?? "0.00"}
+                <td className="px-6 py-4 text-sm font-medium">
+                  {calculateTotal(item)}
                 </td>
-                <td className="px-4 py-3">
+                <td className="px-6 py-4">
                   <button
-                    className="text-red-500 focus:outline-none"
                     type="button"
                     onClick={() => deleteItem(index)}
+                    className="text-red-600 hover:text-red-900 focus:outline-none"
                   >
-                    <svg
-                      className="w-5 h-5"
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
-                      xmlns="http://www.w3.org/2000/svg"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth="2"
-                        d="M6 18L18 6M6 6l12 12"
-                      ></path>
-                    </svg>
+                    <X className="h-4 w-4" />
                   </button>
                 </td>
               </tr>
@@ -154,71 +156,55 @@ const ItemTable = (props) => {
       </div>
 
       <button
-        className="mt-4 bg-blue-500 text-white py-2 px-4 rounded flex items-center space-x-2 focus:outline-none"
         type="button"
         onClick={addNewRow}
+        className="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
       >
-        <svg
-          className="w-5 h-5"
-          fill="none"
-          stroke="currentColor"
-          viewBox="0 0 24 24"
-          xmlns="http://www.w3.org/2000/svg"
-        >
-          <path
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            strokeWidth="2"
-            d="M12 4v16m8-8H4"
-          ></path>
-        </svg>
-        <span>Add New Row</span>
+        <Plus className="h-4 w-4 mr-2" />
+        Add Item
       </button>
 
-      {showModal && !loading && (
-        <div className="fixed inset-0 flex items-center justify-center bg-gray-800 bg-opacity-75">
-          <div className="bg-white p-4 rounded-lg shadow-lg">
-            <h2 className="text-lg font-bold mb-4">Select Item</h2>
-            <div className="mb-4">
-              {productData.inventories.map((product, index) => {
-                return (
-                  <div
-                    className="bg-blue-100 p-2 rounded-lg mb-2"
-                    onClick={() => updateItems(product)}
-                  >
-                    <p>{product.inventory_name}</p>
-                    <p>{`SKU: ${product.sku_number} Rate: ${product.price}`}</p>
-                  </div>
-                );
-              })}
-              <button
-                className="w-full bg-blue-500 text-white py-2 px-4 rounded-lg flex items-center justify-center space-x-2 focus:outline-none"
-                type="button"
-              >
-                <svg
-                  className="w-5 h-5"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                  xmlns="http://www.w3.org/2000/svg"
+      {/* Item Selection Modal */}
+      {showModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <Card className="w-full max-w-2xl max-h-[80vh] overflow-hidden">
+            <div className="p-6 flex flex-col h-full">
+              <div className="flex justify-between items-center mb-4">
+                <h2 className="text-lg font-semibold">Select Item</h2>
+                <button
+                  onClick={closeModal}
+                  className="text-gray-400 hover:text-gray-500 focus:outline-none"
                 >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth="2"
-                    d="M12 4v16m8-8H4"
-                  ></path>
-                </svg>
-                <span>Add New Item</span>
-              </button>
+                  <X className="h-5 w-5" />
+                </button>
+              </div>
+              
+              {loading ? (
+                <div className="flex items-center justify-center py-8">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+                </div>
+              ) : (
+                <div className="overflow-y-auto flex-1">
+                  <div className="grid gap-3">
+                    {productData.inventories?.map((product) => (
+                      <button
+                        key={product.product_uuid}
+                        onClick={() => updateItems(product)}
+                        className="w-full text-left p-4 rounded-lg border border-gray-200 hover:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      >
+                        <div className="font-medium text-gray-900">
+                          {product.inventory_name}
+                        </div>
+                        <div className="text-sm text-gray-500 mt-1">
+                          SKU: {product.sku_number} | Price: MYR {product.price}
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
-            <button
-              className="bg-red-500 text-white py-2 px-4 rounded-lg focus:outline-none"
-              onClick={closeModal}
-            >
-              Close
-            </button>
-          </div>
+          </Card>
         </div>
       )}
     </div>
