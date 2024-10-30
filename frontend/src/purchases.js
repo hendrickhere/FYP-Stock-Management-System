@@ -76,7 +76,7 @@ function MainContent() {
         `http://localhost:3002/api/user/${username}/${data.purchases[index].purchases_order_id}/delete`
       )
       .then(() => {
-        window.alert("Purchase Oder successfully deleted");
+        window.alert("Purchase Order successfully deleted");
         setRender(() => !render);
       });
     }
@@ -88,7 +88,7 @@ function MainContent() {
   }, [render]);
 
   function handleEditData(index) {
-    navigation('/purchases/add_purchases', {state: {purchasesuuid: data.purchases[index].purchases_order_id, isAdd: false}});
+    navigation('add_purchases', {state: {purchasesuuid: data.purchases[index].purchases_order_id, isAdd: false}});
   }
 
   function handleDeleteData(index){

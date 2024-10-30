@@ -102,18 +102,18 @@ function MainContent() {
           <span>Add vendor</span>
         </button>
         <button
-          onClick={() => handleAdd('staff')}
-          className="flex items-center gap-2 px-4 py-2 ml-10 font-medium text-green-700 bg-white rounded-lg shadow-sm hover:shadow transition-all duration-200"
-        >
-          <Plus className="h-5 w-5 text-green-700" />
-          <span>Add staff</span>
-        </button>
-        <button
           onClick={() => handleAdd('customer')}
           className="flex items-center gap-2 px-4 py-2 ml-10 font-medium text-green-700 bg-white rounded-lg shadow-sm hover:shadow transition-all duration-200"
         >
           <Plus className="h-5 w-5 text-green-700" />
           <span>Add customer</span>
+        </button>
+        <button
+          onClick={() => handleAdd('staff')}
+          className="flex items-center gap-2 px-4 py-2 ml-10 font-medium text-green-700 bg-white rounded-lg shadow-sm hover:shadow transition-all duration-200"
+        >
+          <Plus className="h-5 w-5 text-green-700" />
+          <span>Add staff</span>
         </button>
       </div>
 

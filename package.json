@@ -1,12 +1,20 @@
 {
   "dependencies": {
+    "@shadcn/ui": "^0.0.4",
     "axios": "^1.7.7",
     "browserify-zlib": "^0.2.0",
+    "clsx": "^2.1.1",
     "dotenv": "^16.4.5",
     "jsonwebtoken": "^9.0.2",
     "lucide-react": "^0.453.0",
     "openai": "^4.67.3",
     "querystring-browser": "^1.0.4",
-    "stream-browserify": "^3.0.0"
+    "stream-browserify": "^3.0.0",
+    "tailwind-merge": "^2.5.4"
+  },
+  "devDependencies": {
+    "autoprefixer": "^10.4.20",
+    "postcss": "^8.4.47",
+    "tailwindcss": "^3.4.14"
   }
 }
