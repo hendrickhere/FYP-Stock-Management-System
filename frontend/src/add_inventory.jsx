@@ -75,26 +75,26 @@ const MainContent = ({ data, isAdd }) => {
     inventoryName: isAdd ? "" : data.product_name || "",
     skuNumber: isAdd ? "" : data.sku_number || "",
     unit: isAdd ? "none" : data.unit || "none",
-    images: [],
+    images: isAdd ? [] : data.images,
     dimensions: {
       height: "",
       width: "",
       length: "",
-      unit: "cm"
+      unit: isAdd ? "cm" : data.unit
     },
-    manufacturer: "",
-    brand: "",
+    manufacturer: isAdd ? "" : data.manufacturer,
+    brand: isAdd ? "" : data.brand,
     weight: {
-      value: "",
-      unit: "kg"
+      value: isAdd ? "" : data.weight,
+      unit: isAdd ? "kg" : data.weightUnit
     },
     expiry: {
-      isExpiryGoods: false,
-      date: null
+      isExpiryGoods: isAdd ? false : data.is_expiry_goods,
+      date: isAdd ? null : data.expiry_date
     },
-    price: "",
-    description: "",
-    quantity: ""
+    price: isAdd ? "" : data.price,
+    description: isAdd ? "" : data.description,
+    quantity: isAdd ? "" : data.product_stock
   });
 
   const [errors, setErrors] = useState({});
@@ -168,10 +168,20 @@ const MainContent = ({ data, isAdd }) => {
 
   const handleImageChange = (newImages) => {
     setFormState(prev => ({
-      ...prev,
-      images: newImages
+        ...prev,
+        images: [
+            ...prev.images,
+            ...newImages  
+        ]
     }));
-  };
+};
+
+  function handleImageDelete(index) {
+    setFormState((prevFormState) => ({
+        ...prevFormState, // Spread previous formState to keep other properties unchanged
+        images: prevFormState.images.filter((_, i) => i !== index), // Filter out the image at the specified index
+    }));
+}
 
   const handleDimensionsChange = (dimension, value) => {
     setFormState(prev => ({
@@ -331,6 +341,7 @@ const MainContent = ({ data, isAdd }) => {
                   images={formState.images}
                   setImages={handleImageChange}
                   isAdd={isAdd}
+                  deleteImage={handleImageDelete}
                 />
                 <p className="text-sm text-gray-500 mt-2">
                   A maximum of 5 images can be uploaded, each not exceeding 10mb
@@ -450,7 +461,7 @@ const MainContent = ({ data, isAdd }) => {
                   {formState.expiry.isExpiryGoods && (
                     <input
                       type="date"
-                      value={formState.expiry.date || ''}
+                      value={formState.expiry.date} 
                       onChange={(e) => setFormState(prev => ({
                         ...prev,
                         expiry: { ...prev.expiry, date: e.target.value }

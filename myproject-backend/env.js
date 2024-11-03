@@ -1,6 +1,6 @@
 const username = 'postgres';
-const password = 'FHchen@123456';
-const database_name = 'Stock_Management'
+const password = 'CKlim@98305751';
+const database_name = 'stocksavvy'
 
 module.exports = {
     username,

@@ -268,8 +268,8 @@ exports.getCustomer = async (customerUuid, username) => {
 exports.addInventory = async (username, inventoryData) => {
   const user = await getUserByUsername(username);
   const {
-    inventoryName,
-    inventoryStock,
+    productName,
+    productStock,
     skuNumber,
     unit,
     brand,
@@ -286,8 +286,8 @@ exports.addInventory = async (username, inventoryData) => {
   } = inventoryData;
   if (user) {
     const inventory = await Product.create({
-      product_name: inventoryName,
-      product_stock: inventoryStock,
+      product_name: productName,
+      product_stock: productStock,
       sku_number: skuNumber,
       unit: unit,
       brand: brand,
