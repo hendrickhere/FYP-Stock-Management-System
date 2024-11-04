@@ -1,13 +1,8 @@
-import React, { useState, useContext } from "react";
-import { useNavigate } from 'react-router-dom';
+import React, { useState, useContext, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import { GlobalContext } from "./globalContext";
 import instance from "./axiosConfig";
-import { 
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle
-} from "./ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
 import { Alert, AlertDescription } from "./ui/alert";
 import { AlertCircle } from "lucide-react";
 import Header from "./header";
@@ -30,25 +25,44 @@ const MainContent = () => {
   const { username } = useContext(GlobalContext);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [apiError, setApiError] = useState(null);
-
+  const [isChecked, setIsChecked] = useState(true);
+  const [editedBillingAddress, setEditedBillingAddress] = useState("");
+  
+  const handleCheckboxChange = () => {
+    setIsChecked(!isChecked);
+  };
   const [formState, setFormState] = useState({
     customerName: "",
     customerEmail: "",
     customerContact: "",
-    address: "",
-    registrationDate: new Date().toISOString().split('T')[0], // Today's date as default
-    activityStatus: "active" // Default to active
+    customerCompany: "",
+    shippingAddress: "",
+    billingAddress: "",
+    registrationDate: new Date().toISOString().split("T")[0], // Today's date as default
+    activityStatus: "active", // Default to active
   });
+
+  useEffect(() => {
+    if (isChecked) {
+      setFormState((prevState) => ({
+        ...prevState,
+        billingAddress: prevState.shippingAddress, 
+      }));
+    }
+    else{
+      setEditedBillingAddress(formState.billingAddress);
+    }
+  }, [isChecked, setFormState]);
 
   const [errors, setErrors] = useState({});
 
   const validateForm = () => {
     const newErrors = {};
-    
+
     if (!formState.customerName.trim()) {
       newErrors.customerName = "Customer name is required";
     }
-    
+
     if (!formState.customerContact.trim()) {
       newErrors.customerContact = "Phone number is required";
     }
@@ -56,9 +70,13 @@ const MainContent = () => {
     if (formState.email && !/\S+@\S+\.\S+/.test(formState.email)) {
       newErrors.email = "Please enter a valid email address";
     }
-    
-    if (!formState.address.trim()) {
-      newErrors.address = "Address is required";
+
+    if (!formState.shippingAddress.trim()) {
+      newErrors.shippingAddress = "Shipping Address is required";
+    }
+
+    if (!isChecked && !formState.billingAddress.trim()) {
+      newErrors.billingAddress = "Billing Address is required";
     }
 
     setErrors(newErrors);
@@ -67,15 +85,15 @@ const MainContent = () => {
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
-    setFormState(prev => ({
+    setFormState((prev) => ({
       ...prev,
-      [name]: value
+      [name]: value,
     }));
-    
+
     if (errors[name]) {
-      setErrors(prev => ({
+      setErrors((prev) => ({
         ...prev,
-        [name]: undefined
+        [name]: undefined,
       }));
     }
   };
@@ -92,7 +110,7 @@ const MainContent = () => {
 
     try {
       await instance.post(
-        `http://localhost:3002/api/user/${username}/addCustomer`,
+        `http://localhost:3002/api/stakeholders/addCustomer?username=${username}`,
         formState
       );
       navigate(-1);
@@ -105,7 +123,9 @@ const MainContent = () => {
   };
 
   const handleCancel = () => {
-    const shouldExit = window.confirm("Are you sure you want to discard changes?");
+    const shouldExit = window.confirm(
+      "Are you sure you want to discard changes?"
+    );
     if (shouldExit) {
       navigate(-1);
     }
@@ -132,14 +152,16 @@ const MainContent = () => {
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="space-y-2">
-                <label className="text-sm font-medium text-gray-700">Customer Name</label>
+                <label className="text-sm font-medium text-gray-700">
+                  Customer Name
+                </label>
                 <input
                   type="text"
                   name="customerName"
                   value={formState.customerName}
                   onChange={handleInputChange}
                   className={`w-full p-2 border rounded-md ${
-                    errors.customerName ? 'border-red-500' : 'border-gray-300'
+                    errors.customerName ? "border-red-500" : "border-gray-300"
                   }`}
                 />
                 {errors.customerName && (
@@ -149,14 +171,16 @@ const MainContent = () => {
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <label className="text-sm font-medium text-gray-700">Email</label>
+                  <label className="text-sm font-medium text-gray-700">
+                    Email
+                  </label>
                   <input
                     type="email"
-                    name="email"
-                    value={formState.email}
+                    name="customerEmail"
+                    value={formState.customerEmail ?? ""}
                     onChange={handleInputChange}
                     className={`w-full p-2 border rounded-md ${
-                      errors.email ? 'border-red-500' : 'border-gray-300'
+                      errors.email ? "border-red-500" : "border-gray-300"
                     }`}
                   />
                   {errors.email && (
@@ -165,14 +189,33 @@ const MainContent = () => {
                 </div>
 
                 <div className="space-y-2">
-                  <label className="text-sm font-medium text-gray-700">Phone Number</label>
+                  <label className="text-sm font-medium text-gray-700">
+                    Phone Number
+                  </label>
                   <input
                     type="tel"
-                    name="phoneNumber"
+                    name="customerContact"
                     value={formState.phoneNumber}
                     onChange={handleInputChange}
                     className={`w-full p-2 border rounded-md ${
-                      errors.phoneNumber ? 'border-red-500' : 'border-gray-300'
+                      errors.phoneNumber ? "border-red-500" : "border-gray-300"
+                    }`}
+                  />
+                  {errors.phoneNumber && (
+                    <p className="text-red-500 text-sm">{errors.phoneNumber}</p>
+                  )}
+                </div>
+                <div className="space-y-2">
+                  <label className="text-sm font-medium text-gray-700">
+                    Customer Company
+                  </label>
+                  <input
+                    type="tel"
+                    name="customerCompany"
+                    value={formState.customerCompany}
+                    onChange={handleInputChange}
+                    className={`w-full p-2 border rounded-md ${
+                      errors.phoneNumber ? "border-red-500" : "border-gray-300"
                     }`}
                   />
                   {errors.phoneNumber && (
@@ -182,24 +225,68 @@ const MainContent = () => {
               </div>
 
               <div className="space-y-2">
-                <label className="text-sm font-medium text-gray-700">Address</label>
+                <label className="text-sm font-medium text-gray-700">
+                  Shipping Address
+                </label>
                 <textarea
-                  name="address"
-                  value={formState.address}
+                  name="shippingAddress"
+                  value={formState.shippingAddress}
                   onChange={handleInputChange}
                   rows={3}
                   className={`w-full p-2 border rounded-md ${
-                    errors.address ? 'border-red-500' : 'border-gray-300'
+                    errors.shippingAddress
+                      ? "border-red-500"
+                      : "border-gray-300"
                   }`}
                 />
-                {errors.address && (
-                  <p className="text-red-500 text-sm">{errors.address}</p>
+                {errors.shippingAddress && (
+                  <p className="text-red-500 text-sm">
+                    {errors.shippingAddress}
+                  </p>
                 )}
+                <div className="flex flex-row">
+                  <label>
+                    <input
+                      type="checkbox"
+                      checked={isChecked}
+                      onChange={handleCheckboxChange}
+                    />
+                  </label>
+                  <p className="text-sm font-medium text-gray-700 ml-2">
+                      Is billing address same as shipping address?
+                    </p>
+                </div>
               </div>
+
+              {!isChecked && (
+                <div className="space-y-2">
+                <label className="text-sm font-medium text-gray-700">
+                  Billing Address
+                </label>
+                <textarea
+                  name="billingAddress"
+                  value={formState.billingAddress}
+                  onChange={handleInputChange}
+                  rows={3}
+                  className={`w-full p-2 border rounded-md ${
+                    errors.shippingAddress
+                      ? "border-red-500"
+                      : "border-gray-300"
+                  }`}
+                />
+                {errors.shippingAddress && (
+                  <p className="text-red-500 text-sm">
+                    {errors.shippingAddress}
+                  </p>
+                )} 
+                </div>
+              )}
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <label className="text-sm font-medium text-gray-700">Registration Date</label>
+                  <label className="text-sm font-medium text-gray-700">
+                    Registration Date
+                  </label>
                   <input
                     type="date"
                     name="registrationDate"
@@ -210,7 +297,9 @@ const MainContent = () => {
                 </div>
 
                 <div className="space-y-2">
-                  <label className="text-sm font-medium text-gray-700">Activity Status</label>
+                  <label className="text-sm font-medium text-gray-700">
+                    Activity Status
+                  </label>
                   <select
                     name="activityStatus"
                     value={formState.activityStatus}
@@ -249,7 +338,9 @@ const MainContent = () => {
                       <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
                     </div>
                   </>
-                ) : 'Save'}
+                ) : (
+                  "Save"
+                )}
               </button>
             </div>
           </div>

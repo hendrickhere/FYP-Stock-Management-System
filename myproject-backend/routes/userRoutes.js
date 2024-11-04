@@ -8,9 +8,6 @@ const authMiddleware = require('../backend-middleware/authMiddleware');
 // router.post('/signup', UserController.signup);
 // router.post('/login', UserController.login);
 
-router.post('/:username/addCustomer', UserController.addCustomer);
-router.get('/:username/customers', UserController.getAllCustomers);
-router.get('/:username/customer/:customeruuid', UserController.getCustomer);
 
 router.post('/:username/salesOrder', UserController.addSalesOrder);
 router.get('/:username/salesOrders', UserController.getSalesOrder);

@@ -51,10 +51,10 @@ const CustomerTable = ({ customers, handleDeleteData, handleEditData }) => {
                 <tr key={customer.customer_id} className="border-b hover:bg-gray-100">
                   <td className="px-4 py-2"><input type="radio" name="selectedCustomer" /></td>
                   <td className="px-4 py-2">{customer.customer_id}</td>
-                  <td className="px-4 py-2">{customer.name}</td>
-                  <td className="px-4 py-2">{customer.email}</td>
-                  <td className="px-4 py-2">{customer.phone_number}</td>
-                  <td className="px-4 py-2">{customer.address}</td>
+                  <td className="px-4 py-2">{customer.customer_name}</td>
+                  <td className="px-4 py-2">{customer.customer_email}</td>
+                  <td className="px-4 py-2">{customer.customer_contact}</td>
+                  <td className="px-4 py-2">{customer.shipping_address}</td>
                   <td className="px-4 py-2">{customer.registration_date}</td>
                   <td className="px-4 py-2">{customer.status}</td>
                   <td className="px-4 py-2 flex gap-2">
