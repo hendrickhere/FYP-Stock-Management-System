@@ -34,28 +34,59 @@ function ChatbotUI() {
 }
 
 function Chatbot({ isMobile }) {
-  const [messages, setMessages] = useState(() => {
-    const saved = localStorage.getItem('chatMessages');
-    return saved ? JSON.parse(saved) : [];
-  });
+
+  const [messages, setMessages] = useState([]);
   const [chats, setChats] = useState(() => {
-    const saved = localStorage.getItem('chats');
-    return saved ? JSON.parse(saved) : [];
+    // Load chats from localStorage on component mount
+    try {
+      const saved = localStorage.getItem('chats');
+      return saved ? JSON.parse(saved) : [];
+    } catch (error) {
+      console.error('Error loading chats from localStorage:', error);
+      return [];
+    }
   });
+
   const [currentChatId, setCurrentChatId] = useState(() => {
-    const saved = localStorage.getItem('currentChatId');
-    return saved || null;
+    try {
+      const saved = localStorage.getItem('currentChatId');
+      return saved || null;
+    } catch (error) {
+      console.error('Error loading currentChatId from localStorage:', error);
+      return null;
+    }
   });
+
   const [isTyping, setIsTyping] = useState(false);
   const [isOnline, setIsOnline] = useState(true);
   const [authError, setAuthError] = useState(false);
 
+  // Load messages for current chat when currentChatId changes
   useEffect(() => {
-    localStorage.setItem('chats', JSON.stringify(chats));
+    if (currentChatId) {
+      const currentChat = chats.find(chat => chat.id === currentChatId);
+      setMessages(currentChat?.messages || []);
+    } else {
+      setMessages([]);
+    }
+  }, [currentChatId, chats]);
+
+  // Save chats to localStorage whenever they change
+  useEffect(() => {
+    try {
+      localStorage.setItem('chats', JSON.stringify(chats));
+    } catch (error) {
+      console.error('Error saving chats to localStorage:', error);
+    }
   }, [chats]);
 
+  // Save currentChatId to localStorage whenever it changes
   useEffect(() => {
-    localStorage.setItem('currentChatId', currentChatId);
+    try {
+      localStorage.setItem('currentChatId', currentChatId || '');
+    } catch (error) {
+      console.error('Error saving currentChatId to localStorage:', error);
+    }
   }, [currentChatId]);
 
   const createNewChat = () => {
@@ -88,6 +119,14 @@ function Chatbot({ isMobile }) {
     setCurrentChatId(chatId);
     const chat = chats.find(c => c.id === chatId);
     setMessages(chat?.messages || []);
+  };
+
+  const updateChatMessages = (chatId, newMessages) => {
+    setChats(prev => prev.map(chat => 
+      chat.id === chatId
+        ? { ...chat, messages: newMessages }
+        : chat
+    ));
   };
 
   const editChatTitle = (chatId, newTitle) => {
@@ -152,70 +191,75 @@ function Chatbot({ isMobile }) {
       return;
     }
 
-    setMessages(prev => [...prev, {
+    const newUserMessage = {
       type: 'user',
       text: text,
       timestamp: new Date().toISOString()
-    }]);
+    };
+
+    // Update messages state
+    const updatedMessages = [...messages, newUserMessage];
+    setMessages(updatedMessages);
     
+    // Update chat messages in chats array
+    if (currentChatId) {
+      updateChatMessages(currentChatId, updatedMessages);
+    }
+
     setIsTyping(true);
-    setChats(prev => prev.map(chat => {
-      if (chat.id === currentChatId) {
-        return {
-          ...chat,
-          messages: [...messages, {
-            type: 'user',
-            text,
-            timestamp: new Date().toISOString()
-          }]
-        };
-      }
-      return chat;
-    }));
 
     try {
       const response = await axiosInstance.post("/chatbot/chat", {
         message: text
       });
       
-      setIsOnline(true);
-      setAuthError(false);
+        setIsOnline(true);
+        setAuthError(false);
       
       // Add response validation
-      if (!response.data || !response.data.message) {
-        throw new Error('Invalid response format');
-      }
+        if (!response.data || !response.data.message) {
+          throw new Error('Invalid response format');
+        }
       
-      setMessages(prev => [...prev, {
+      const newBotMessage = {
         type: 'bot',
         text: response.data.message,
         timestamp: new Date().toISOString(),
         isError: false
-      }]);
+      };
+
+      const finalMessages = [...updatedMessages, newBotMessage];
+      setMessages(finalMessages);
+      
+      // Update chat messages in chats array
+      if (currentChatId) {
+        updateChatMessages(currentChatId, finalMessages);
+      }
 
     } catch (error) {
       console.error('Error sending message:', error);
       setIsOnline(false);
       
-      // Add error message
-      setMessages(prev => [...prev, {
+      const errorMessage = {
         type: 'bot',
         text: error.response?.status === 429 
           ? "Too many requests, please wait a moment..."
           : "Sorry, I'm currently offline and can't respond to messages. Please try again later.",
         isError: true,
         timestamp: new Date().toISOString()
-      }]);
+      };
+      const finalMessages = [...updatedMessages, errorMessage];
+      setMessages(finalMessages);
+
+      // Update chat messages in chats array
+      if (currentChatId) {
+        updateChatMessages(currentChatId, finalMessages);
+      }
     }
     finally {
     setIsTyping(false);
   }
 };
-
-  // Save messages to localStorage when they change
-  useEffect(() => {
-    localStorage.setItem('chatMessages', JSON.stringify(messages));
-  }, [messages]);
   
   // Check status on mount and periodically
   useEffect(() => {

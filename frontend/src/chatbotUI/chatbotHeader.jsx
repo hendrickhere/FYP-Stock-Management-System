@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect } from "react";
 import { Bot, Plus, Clock, MessageSquare, ChevronDown, Pencil, Trash2, Check, X } from 'lucide-react';
+import ChatList from "./chatList";
 
 export default function ChatbotHeader({ 
   isOnline, 
@@ -103,8 +104,78 @@ export default function ChatbotHeader({
               
               {/* Recent Chats Dropdown */}
               {showRecentChats && (
-                <div className="absolute right-0 top-full mt-1 w-48 sm:w-72 bg-white rounded-lg shadow-lg border border-gray-200 py-1 z-50">
-                  {/* ... rest of the dropdown content ... */}
+                <div className="absolute right-0 top-full mt-1 w-48 sm:w-72 bg-white rounded-lg shadow-lg border border-gray-200 z-50">
+                  <div className="max-h-[300px] overflow-y-auto">
+                    {chats.map((chat) => (
+                      <div
+                        key={chat.id}
+                        className={`group flex items-center justify-between p-2 hover:bg-gray-50 ${
+                          chat.id === currentChatId ? 'bg-purple-50' : ''
+                        }`}
+                      >
+                        {editingChatId === chat.id ? (
+                          <div className="flex items-center gap-2 flex-1">
+                            <input
+                              ref={editInputRef}
+                              type="text"
+                              value={editTitle}
+                              onChange={(e) => setEditTitle(e.target.value)}
+                              onKeyDown={handleKeyPress}
+                              className="flex-1 px-2 py-1 text-sm border rounded"
+                              autoFocus
+                            />
+                            <button
+                              onClick={handleSaveEdit}
+                              className="p-1 text-green-600 hover:text-green-700"
+                            >
+                              <Check className="w-4 h-4" />
+                            </button>
+                            <button
+                              onClick={() => setEditingChatId(null)}
+                              className="p-1 text-red-600 hover:text-red-700"
+                            >
+                              <X className="w-4 h-4" />
+                            </button>
+                          </div>
+                        ) : (
+                          <>
+                            <button
+                              className="flex items-center gap-2 flex-1 text-left"
+                              onClick={() => {
+                                onSelectChat(chat.id);
+                                setShowRecentChats(false);
+                              }}
+                            >
+                              <MessageSquare className="w-4 h-4 text-gray-500" />
+                              <span className="text-sm text-gray-700 truncate">
+                                {chat.title}
+                              </span>
+                            </button>
+                            <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleStartEdit(chat);
+                                }}
+                                className="p-1 text-gray-400 hover:text-gray-600"
+                              >
+                                <Pencil className="w-4 h-4" />
+                              </button>
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  onDeleteChat(chat.id);
+                                }}
+                                className="p-1 text-gray-400 hover:text-red-600"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </button>
+                            </div>
+                          </>
+                        )}
+                      </div>
+                    ))}
+                  </div>
                 </div>
               )}
             </div>
