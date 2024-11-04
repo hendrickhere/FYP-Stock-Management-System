@@ -110,8 +110,9 @@ exports.getAllCustomers = async (username, pageNumber, pageSize) => {
     }
     const mappedCustomers = customers.map(customer => {
         return {
-          ...customer.dataValues, // Spread other properties
-          registration_date: customer.createdAt, // Map createdAt to registration_date
+          ...customer.dataValues, 
+          registration_date: customer.createdAt, 
+          status: customer.status_id
         };
       });
   
