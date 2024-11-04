@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { FaHome } from 'react-icons/fa';
 import { MdOutlineInventory2 } from "react-icons/md";
@@ -11,7 +11,17 @@ function Sidebar() {
   const location = useLocation();
   const navigate = useNavigate();
   const [showLogoutAlert, setShowLogoutAlert] = useState(false);
+  const [isMobile, setIsMobile] = useState(window.innerWidth < 1024);
   
+  useEffect(() => {
+    const handleResize = () => {
+      setIsMobile(window.innerWidth < 1024);
+    };
+
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
   const handleLogout = () => {
     localStorage.removeItem('accessToken');
     navigate('/login');
@@ -30,19 +40,28 @@ function Sidebar() {
     { path: '/appointments', icon: GrSchedules, label: 'Appointments' },
   ];
 
+  // Don't render sidebar on mobile
+  if (isMobile) {
+    return null;
+  }
+
   return (
     <>
-      <nav className="w-[13rem] bg-[#38304C] text-white flex flex-col fixed bottom-0 top-16">
+      <nav className="fixed bottom-0 top-16 left-0 w-[13rem] bg-[#38304C] text-white flex flex-col">
         <ul className="list-none p-0 m-0 flex-grow flex flex-col mt-4">
           {menuItems.map(({ path, icon: Icon, label }) => (
             <li key={path} className="flex items-center relative my-4">
               <Link
                 to={path}
-                className={`flex items-center w-[12rem] text-base font-semibold no-underline py-3 px-6 ml-4 group ${
-                  isActiveRoute(path) 
+                className={`
+                  flex items-center 
+                  w-[12rem] text-base font-semibold 
+                  no-underline py-3 px-6 ml-4
+                  group 
+                  ${isActiveRoute(path) 
                     ? 'bg-[#B9B4C7] text-black rounded-l-[30px]' 
-                    : 'text-white hover:bg-[#B9B4C7] hover:text-black hover:rounded-l-[30px]'
-                }`}
+                    : 'text-white hover:bg-[#B9B4C7] hover:text-black hover:rounded-l-[30px]'}
+                `}
               >
                 <div className="w-6 h-6 flex items-center justify-center mr-3 flex-shrink-0">
                   <Icon className={`w-5 h-5 transition-colors ${
@@ -55,17 +74,19 @@ function Sidebar() {
           ))}
         </ul>
 
-        <button 
-          onClick={() => setShowLogoutAlert(true)}
-          className="group flex items-center justify-start w-[45px] h-[45px] border-none rounded-full cursor-pointer relative overflow-hidden transition-all duration-300 shadow-md bg-[#B9B4C7] mx-auto mb-5 hover:w-32 hover:rounded-[40px]"
-        >
-          <div className="w-full transition-all duration-300 flex items-center justify-center group-hover:w-[30%] group-hover:pl-5">
-            <GrLogout className="w-5 h-5 text-black" />
-          </div>
-          <span className="absolute right-0 w-0 opacity-0 text-black text-base font-semibold transition-all duration-300 group-hover:opacity-100 group-hover:w-[70%] group-hover:pr-3">
-            Logout
-          </span>
-        </button>
+        <div className="flex justify-end mb-5 mr-4">
+          <button 
+            onClick={() => setShowLogoutAlert(true)}
+            className="group flex items-center justify-start w-[45px] h-[45px] border-none rounded-full cursor-pointer relative overflow-hidden transition-all duration-300 shadow-md bg-[#B9B4C7] hover:w-32 hover:rounded-[40px]"
+          >
+            <div className="w-full transition-all duration-300 flex items-center justify-center group-hover:w-[30%] group-hover:pl-5">
+              <GrLogout className="w-5 h-5 text-black" />
+            </div>
+            <span className="absolute right-0 w-0 opacity-0 text-black text-base font-semibold transition-all duration-300 group-hover:opacity-100 group-hover:w-[70%] group-hover:pr-3">
+              Logout
+            </span>
+          </button>
+        </div>
       </nav>
 
       {showLogoutAlert && (

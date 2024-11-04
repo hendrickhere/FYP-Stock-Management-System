@@ -3,7 +3,7 @@ import Header from './header';
 import Sidebar from './sidebar';
 import { Plus } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import axios from 'axios';
+import axiosInstance from './axiosConfig';
 import AppointmentTable from './appointmentTable';
 
 function Appointments() {
@@ -27,7 +27,7 @@ function MainContent() {
   const fetchData = async () => {
     try {
       setLoading(true);
-      const response = await axios.get('http://localhost:3002/api/appointments');
+      const response = await axiosInstance.get('http://localhost:3002/api/appointments');
       setAppointments(response.data);
     } catch (error) {
       console.error('Error fetching appointments', error);
@@ -47,7 +47,7 @@ function MainContent() {
     );
     if (confirm) {
       try {
-        await axios.delete(`http://localhost:3002/api/appointments/${appointments[index].appointment_id}`);
+        await axiosInstance.delete(`http://localhost:3002/api/appointments/${appointments[index].appointment_id}`);
         window.alert("Appointment successfully deleted");
         fetchData();
       } catch (error) {
