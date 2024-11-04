@@ -7,6 +7,8 @@ import { Plus } from 'lucide-react';
 import VendorTable from './vendorTable';
 import CustomerTable from './customerTable';
 import StaffTable from './staffTable';
+import { GlobalContext } from "./globalContext";
+
 
 function Stakeholders() {
   return (
@@ -21,6 +23,7 @@ function Stakeholders() {
 }
 
 function MainContent() {
+  const { username } = useContext(GlobalContext);
   const [view, setView] = useState('vendor');
   const [loading, setLoading] = useState(false);
   const [data, setData] = useState(null);
@@ -34,7 +37,7 @@ function MainContent() {
   const fetchData = async () => {
     try {
       setLoading(true);
-      const response = await axiosInstance.get(`/stakeholders/${view}s`);
+      const response = await axiosInstance.get(`/stakeholders/${view}s?username=${username}`);
       setData(response.data);
     } catch (error) {
       console.error("Error fetching data:", error);

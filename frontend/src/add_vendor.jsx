@@ -36,7 +36,8 @@ const MainContent = () => {
     contactPerson: "",
     phoneNumber: "",
     address: "",
-    activityStatus: "active" // Default to active
+    activityStatus: "active", 
+    username: username
   });
 
   const [errors, setErrors] = useState({});
@@ -91,7 +92,7 @@ const MainContent = () => {
 
     try {
       await instance.post(
-        `http://localhost:3002/api/user/${username}/vendors`,
+        `http://localhost:3002/api/stakeholders/vendors`,
         formState
       );
       navigate(-1);

@@ -198,7 +198,7 @@ exports.addCustomer = async (customerData, username) => {
     where: {
       username: username,
     },
-  });
+});
 
   if (user) {
     const customer = await Customer.create({

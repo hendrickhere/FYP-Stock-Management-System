@@ -1,4 +1,3 @@
-const UserService = require("../service/userService");
 const AppointmentService = require("../service/appointmentService");
 
 exports.getAllAppointment = async (req, res) => {

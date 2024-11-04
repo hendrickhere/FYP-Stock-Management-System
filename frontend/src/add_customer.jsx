@@ -33,8 +33,8 @@ const MainContent = () => {
 
   const [formState, setFormState] = useState({
     customerName: "",
-    email: "",
-    phoneNumber: "",
+    customerEmail: "",
+    customerContact: "",
     address: "",
     registrationDate: new Date().toISOString().split('T')[0], // Today's date as default
     activityStatus: "active" // Default to active
@@ -49,8 +49,8 @@ const MainContent = () => {
       newErrors.customerName = "Customer name is required";
     }
     
-    if (!formState.phoneNumber.trim()) {
-      newErrors.phoneNumber = "Phone number is required";
+    if (!formState.customerContact.trim()) {
+      newErrors.customerContact = "Phone number is required";
     }
 
     if (formState.email && !/\S+@\S+\.\S+/.test(formState.email)) {
@@ -92,7 +92,7 @@ const MainContent = () => {
 
     try {
       await instance.post(
-        `http://localhost:3002/api/user/${username}/customers`,
+        `http://localhost:3002/api/user/${username}/addCustomer`,
         formState
       );
       navigate(-1);
