@@ -70,7 +70,7 @@ const MainContent = () => {
     }
 
     try {
-      const response = await instance.get(`http://localhost:3002/api/user/${username}/customers`);
+      const response = await instance.get(`http://localhost:3002/api/stakeholders/customers?username=${username}`);
       setFormState(prev => ({
         ...prev,
         customerData: response.data,

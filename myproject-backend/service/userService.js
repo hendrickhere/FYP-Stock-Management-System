@@ -1,7 +1,7 @@
 const bcrypt = require("bcryptjs");
 const sequelize = require("../db-config");
 const jwt = require("jsonwebtoken");
-const {Customer, User, SalesOrder, Product, Organization, SalesOrderProduct} = require ("../models/association");
+const {Customer, User, SalesOrder, Product, Organization, SalesOrderInventory} = require ("../models/association");
 
 
 async function getUserByUsername(username) {
@@ -340,7 +340,7 @@ exports.addSalesOrder = async (username, salesOrderData) => {
       }
 
       const price = itemObj.price * item.quantity;
-      await SalesOrderProduct.create(
+      await SalesOrderInventory.create(
         {
           sales_order_id: salesOrder.sales_order_id,
           product_id: itemObj.product_id,
@@ -385,7 +385,7 @@ exports.getSalesOrder = async (username) => {
       {
         model: Product,
         through: {
-          model: SalesOrderProduct,
+          model: SalesOrderInventory,
           attributes: ["quantity", "price"],
         },
       },
@@ -406,7 +406,7 @@ exports.getSalesOrder = async (username) => {
     throw new Error("Sales Orders not found.");
   }
 
-  const totalPriceResults = await SalesOrderProduct.findAll({
+  const totalPriceResults = await SalesOrderInventory.findAll({
     where: {
       sales_order_id: salesOrders.map((order) => order.sales_order_id),
     },
@@ -455,13 +455,13 @@ exports.deleteInventory = async (username, inventoryuuid) => {
       throw new Error("Inventory not found"); 
     } 
   
-    const salesOrderInventory = await SalesOrderProduct.findAll({
+    const salesOrderInventory = await SalesOrderInventory.findAll({
       where: {product_id: itemObj.product_id},
       transaction,
     })
   
     for (const entry of salesOrderInventory) {
-      await SalesOrderProduct.update(
+      await SalesOrderInventory.update(
         { status_id: 0 },
         {
           where: { product_id: entry.product_id, status_id: 1 },

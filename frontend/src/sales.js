@@ -64,7 +64,7 @@ function MainContent() {
           const encodedUsername = encodeURIComponent(username);
           console.log('Fetching sales orders for username:', encodedUsername);
           
-          const response = await axiosInstance.get(`/sales/user/${encodedUsername}`);
+          const response = await axiosInstance.get(`http://localhost:3002/api/user/${username}/salesOrders`);
           console.log('API Response:', response.data);
           
           if (response.data && Array.isArray(response.data.salesOrders)) {

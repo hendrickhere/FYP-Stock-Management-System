@@ -4,5 +4,6 @@ const PurchaseController = require("../controller/purchaseController");
 
 
 router.get("/:username", PurchaseController.getAllPurchase);
+router.post("purchase", PurchaseController.insertPurchase);
 
 module.exports = router;

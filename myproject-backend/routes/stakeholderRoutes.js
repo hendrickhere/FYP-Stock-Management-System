@@ -9,4 +9,5 @@ router.post('/addCustomer', StakeholderController.addCustomer);
 router.get('/customers', StakeholderController.getAllCustomers);
 router.get('/customer/:uuid', StakeholderController.getCustomer);
 
+router.get('/staffs', StakeholderController.getStaffs);
 module.exports = router;

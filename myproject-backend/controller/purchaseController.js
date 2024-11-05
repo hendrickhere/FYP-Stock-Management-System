@@ -19,3 +19,22 @@ exports.getAllPurchase = async (req, res) => {
     res.status(500).json({ message: err.message });
   }
 };
+
+exports.insertPurchase = async (req, res) => {
+  const reqBody = req.body;
+
+  try {
+    const result = await PurchaseService.insertPurchase(reqBody);
+
+    if (result) {
+      res
+        .status(200)
+        .json({
+          purchaseOrder: result,
+          message: "Purchase Order inserted successfully",
+        });
+    }
+  } catch (err) {
+    res.status(500).json({ errorMessage: err.message });
+  }
+};

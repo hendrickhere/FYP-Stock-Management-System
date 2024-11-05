@@ -109,3 +109,7 @@ exports.getCustomer = async (req, res) => {
     }
   }
 };
+
+exports.getStaffs = async (req, res) => {
+  
+}
