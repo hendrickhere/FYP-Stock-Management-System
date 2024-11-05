@@ -6,6 +6,7 @@ import { IoMenu } from "react-icons/io5";
 import { MdOutlineInventory2 } from "react-icons/md";
 import { AiOutlineStock } from "react-icons/ai";
 import { BsCashCoin } from "react-icons/bs";
+import { AlertTriangle } from 'lucide-react';
 import { GrStakeholder, GrSchedules, GrLogout } from "react-icons/gr";
 import { useNavigate, Link, useLocation } from 'react-router-dom';
 import { Alert, AlertDescription } from "./ui/alert";
@@ -19,8 +20,14 @@ function Header() {
   const [showUserMenu, setShowUserMenu] = useState(false);
   const [showMobileMenu, setShowMobileMenu] = useState(false);
   const [showLogoutAlert, setShowLogoutAlert] = useState(false);
+  const [showSessionExpiredAlert, setShowSessionExpiredAlert] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
+
+  const [userData, setUserData] = useState(() => {
+    const cached = sessionStorage.getItem('userData');
+    return cached ? JSON.parse(cached) : null;
+  });
 
   const menuItems = [
     { path: '/dashboard', icon: FaUser, label: 'Dashboard' },
@@ -30,6 +37,22 @@ function Header() {
     { path: '/stakeholders', icon: GrStakeholder, label: 'Stakeholders' },
     { path: '/appointments', icon: GrSchedules, label: 'Appointments' },
   ];
+
+  const handleSessionExpired = () => {
+    localStorage.removeItem('accessToken');
+    sessionStorage.removeItem('userData');
+    setShowSessionExpiredAlert(true);
+    
+    // Auto-dismiss after 3 seconds and redirect
+    setTimeout(() => {
+      setShowSessionExpiredAlert(false);
+      navigate('/login', { 
+        state: { 
+          message: 'Your session has expired. Please log in again for security reasons.' 
+        } 
+      });
+    }, 3000);
+  };
 
   useEffect(() => {
     async function fetchCurrentUser() {
@@ -42,15 +65,29 @@ function Header() {
           return;
         }
 
+        // Check if we have cached data
+        if (userData) {
+          setUsername(userData.username);
+          setUserRole(userData.role);
+          setIsLoading(false);
+          return;
+        }
+
         const response = await instance.get('/user/current');
         if (response.status === 200) {
-          setUsername(response.data.username);
-          setUserRole(response.data.role);
+          const data = {
+            username: response.data.username,
+            role: response.data.role
+          };
+          // Cache the data
+          sessionStorage.setItem('userData', JSON.stringify(data));
+          setUserData(data);
+          setUsername(data.username);
+          setUserRole(data.role);
         }
       } catch (error) {
         if (error.response?.status === 401) {
-          localStorage.removeItem('accessToken');
-          navigate('/login');
+          handleSessionExpired();
         }
       } finally {
         setIsLoading(false);
@@ -58,30 +95,23 @@ function Header() {
     }
 
     fetchCurrentUser();
-  }, [navigate]);
+
+    // Set up interval to check token periodically
+    const tokenCheckInterval = setInterval(fetchCurrentUser, 5 * 60 * 1000); // Check every 5 minutes
+
+    return () => clearInterval(tokenCheckInterval);
+  }, [navigate, userData]);
+
+  // Clear cache on logout
+  const handleLogout = () => {
+    localStorage.removeItem('accessToken');
+    sessionStorage.removeItem('userData');
+    navigate('/login');
+  };
 
   const handleChatClick = () => {
     navigate('/chatbot');
     setShowMobileMenu(false);
-  };
-
-  useEffect(() => {
-    const handleClickOutside = (event) => {
-      if (showUserMenu && !event.target.closest('.user-menu-container')) {
-        setShowUserMenu(false);
-      }
-      if (showMobileMenu && !event.target.closest('.mobile-menu-container')) {
-        setShowMobileMenu(false);
-      }
-    };
-
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, [showUserMenu, showMobileMenu]);
-
-  const handleLogout = () => {
-    localStorage.removeItem('accessToken');
-    navigate('/login');
   };
 
   const isActiveRoute = (path) => {
@@ -90,17 +120,54 @@ function Header() {
 
   if (isLoading) {
     return (
-      <header className="flex justify-between items-center p-3 bg-white shadow-sm">
-        <div className="flex items-center space-x-4">
-          <div className="w-8 h-8 bg-gray-200 rounded-full animate-pulse" />
-          <div className="h-6 w-24 bg-gray-200 rounded animate-pulse" />
-        </div>
-      </header>
+      <>
+        <header className="sticky top-0 z-50 bg-white shadow-sm">
+          <div className="flex justify-between items-center px-3 md:px-4 py-2 md:py-3">
+            {/* Logo Section - Keep exact same structure */}
+            <div className="flex items-center space-x-2 md:space-x-3">
+              <img 
+                src={require('./logo.png')} 
+                alt="StockSavvy Logo" 
+                className="w-8 h-8 md:w-10 md:h-10"
+              />
+              <span className="text-lg md:text-xl font-bold">StockSavvy</span>
+            </div>
+
+            {/* Mobile Menu Button Placeholder */}
+            <div className="lg:hidden w-10 h-10" />
+
+            {/* Desktop Actions Placeholder */}
+            <div className="hidden lg:flex items-center space-x-4">
+              <div className="w-10 h-10 bg-gray-100 rounded-full animate-pulse" />
+              <div className="w-10 h-10 bg-gray-100 rounded-full animate-pulse" />
+              <div className="w-48 h-10 bg-gray-100 rounded-lg animate-pulse" />
+            </div>
+          </div>
+        </header>
+      </>
     );
   }
 
   return (
     <>
+      {showSessionExpiredAlert && (
+        <div className="fixed top-0 left-0 right-0 z-50 bg-yellow-100 border-b border-yellow-200">
+          <div className="max-w-7xl mx-auto px-4 py-3">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center">
+                <div className="flex-shrink-0">
+                  <AlertTriangle className="h-5 w-5 text-yellow-400" />
+                </div>
+                <div className="ml-3">
+                  <p className="text-sm text-yellow-700">
+                    Your session has expired. Logging out for security reasons...
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
       {error && (
         <Alert variant="destructive" className="mb-2">
           <AlertDescription>{error}</AlertDescription>
@@ -108,7 +175,7 @@ function Header() {
       )}
       <header className="sticky top-0 z-50 bg-white shadow-sm">
         {/* Main Header */}
-        <div className="flex justify-between items-center px-3 md:px-4 py-2 md:py-3">
+      <div className="flex justify-between items-center px-3 md:px-4 py-2 md:py-3">
           {/* Logo Section */}
           <div className="flex items-center space-x-2 md:space-x-3">
             <img 
@@ -181,7 +248,11 @@ function Header() {
 
         {/* Mobile Menu */}
         {showMobileMenu && (
-          <div className="lg:hidden fixed inset-0 top-[57px] bg-white z-50 overflow-y-auto mobile-menu-container">
+          <div className={`
+            lg:hidden fixed inset-0 top-[57px] bg-white z-50 overflow-y-auto mobile-menu-container
+            transition-transform duration-300 ease-in-out
+            ${showMobileMenu ? 'translate-x-0' : 'translate-x-full'}
+          `}>
             <div className="px-4 py-3 space-y-4 max-w-lg mx-auto">
               {/* Mobile User Info */}
               <div className="flex items-center space-x-3 p-3 bg-gray-50 rounded-lg">
@@ -251,6 +322,19 @@ function Header() {
           </div>
         )}
       </header>
+
+      {/* Add styles for the progress bar animation */}
+      <style>
+        {`
+          @keyframes progress {
+            0% { transform: translateX(-100%); }
+            100% { transform: translateX(100%); }
+          }
+          .animate-progress {
+            animation: progress 1s infinite linear;
+          }
+        `}
+      </style>
 
       {/* Logout Alert Modal */}
       {showLogoutAlert && (

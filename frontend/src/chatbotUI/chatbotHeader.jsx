@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from "react";
 import { Bot, Plus, Clock, MessageSquare, ChevronDown, Pencil, Trash2, Check, X } from 'lucide-react';
-import ChatList from "./chatList";
+import ConfirmationModal from "./confirmationModal";
 
 export default function ChatbotHeader({ 
   isOnline, 
@@ -17,6 +17,11 @@ export default function ChatbotHeader({
   const [editTitle, setEditTitle] = useState('');
   const editInputRef = useRef(null);
   const dropdownRef = useRef(null);
+
+  // Modal states
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [showNewChatModal, setShowNewChatModal] = useState(false);
+  const [chatToDelete, setChatToDelete] = useState(null);
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -66,6 +71,27 @@ export default function ChatbotHeader({
       minute: 'numeric',
       hour12: true
     });
+  };
+
+  const handleNewChatClick = () => {
+    if (chats.length >= 10) {
+      setShowNewChatModal(true);
+    } else {
+      onNewChat();
+    }
+  };
+
+  const handleDeleteClick = (chatId, e) => {
+    e.stopPropagation();
+    setChatToDelete(chatId);
+    setShowDeleteModal(true);
+  };
+
+  const handleConfirmDelete = () => {
+    if (chatToDelete) {
+      onDeleteChat(chatToDelete);
+      setChatToDelete(null);
+    }
   };
 
   return (
@@ -162,10 +188,7 @@ export default function ChatbotHeader({
                                 <Pencil className="w-4 h-4" />
                               </button>
                               <button
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  onDeleteChat(chat.id);
-                                }}
+                                onClick={(e) => handleDeleteClick(chat.id, e)}
                                 className="p-1 text-gray-400 hover:text-red-600"
                               >
                                 <Trash2 className="w-4 h-4" />
@@ -181,7 +204,7 @@ export default function ChatbotHeader({
             </div>
           )}
           <button
-            onClick={onNewChat}
+            onClick={handleNewChatClick}
             className="flex items-center gap-1 sm:gap-2 px-2 sm:px-4 py-1.5 sm:py-2 text-xs sm:text-sm text-purple-600 hover:bg-purple-50 rounded-lg transition-colors"
           >
             <Plus className="w-3 h-3 sm:w-4 sm:h-4" />
@@ -189,6 +212,27 @@ export default function ChatbotHeader({
           </button>
         </div>
       </div>
+
+      {/* Delete Confirmation Modal */}
+      <ConfirmationModal
+        isOpen={showDeleteModal}
+        onClose={() => {
+          setShowDeleteModal(false);
+          setChatToDelete(null);
+        }}
+        onConfirm={handleConfirmDelete}
+        title="Delete Chat"
+        message="Are you sure you want to delete this chat? This action cannot be undone."
+      />
+
+      {/* New Chat Confirmation Modal */}
+      <ConfirmationModal
+        isOpen={showNewChatModal}
+        onClose={() => setShowNewChatModal(false)}
+        onConfirm={onNewChat}
+        title="Create New Chat"
+        message="Creating a new chat will remove the oldest chat from your history. Would you like to continue?"
+      />
     </div>
   );
 }
