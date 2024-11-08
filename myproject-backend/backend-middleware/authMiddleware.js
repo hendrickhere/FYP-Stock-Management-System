@@ -1,5 +1,5 @@
 const jwt = require('jsonwebtoken');
-const { ACCESS_TOKEN_SECRET } = require('../config/config.js');
+const { JWT_CONFIG } = require('../config/app.config.js');
 
 module.exports = (req, res, next) => {
   try {
@@ -13,7 +13,7 @@ module.exports = (req, res, next) => {
       return res.status(401).json({ message: 'No token provided' });
     }
 
-    jwt.verify(token, ACCESS_TOKEN_SECRET, (err, decoded) => {
+    jwt.verify(token, JWT_CONFIG.ACCESS_TOKEN_SECRET, (err, decoded) => {
       if (err) {
         if (err.name === 'TokenExpiredError') {
           return res.status(401).json({ message: 'Token expired' });

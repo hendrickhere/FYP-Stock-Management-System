@@ -1,22 +1,41 @@
 // const express = require('express');
 // const bodyParser = require('body-parser');
-// const cors = require('cors'); // Require CORS
-// const sequelize = require('./db-config.js');
-// const userRoutes = require('./routes/userRoutes.js');
-// const salesRoutes = require('./routes/salesRoutes.js');
+// const cors = require('cors');
+// const { Sequelize } = require('sequelize');
+// const sequelize = require('./config/db-config');
+// const userRoutes = require('./routes/userRoutes');
+// const salesRoutes = require('./routes/salesRoutes');
+
+// // Import models
+// const User = require('./models/user');
+// const Customer = require('./models/customer');
+// // Import other models...
 
 // const app = express();
-// app.use(cors()); // Use CORS middleware
+// app.use(cors());
 // app.use(bodyParser.json());
 
-// //any uri that starts with /api/user can add inside the userRoutes
-// app.use("/api/user", userRoutes); 
-// app.use("/api/sales", salesRoutes); 
+// // Initialize models
+// const db = {
+//   sequelize,
+//   Sequelize,
+//   User: User.init(sequelize),
+//   Customer: Customer.init(sequelize),
+//   // Initialize other models...
+// };
 
+// // Set up associations
+// require('./models/association')(db);
 
-// // PostgreSQL connection setup using sequelize
+// // Routes
+// app.use("/api/user", userRoutes);
+// app.use("/api/sales", salesRoutes);
+
+// // Sync database
 // sequelize.sync().then(() => {
 //   console.log('Database & tables created!');
+// }).catch(err => {
+//   console.error('Error syncing database:', err);
 // });
 
 // const PORT = process.env.PORT || 3001;
@@ -24,3 +43,4 @@
 //   console.log(`Server running on port ${PORT}`);
 // });
 
+// module.exports = { app, sequelize };

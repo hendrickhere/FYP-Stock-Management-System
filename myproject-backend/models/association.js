@@ -1,111 +1,174 @@
-const Customer = require('./customer');
-console.log('Customer model loaded:', Customer); // Debugging log
-const User = require('./user');
-console.log('User model loaded:', User); // Debugging log
-const SalesOrder = require('./salesOrder');
-console.log('SalesOrder model loaded:', SalesOrder); // Debugging log
-const Inventory = require("./inventory");
-console.log('Inventory model loaded:', Inventory); // Debugging log
-const Organization = require("./organization");
-console.log('Organization model loaded:', Organization); // Debugging log
-const SalesOrderInventory = require("./salesOrderInventory");
-console.log('SalesOrderInventory model loaded:', SalesOrderInventory); // Debugging log
-const Product = require('./inventory');
-console.log('Product model loaded:', Product); // Debugging log
-const Appointment = require('./appointment');
-console.log('Appointment model loaded:', Appointment);
-const PurchaseOrder = require('./purchase_order');
-const PurchaseOrderItem = require("./purchase_order_item");
-const Vendor = require("./vendor");
+module.exports = (db) => {
+    console.log('\n=== Starting Model Associations ===\n');
 
-//#region Customer and SalesOrder
-//(one to many)
-SalesOrder.belongsTo(Customer, { foreignKey: "customer_id" });
-Customer.hasMany(SalesOrder, { foreignKey: "customer_id" });
-//#endregion 
+    const { 
+        Customer, 
+        User, 
+        SalesOrder, 
+        Product, 
+        Organization, 
+        SalesOrderInventory,
+        Appointment,
+        PurchaseOrder,
+        PurchaseOrderItem,
+        Vendor,
+        Warranty,
+        WarrantyClaim,
+        WarrantyNotification
+    } = db;
 
-SalesOrder.hasMany(SalesOrderInventory, {
-    foreignKey: 'sales_order_id',
-    as: 'items'
-});
+    console.log('Models loaded successfully:', Object.keys(db).filter(key => key !== 'sequelize' && key !== 'Sequelize'));
 
-SalesOrderInventory.belongsTo(SalesOrder, {
-    foreignKey: 'sales_order_id'
-});
+    // Sales Order Associations
+    console.log('\n--- Setting up Sales Order Associations ---');
+    SalesOrder.belongsTo(Customer, { foreignKey: "customer_id" });
+    Customer.hasMany(SalesOrder, { foreignKey: "customer_id" });
+    console.log('✓ Customer <-> SalesOrder associations established');
 
-//#region Order and User 
-//(one to many)
-SalesOrder.belongsTo(User, { foreignKey: "user_id", onDelete: "CASCADE" });
-User.hasMany(SalesOrder, { foreignKey: "user_id", onDelete: "CASCADE" }); 
-//#endregion 
+    SalesOrder.hasMany(SalesOrderInventory, {
+        foreignKey: 'sales_order_id',
+        as: 'items'
+    });
+    SalesOrderInventory.belongsTo(SalesOrder, {
+        foreignKey: 'sales_order_id'
+    });
+    console.log('✓ SalesOrder <-> SalesOrderInventory associations established');
 
-//#region SalesOrder and Organization 
-//(one to many)
-SalesOrder.belongsTo(Organization, {
-  foreignKey: "organization_id",
-  onDelete: "CASCADE",
-});
-Organization.hasMany(SalesOrder, {
-    foreignKey: "organization_id",
-    onDelete: "CASCADE",
-  })
-//#endregion
+    SalesOrder.belongsTo(User, { foreignKey: "user_id", onDelete: "CASCADE" });
+    User.hasMany(SalesOrder, { foreignKey: "user_id", onDelete: "CASCADE" });
+    console.log('✓ User <-> SalesOrder associations established');
 
-//#region SalesOrder and Product 
-//(many to many)
-SalesOrder.belongsToMany(Product, {
-  through: SalesOrderInventory,
-  foreignKey: "sales_order_id",
-});
-Product.belongsToMany(SalesOrder, {
-  through: SalesOrderInventory,
-  foreignKey: "product_id",
-});
-//#endregion
+    SalesOrder.belongsTo(Organization, {
+        foreignKey: "organization_id",
+        onDelete: "CASCADE",
+    });
+    Organization.hasMany(SalesOrder, {
+        foreignKey: "organization_id",
+        onDelete: "CASCADE",
+    });
+    console.log('✓ Organization <-> SalesOrder associations established');
 
-PurchaseOrder.belongsToMany(Product, {
-  through: PurchaseOrderItem,
-  foreignKey: "purchase_order_id",
-  otherKey: "product_id",
-});
+    // Product Associations
+    console.log('\n--- Setting up Product Associations ---');
+    SalesOrder.belongsToMany(Product, {
+        through: SalesOrderInventory,
+        foreignKey: "sales_order_id",
+    });
+    Product.belongsToMany(SalesOrder, {
+        through: SalesOrderInventory,
+        foreignKey: "product_id",
+    });
+    console.log('✓ Product <-> SalesOrder many-to-many association established');
 
-// Product belongsToMany PurchaseOrder through PurchaseOrderItem
-Product.belongsToMany(PurchaseOrder, {
-  through: PurchaseOrderItem,
-  foreignKey: "product_id",
-  otherKey: "purchase_order_id",
-});
+    Product.belongsTo(Organization, { foreignKey: 'organization_id', onDelete: 'CASCADE' });
+    Organization.hasMany(Product, { foreignKey: 'organization_id', onDelete: 'CASCADE' });
+    console.log('✓ Organization <-> Product associations established');
 
-PurchaseOrder.belongsTo(User, { foreignKey: 'user_id', as: 'user' });
-User.hasMany(PurchaseOrder, { foreignKey: 'user_id' });
+    Product.belongsTo(User, { foreignKey: "user_id" });
+    User.hasMany(Product, { foreignKey: "user_id" });
+    console.log('✓ User <-> Product associations established');
 
-//#region User and Customer
-User.hasMany(Customer, {foreignKey: 'user_id', onDelete: 'CASCADE'}); 
-Customer.belongsTo(User, {foreignKey : 'user_id', onDelete: 'CASCADE'});
-//#endregion
+    // Purchase Order Associations
+    console.log('\n--- Setting up Purchase Order Associations ---');
+    PurchaseOrder.belongsToMany(Product, {
+        through: PurchaseOrderItem,
+        foreignKey: "purchase_order_id",
+        otherKey: "product_id",
+    });
+    Product.belongsToMany(PurchaseOrder, {
+        through: PurchaseOrderItem,
+        foreignKey: "product_id",
+        otherKey: "purchase_order_id",
+    });
+    console.log('✓ Product <-> PurchaseOrder many-to-many association established');
 
-//#region Organization and Product
-Organization.hasMany(Product, {foreignKey: 'organization_id', onDelete: 'CASCADE'});
-Product.belongsTo(Organization, {foreignKey: 'organization_id', onDelete: 'CASCADE'});
-//#endregion
+    PurchaseOrder.belongsTo(User, { foreignKey: 'user_id', as: 'user' });
+    User.hasMany(PurchaseOrder, { foreignKey: 'user_id' });
+    console.log('✓ User <-> PurchaseOrder associations established');
 
-//#region User and Product
-Product.belongsTo(User, {foreignKey: "user_id"});
-User.hasMany(Product, {foreignKey: "user_id"}); 
-//#endregion
+    // User Associations
+    console.log('\n--- Setting up User Associations ---');
+    User.hasMany(Customer, { foreignKey: 'user_id', onDelete: 'CASCADE' });
+    Customer.belongsTo(User, { foreignKey: 'user_id', onDelete: 'CASCADE' });
+    console.log('✓ User <-> Customer associations established');
 
-//#region User and Organization
-User.belongsTo(Organization, { foreignKey: 'organization_id', as: 'organization' });
-Organization.hasMany(User, { foreignKey: 'organization_id' });
-//#endregion
+    User.belongsTo(Organization, { foreignKey: 'organization_id', as: 'organization' });
+    Organization.hasMany(User, { foreignKey: 'organization_id' });
+    console.log('✓ Organization <-> User associations established');
 
-Appointment.belongsTo(Customer, {foreignKey: 'customer_id', onDelete: "CASCADE"});
-Customer.hasMany(Appointment, {foreignKey: 'customer_id', onDelete: "CASCADE"});
+    // Appointment Associations
+    console.log('\n--- Setting up Appointment Associations ---');
+    Appointment.belongsTo(Customer, { foreignKey: 'customer_id', onDelete: "CASCADE" });
+    Customer.hasMany(Appointment, { foreignKey: 'customer_id', onDelete: "CASCADE" });
+    console.log('✓ Customer <-> Appointment associations established');
 
-Vendor.belongsTo(User, {foreignKey:'user_id', onDelete:'CASCADE'});
-User.hasMany(Vendor, {foreignKey: 'user_id', onDelete: 'CASCADE'});
+    // Vendor Associations
+    console.log('\n--- Setting up Vendor Associations ---');
+    Vendor.belongsTo(User, { foreignKey: 'user_id', onDelete: 'CASCADE' });
+    User.hasMany(Vendor, { foreignKey: 'user_id', onDelete: 'CASCADE' });
+    console.log('✓ User <-> Vendor associations established');
 
-Vendor.hasMany(PurchaseOrder, {foreignKey: 'vendor_id', onDelete:'CASCADE'});
-PurchaseOrder.belongsTo(Vendor, {foreignKey: 'vendor_id', onDelete: 'CASCADE'});
+    Vendor.hasMany(PurchaseOrder, { foreignKey: 'vendor_id', onDelete: 'CASCADE' });
+    PurchaseOrder.belongsTo(Vendor, { foreignKey: 'vendor_id', onDelete: 'CASCADE' });
+    console.log('✓ Vendor <-> PurchaseOrder associations established');
 
-module.exports = {Customer, User, SalesOrder, Product, Organization, SalesOrderInventory, Appointment, PurchaseOrder, PurchaseOrderItem, Vendor}
+    // Warranty Associations
+    console.log('\n--- Setting up Warranty Associations ---');
+    Warranty.belongsTo(Product, { foreignKey: 'product_id', as: 'product', onDelete: 'CASCADE' });
+    Product.hasMany(Warranty, { foreignKey: 'product_id', as: 'warranties', onDelete: 'CASCADE' });
+    console.log('✓ Product <-> Warranty associations established');
+
+    Warranty.belongsTo(User, { foreignKey: 'created_by', as: 'creator', onDelete: 'SET NULL' });
+    Warranty.belongsTo(User, { foreignKey: 'last_modified_by', as: 'modifier', onDelete: 'SET NULL' });
+    console.log('✓ User <-> Warranty associations established');
+
+    Warranty.belongsTo(Organization, { 
+    foreignKey: 'organization_id', 
+    as: 'organization',
+    onDelete: 'CASCADE'
+    });
+    Organization.hasMany(Warranty, { 
+    foreignKey: 'organization_id',
+    onDelete: 'CASCADE'
+    });
+    console.log('✓ Organization <-> Warranty associations established');
+
+    // Warranty Claim Associations
+    console.log('\n--- Setting up Warranty Claim Associations ---');
+    WarrantyClaim.belongsTo(Warranty, { foreignKey: 'warranty_id', as: 'warranty', onDelete: 'CASCADE' });
+    Warranty.hasMany(WarrantyClaim, { foreignKey: 'warranty_id', as: 'claims', onDelete: 'CASCADE' });
+    console.log('✓ Warranty <-> WarrantyClaim associations established');
+
+    WarrantyClaim.belongsTo(User, { foreignKey: 'created_by', as: 'creator', onDelete: 'SET NULL' });
+    WarrantyClaim.belongsTo(User, { foreignKey: 'last_modified_by', as: 'modifier', onDelete: 'SET NULL' });
+    console.log('✓ User <-> WarrantyClaim associations established');
+
+    WarrantyClaim.belongsTo(Customer, { 
+    foreignKey: 'customer_id', 
+    as: 'customer',
+    onDelete: 'SET NULL'
+    });
+    Customer.hasMany(WarrantyClaim, { 
+    foreignKey: 'customer_id',
+    as: 'claims',
+    onDelete: 'SET NULL'
+    });
+    console.log('✓ Customer <-> WarrantyClaim associations established');
+
+    // Warranty Notification Associations
+    WarrantyNotification.belongsTo(Warranty, { 
+        foreignKey: 'warranty_id',
+        as: 'warranty',
+        onDelete: 'CASCADE'
+    });
+    Warranty.hasMany(WarrantyNotification, {
+        foreignKey: 'warranty_id',
+        as: 'notifications',
+        onDelete: 'CASCADE'
+    });
+    console.log('✓ Warranty Notification <-> Warranty associations established');
+
+    console.log('\n=== All Associations Completed Successfully ===\n');
+
+    return db;
+};

@@ -1,5 +1,5 @@
 const { PurchaseOrder, User, Customer, Organization, PurchaseOrderItem, Product, Vendor } = require("../models/association.js");
-const sequelize = require("../db-config");
+const sequelize = require("../config/app.config.js");
 
 
 async function getUserByUsername(username) {

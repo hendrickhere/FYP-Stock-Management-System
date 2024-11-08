@@ -1,7 +1,22 @@
 const bcrypt = require("bcryptjs");
-const sequelize = require("../db-config");
+const { JWT_CONFIG } = require("../config/app.config");
+const { Op } = require("sequelize");
 const jwt = require("jsonwebtoken");
-const {Customer, User, SalesOrder, Product, Organization, SalesOrderInventory} = require ("../models/association");
+const db = require("../models"); 
+console.log('Models available in userService:', Object.keys(db)); 
+const sequelize = require("../config/db-config");  
+
+const User = db.User;
+const Customer = db.Customer;
+const SalesOrder = db.SalesOrder;
+const Product = db.Product;
+const Organization = db.Organization;
+const SalesOrderInventory = db.SalesOrderInventory;
+
+console.log('User model:', !!User);
+console.log('Customer model:', !!Customer);
+console.log('SalesOrder model:', !!SalesOrder);
+console.log('Product model:', !!Product);
 
 
 async function getUserByUsername(username) {
@@ -108,6 +123,7 @@ exports.login = async (loginData) => {
   const { email, password } = loginData;
 
   const result = await User.findOne({
+    attributes: ['user_id', 'username', 'email', 'password_hash', 'role', 'created_at', 'refreshToken'],
     where: {
       email: email,
     },
@@ -120,15 +136,15 @@ exports.login = async (loginData) => {
       // Generate access token
       const accessToken = jwt.sign(
         { id: user.user_id, username: user.username },
-        'secretkey123', // Secret key for JWT 
-        { expiresIn: '15m' } // Access token valid for 15 minutes
+        JWT_CONFIG.ACCESS_TOKEN_SECRET,
+        { expiresIn: JWT_CONFIG.ACCESS_TOKEN_EXPIRY }
       );
 
       // Generate refresh token
       const refreshToken = jwt.sign(
         { id: user.user_id, username: user.username },
-        'refresh-secretkey', // Secret key for refresh token
-        { expiresIn: '30d' } // Refresh token valid for 30 days
+        JWT_CONFIG.REFRESH_TOKEN_SECRET,
+        { expiresIn: JWT_CONFIG.REFRESH_TOKEN_EXPIRY }
       );
 
       // Store the refresh token in the database
@@ -153,6 +169,7 @@ exports.verifyUser = async (email, password) => {
     console.log("Verifying user with email:", email);
     // Find user by email
     const result = await User.findOne({
+      attributes: ['user_id', 'username', 'email', 'password_hash', 'role', 'created_at', 'refreshToken'],
       where: {
         email: email,
       },
