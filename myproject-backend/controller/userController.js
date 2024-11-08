@@ -1,11 +1,6 @@
 const UserService = require("../service/userService");
 const jwt = require('jsonwebtoken');
-const {
-  ACCESS_TOKEN_SECRET,
-  REFRESH_TOKEN_SECRET,
-  ACCESS_TOKEN_EXPIRY,
-  REFRESH_TOKEN_EXPIRY
-} = require('../config/config');
+const { JWT_CONFIG } = require('../config/app.config');
 
 const generateAccessToken = (user) => {
   return jwt.sign(
@@ -13,8 +8,8 @@ const generateAccessToken = (user) => {
       id: user.user_id, 
       username: user.username 
     },
-    ACCESS_TOKEN_SECRET,
-    { expiresIn: ACCESS_TOKEN_EXPIRY }
+    JWT_CONFIG.ACCESS_TOKEN_SECRET,
+    { expiresIn: JWT_CONFIG.ACCESS_TOKEN_EXPIRY }
   );
 };
 
@@ -25,8 +20,8 @@ const generateRefreshToken = (user) => {
       id: user.user_id, 
       username: user.username 
     },
-    REFRESH_TOKEN_SECRET,
-    { expiresIn: REFRESH_TOKEN_EXPIRY }
+    JWT_CONFIG.REFRESH_TOKEN_SECRET,
+    { expiresIn: JWT_CONFIG.REFRESH_TOKEN_EXPIRY }
   );
 };
 

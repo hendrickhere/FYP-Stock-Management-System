@@ -1,4 +1,4 @@
-const { username } = require('../env');
+const { username } = require('../config/env');
 const {Appointment, User, Customer, Organization} = require('../models/association');
 
 exports.getAllAppointmentWithCustomersId = async (customerId) => {
