@@ -1,8 +1,10 @@
+# Dependencies
 node_modules
-.env
 
-/myproject-backend/env.js
-/myproject-backend/config/config.json
-/myproject-backend/config/config.json
-/myproject-backend/env.js
-/myproject-backend/config
+# Config files - using relative path from root
+myproject-backend/config/env.js
+myproject-backend/config/config.json
+
+# Keep template files unignored
+!myproject-backend/config/*.template.js
+!myproject-backend/config/*.template.json
