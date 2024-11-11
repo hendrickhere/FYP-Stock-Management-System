@@ -1,6 +1,6 @@
 const bcrypt = require("bcryptjs");
 const { JWT_CONFIG } = require("../config/app.config");
-const { Op } = require("sequelize");
+const { Op, Sequelize } = require("sequelize");
 const jwt = require("jsonwebtoken");
 const db = require("../models"); 
 console.log('Models available in userService:', Object.keys(db)); 
@@ -249,52 +249,77 @@ exports.addInventory = async (username, inventoryData) => {
 
 exports.updateInventory = async (username, inventoryUUID, updateData) => {
   const user = await getUserByUsername(username);
+  if (!user) {
+    throw new Error("User not found");
+  }
+
   const {
-    inventoryName,
-    inventoryStock,
+    productName,        
+    productStock,        
     skuNumber,
     unit,
     brand,
     dimensions,
+    dimensionsUnit,    
     manufacturer,
     weight,
+    weightUnit,  
     isExpiryGoods,
     expiryDate,
+    price,         
+    description,      
+    images             
   } = updateData;
+
   const dbData = {
-    product_name: inventoryName,
-    product_stock: inventoryStock,
+    product_name: productName,
+    product_stock: productStock,
     sku_number: skuNumber,
     unit: unit,
     brand: brand,
     dimensions: dimensions,
+    dimensions_unit: dimensionsUnit,
     manufacturer: manufacturer,
     weight: weight,
+    weight_unit: weightUnit,       
     is_expiry_goods: isExpiryGoods,
     expiry_date: expiryDate,
+    price: price,                    
+    description: description,         
+    images: images,                   
     user_id: user.user_id,
     organization_id: user.organization_id,
-    status_id: 1
+    status_id: 1,
+    updated_at: sequelize.literal('CURRENT_TIMESTAMP')
   };
-  if (user) {
-    const updated = await Product.update(dbData, {
+
+  if (!user) {
+    throw new Error("User not found");
+  }
+
+  try {
+    const [updateCount, [updatedRecord]] = await Product.update(dbData, {
       where: {
         product_uuid: inventoryUUID,
         user_id: user.user_id,
       },
+      returning: true
     });
-    if (updated) {
-      const updatedInventory = await Product.findOne({
-        where: {
-          product_uuid: inventoryUUID,
-        },
-      });
-      return updatedInventory;
-    } else {
+
+    if (updateCount === 0) {
       throw new Error("Inventory not found");
     }
-  } else {
-    throw new Error("User not found");
+
+    const updatedInventory = await Product.findOne({
+      where: {
+        product_uuid: inventoryUUID,
+      }
+    });
+
+    return updatedInventory;
+  } catch (error) {
+    console.error('Update Error:', error);
+    throw error;
   }
 };
 
@@ -516,4 +541,3 @@ exports.getInventory = async (username, inventoryUUID) => {
 exports.getUserById = getUserById;
 exports.storeRefreshToken = storeRefreshToken;
 exports.getUserByRefreshToken = getUserByRefreshToken;
-
