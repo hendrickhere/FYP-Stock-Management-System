@@ -1,4 +1,4 @@
-const { User, Vendor, Customer } = require("../models/association");
+const { User, Vendor, Customer } = require("../models");
 const { v4: uuidv4 } = require("uuid");
 
 exports.getAllVendors = async (username) => {
@@ -123,7 +123,7 @@ exports.getAllCustomers = async (username, pageNumber, pageSize) => {
 };
 
 exports.getCustomer = async (customerUuid, username) => {
-  const user = await getUserByUsername(username);
+  const user = await getUserFromUsername(username);
 
   if (user) {
     const customer = await Customer.findOne({

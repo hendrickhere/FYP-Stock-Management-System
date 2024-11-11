@@ -1,11 +1,11 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useContext } from "react";
 import Header from './header';
 import Sidebar from './sidebar';
 import { Plus } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import axiosInstance from './axiosConfig';
 import AppointmentTable from './appointmentTable';
-
+import { GlobalContext } from "./globalContext";
 function Appointments() {
   return (
     <div className="flex flex-col h-screen w-full">
@@ -23,12 +23,13 @@ function MainContent() {
   const [loading, setLoading] = useState(false);
   const [appointments, setAppointments] = useState([]);
   const [filter, setFilter] = useState("");
+  const { username } = useContext(GlobalContext);
 
   const fetchData = async () => {
     try {
       setLoading(true);
-      const response = await axiosInstance.get('http://localhost:3002/api/appointments');
-      setAppointments(response.data);
+      const response = await axiosInstance.get(`http://localhost:3002/api/appointment/${username}?pageNumber=1&pageSize=10`);
+      setAppointments(response.data.appointmentDetails);
     } catch (error) {
       console.error('Error fetching appointments', error);
       setAppointments([]);

@@ -1,4 +1,4 @@
-const {User, SalesOrder, SalesOrderInventory, Customer, Product} = require("../models/association");
+const {User, SalesOrder, SalesOrderInventory, Customer, Product} = require("../models");
 
 // Add debug logging
 console.log('Loaded models:', {

@@ -158,7 +158,7 @@ const MainContent = () => {
     }
 
     try {
-      const response = await instance.get(`http://localhost:3002/api/user/${username}/customers`);
+      const response = await instance.get(`http://localhost:3002/api/stakeholders/customers?username=${username}`);
       setFormState(prev => ({
         ...prev,
         customerData: response.data,
@@ -202,10 +202,6 @@ const MainContent = () => {
     if (!formState.selectedCustomer) {
       newErrors.customer = "Customer selection is required";
     }
-    
-    if (!formState.selectedTechnician) {  
-      newErrors.technician = "Technician selection is required";
-    }
 
     if (!formState.serviceType) {
       newErrors.serviceType = "Service type is required";
@@ -235,8 +231,8 @@ const MainContent = () => {
 
     try {
       const appointmentData = {
+        username: username,
         customerUUID: formState.selectedCustomer.customer_uuid,
-        technicianUUID: formState.selectedTechnician.staff_uuid,
         serviceType: formState.serviceType,
         appointmentDate: formState.appointmentDate,
         timeSlot: formState.timeSlot,
@@ -244,11 +240,12 @@ const MainContent = () => {
       };
 
       await instance.post(
-        `http://localhost:3002/api/user/${username}/appointments`,
+        `http://localhost:3002/api/appointment/add`,
         appointmentData
       );
       navigate(-1);
     } catch (error) {
+      console.error(error);
       setApiError("Failed to create appointment. Please try again.");
     } finally {
       setIsSubmitting(false);
@@ -318,7 +315,7 @@ const MainContent = () => {
                 </div>
               </div>
 
-              <div className="space-y-2">
+              {/* <div className="space-y-2">
                 <label className="text-sm font-medium text-gray-700">Technician</label>
                 <div className="relative">
                   <input
@@ -417,7 +414,7 @@ const MainContent = () => {
                   </div>
                 )}
                 </div>
-              </div>
+              </div> */}
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">

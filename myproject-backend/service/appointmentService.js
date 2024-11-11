@@ -1,5 +1,8 @@
 const { username } = require('../config/env');
-const {Appointment, User, Customer, Organization} = require('../models/association');
+const {Appointment, User, Customer, Organization} = require('../models');
+const { v4: uuidv4 } = require('uuid');
+const StakeholderService = require("../service/stakeholderService");
+
 
 exports.getAllAppointmentWithCustomersId = async (customerId) => {
     const appointments = await Appointments.findAll(
@@ -14,16 +17,17 @@ exports.getAllAppointmentWithCustomersId = async (customerId) => {
 }
 
 exports.insertAppointment = async (requestBody) => {
-  const { customer_id, service_type, appointment_date, time_slot, technician, status, location } = requestBody;
+  const { customerUUID, serviceType, appointmentDate, timeSlot, status, username } = requestBody;
+  const customers = await StakeholderService.getCustomer(customerUUID, username)
+
   try {
     const result = await Appointment.create({
-      customer_id: customer_id,
-      service_type: service_type,
-      appointment_date: appointment_date,
-      time_slot: time_slot,
-      technician: technician,
+      appointment_sn: uuidv4(),
+      customer_id: customers.customer_id,
+      service_type: serviceType,
+      appointment_date: appointmentDate,
+      time_slot: timeSlot,
       status: status,
-      location: location,
     });
     const message = "Appointment created: " + result.toJSON();
     console.log(message);
@@ -46,7 +50,7 @@ exports.getAllAppointmentWithUsername = async (username, pageNumber, pageSize) =
         throw new Error('User not found');
       }
 
-      const appointments = await Appointments.findAll({
+      const appointments = await Appointment.findAll({
         include: [
           {
             model: Customer,
@@ -59,7 +63,7 @@ exports.getAllAppointmentWithUsername = async (username, pageNumber, pageSize) =
                 attributes: [],  
               },
             ],
-            attributes: ['customer_id', 'customer_name'],  
+            attributes: ['customer_id', 'customer_name', 'customer_email', 'customer_contact'],  
           },
         ],
         limit: pageSize,
@@ -75,7 +79,6 @@ exports.updateAppointment = async (appointmentId, requestBody) => {
     service_type,
     appointment_date,
     time_slot,
-    technician,
     status,
     location,
   } = requestBody;
@@ -87,7 +90,6 @@ exports.updateAppointment = async (appointmentId, requestBody) => {
         service_type: service_type,
         appointment_date: appointment_date,
         time_slot: time_slot,
-        technician: technician,
         status: status,
         location: location,
       },

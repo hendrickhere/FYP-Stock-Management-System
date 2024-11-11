@@ -1,4 +1,4 @@
-const { PurchaseOrder, User, Customer, Organization, PurchaseOrderItem, Product, Vendor } = require("../models/association.js");
+const { PurchaseOrder, User, Customer, Organization, PurchaseOrderItem, Product, Vendor } = require("../models");
 const sequelize = require("../config/app.config.js");
 
 

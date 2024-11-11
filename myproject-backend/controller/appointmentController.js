@@ -17,6 +17,7 @@ exports.getAllAppointment = async (req, res) => {
       message: "Appointment retrieved successfully.",
     });
   } catch (err) {
+    console.error(err);
     res.status(500).json({ error: err.message });
   }
 };
