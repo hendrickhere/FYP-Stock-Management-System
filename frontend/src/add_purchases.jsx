@@ -29,7 +29,7 @@ const AddPurchases = () => {
 const MainContent = () => {
   <div className="flex-auto ml-52 overflow-y-auto pb-20 p-4 custom-scrollbar">
     <div className="max-w-[1400px] mx-auto">
-
+      
     </div>
   </div>
 }

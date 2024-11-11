@@ -18,8 +18,6 @@ const AppointmentTable = ({ appointments, handleDeleteData, handleEditData }) =>
               <th className="px-4 py-2 text-left">Service Type</th>
               <th className="px-4 py-2 text-left">Date</th>
               <th className="px-4 py-2 text-left">Time Slot</th>
-              <th className="px-4 py-2 text-left">Technician</th>
-              <th className="px-4 py-2 text-left">Location</th>
               <th className="px-4 py-2 text-left">Status</th>
               <th className="px-4 py-2 text-left"> </th>
             </tr>
@@ -54,14 +52,12 @@ const AppointmentTable = ({ appointments, handleDeleteData, handleEditData }) =>
                 <tr key={appointment.appointment_id} className="border-b hover:bg-gray-100">
                   <td className="px-4 py-2"><input type="radio" name="selectedAppointment" /></td>
                   <td className="px-4 py-2">{appointment.appointment_id}</td>
-                  <td className="px-4 py-2">{appointment.name}</td>
-                  <td className="px-4 py-2">{appointment.email}</td>
-                  <td className="px-4 py-2">{appointment.phone_number}</td>
+                  <td className="px-4 py-2">{appointment.Customer.customer_name}</td>
+                  <td className="px-4 py-2">{appointment.Customer.customer_email}</td>
+                  <td className="px-4 py-2">{appointment.Customer.customer_contact}</td>
                   <td className="px-4 py-2">{appointment.service_type}</td>
                   <td className="px-4 py-2">{appointment.appointment_date}</td>
                   <td className="px-4 py-2">{appointment.time_slot}</td>
-                  <td className="px-4 py-2">{appointment.technician}</td>
-                  <td className="px-4 py-2">{appointment.location}</td>
                   <td className="px-4 py-2">{appointment.status}</td>
                   <td className="px-4 py-2 flex gap-2">
                     <FaEdit 
