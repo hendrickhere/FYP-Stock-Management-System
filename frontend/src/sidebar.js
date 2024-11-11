@@ -5,13 +5,22 @@ import { MdOutlineInventory2 } from "react-icons/md";
 import { AiOutlineStock } from "react-icons/ai";
 import { BsCashCoin } from "react-icons/bs";
 import { GrStakeholder, GrSchedules, GrLogout } from "react-icons/gr";
-import { Alert } from "./ui/alert";
+import { motion, AnimatePresence } from 'framer-motion';
 
-function Sidebar() {
+const springTransition = {
+  type: "spring",
+  stiffness: 400,
+  damping: 40,
+  mass: 0.3,
+  restDelta: 0.001
+};
+
+function Sidebar({ scrollDirection, isAtTop }) {
   const location = useLocation();
   const navigate = useNavigate();
   const [showLogoutAlert, setShowLogoutAlert] = useState(false);
   const [isMobile, setIsMobile] = useState(window.innerWidth < 1024);
+  const isMinimized = scrollDirection === 'down' && !isAtTop;
   
   useEffect(() => {
     const handleResize = () => {
@@ -47,7 +56,15 @@ function Sidebar() {
 
   return (
     <>
-      <nav className="fixed bottom-0 top-16 left-0 w-[13rem] bg-[#38304C] text-white flex flex-col">
+      <motion.nav 
+        className="fixed bottom-0 top-16 left-0 bg-[#38304C] text-white flex flex-col"
+        animate={{ 
+          width: isMinimized ? '4rem' : '13rem',
+          x: 0
+        }}
+        transition={springTransition}
+      >
+        {/* Rest of the sidebar content remains the same */}
         <ul className="list-none p-0 m-0 flex-grow flex flex-col mt-4">
           {menuItems.map(({ path, icon: Icon, label }) => (
             <li key={path} className="flex items-center relative my-4">
@@ -55,39 +72,63 @@ function Sidebar() {
                 to={path}
                 className={`
                   flex items-center 
-                  w-[12rem] text-base font-semibold 
-                  no-underline py-3 px-6 ml-4
+                  ${isMinimized ? 'justify-center w-16' : 'w-[12rem] px-6'} 
+                  text-base font-semibold 
+                  no-underline py-3
+                  ${isMinimized ? 'mx-auto' : 'ml-4'}
                   group 
                   ${isActiveRoute(path) 
                     ? 'bg-[#B9B4C7] text-black rounded-l-[30px]' 
                     : 'text-white hover:bg-[#B9B4C7] hover:text-black hover:rounded-l-[30px]'}
+                  transition-all duration-300
                 `}
               >
-                <div className="w-6 h-6 flex items-center justify-center mr-3 flex-shrink-0">
+                <div className={`flex items-center justify-center flex-shrink-0 ${!isMinimized && 'mr-3'}`}>
                   <Icon className={`w-5 h-5 transition-colors ${
                     isActiveRoute(path) ? 'text-black' : 'text-white group-hover:text-black'
                   }`} />
                 </div>
-                <span className="whitespace-nowrap">{label}</span>
+                {!isMinimized && (
+                  <span className="whitespace-nowrap">{label}</span>
+                )}
               </Link>
             </li>
           ))}
         </ul>
 
-        <div className="flex justify-end mb-5 mr-4">
+        <motion.div 
+          className="flex justify-end mb-5"
+          animate={{ 
+            marginRight: isMinimized ? '0.5rem' : '1rem',
+            width: isMinimized ? '3rem' : 'auto'
+          }}
+        >
           <button 
             onClick={() => setShowLogoutAlert(true)}
-            className="group flex items-center justify-start w-[45px] h-[45px] border-none rounded-full cursor-pointer relative overflow-hidden transition-all duration-300 shadow-md bg-[#B9B4C7] hover:w-32 hover:rounded-[40px]"
+            className={`
+              group flex items-center justify-start
+              ${isMinimized ? 'w-10 h-10' : 'w-[45px] h-[45px] hover:w-32'} 
+              border-none rounded-full cursor-pointer 
+              relative overflow-hidden transition-all duration-300 
+              shadow-md bg-[#B9B4C7]
+              ${!isMinimized && 'hover:rounded-[40px]'}
+            `}
           >
-            <div className="w-full transition-all duration-300 flex items-center justify-center group-hover:w-[30%] group-hover:pl-5">
+            <div className={`
+              w-full transition-all duration-300 
+              flex items-center justify-center
+              ${!isMinimized && 'group-hover:w-[30%] group-hover:pl-5'}
+            `}>
               <GrLogout className="w-5 h-5 text-black" />
             </div>
-            <span className="absolute right-0 w-0 opacity-0 text-black text-base font-semibold transition-all duration-300 group-hover:opacity-100 group-hover:w-[70%] group-hover:pr-3">
-              Logout
-            </span>
+            {!isMinimized && (
+              <span className="absolute right-0 w-0 opacity-0 text-black text-base font-semibold transition-all duration-300 group-hover:opacity-100 group-hover:w-[70%] group-hover:pr-3">
+                Logout
+              </span>
+            )}
           </button>
-        </div>
-      </nav>
+        </motion.div>
+      </motion.nav>
 
       {showLogoutAlert && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">

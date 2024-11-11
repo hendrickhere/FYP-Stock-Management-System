@@ -2,6 +2,8 @@ import axios from 'axios';
 
 const instance = axios.create({
   baseURL: 'http://localhost:3002/api', // Your backend server URL
+  maxContentLength: 50000000, // 50MB
+  maxBodyLength: 50000000, // 50MB
 });
 
 // Request interceptor to add the token to headers

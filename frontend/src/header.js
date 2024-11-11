@@ -11,8 +11,9 @@ import { GrStakeholder, GrSchedules, GrLogout } from "react-icons/gr";
 import { useNavigate, Link, useLocation } from 'react-router-dom';
 import { Alert, AlertDescription } from "./ui/alert";
 import instance from "./axiosConfig";
+import { motion } from 'framer-motion';
 
-function Header() {
+function Header({ scrollDirection, isAtTop }) {
   const [username, setUsername] = useState('user');
   const [userRole, setUserRole] = useState('');
   const [error, setError] = useState('');
@@ -147,6 +148,11 @@ function Header() {
       </>
     );
   }
+    console.log('Header scroll props:', { 
+    scrollDirection, 
+    isAtTop,
+    shouldHide: scrollDirection === 'down' && !isAtTop 
+  });
 
   return (
     <>
@@ -173,7 +179,9 @@ function Header() {
           <AlertDescription>{error}</AlertDescription>
         </Alert>
       )}
-      <header className="sticky top-0 z-50 bg-white shadow-sm">
+      <motion.header 
+        className="sticky top-0 z-50 bg-white shadow-sm"
+      >
         {/* Main Header */}
       <div className="flex justify-between items-center px-3 md:px-4 py-2 md:py-3">
           {/* Logo Section */}
@@ -321,7 +329,7 @@ function Header() {
             </div>
           </div>
         )}
-      </header>
+      </motion.header>
 
       {/* Add styles for the progress bar animation */}
       <style>
