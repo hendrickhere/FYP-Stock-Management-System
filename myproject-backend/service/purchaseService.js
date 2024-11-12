@@ -1,5 +1,5 @@
 const { PurchaseOrder, User, Customer, Organization, PurchaseOrderItem, Product, Vendor } = require("../models");
-const sequelize = require("../config/app.config.js");
+const sequelize = require("../config/db-config");
 
 
 async function getUserByUsername(username) {
@@ -55,16 +55,18 @@ exports.insertPurchase = async (purchaseData) => {
   if (!user) {
     throw new Error("User not found");
   }
-  const { itemsList, orderDate, totalAmount, deliveredDate, vendorSn } =
+  const { itemsList, orderDate, totalAmount, deliveredDate, vendorSn, paymentTerms, deliveryMethod } =
     purchaseData;
 
   const transaction = await sequelize.transaction();
 
   try {
-    const vendor = getVendorByVendorUuid(vendorSn);
+    const vendor = await getVendorByVendorUuid(vendorSn);
 
     const purchaseOrder = await PurchaseOrder.create(
       {
+        delivery_method: deliveryMethod ?? "",
+        payment_terms: paymentTerms,
         order_date: orderDate,
         total_amount: totalAmount,
         deliveredDate: deliveredDate ?? new Date(0).toISOString(),
@@ -90,7 +92,7 @@ exports.insertPurchase = async (purchaseData) => {
         {
           purchase_order_id: purchaseOrder.purchase_order_id,
           product_id: itemObj.product_id,
-          quantity: itemObj.quantity,
+          quantity: item.quantity,
           total_price: price,
         },
         { transaction }
@@ -107,7 +109,7 @@ exports.insertPurchase = async (purchaseData) => {
 async function getVendorByVendorUuid(vendorUuid){
   const vendor = await Vendor.findOne({
     where: {
-      vendorSn: vendorUuid
+      vendor_sn: vendorUuid
     }
   });
 

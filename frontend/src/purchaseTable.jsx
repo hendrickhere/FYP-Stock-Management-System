@@ -18,7 +18,6 @@ const PurchaseTable = (props) => {
               <th className="px-4 py-2 text-left">PO no</th>
               <th className="px-4 py-2 text-left">Vendor Name</th>
               <th className="px-4 py-2 text-left">Order Date</th>
-              <th className="px-4 py-2 text-left">Items Ordered</th>
               <th className="px-4 py-2 text-left">Total Amount(RM)</th>
               <th className="px-4 py-2 text-left">Status</th>
               <th className="px-4 py-2 text-left">Delivered Date</th>

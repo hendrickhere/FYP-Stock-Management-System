@@ -32,6 +32,14 @@ class PurchaseOrder extends Model {
             },
             delivered_date: {
                 type: DataTypes.DATE,
+                allowNull: true,
+            },
+            delivery_method: {
+                type: DataTypes.STRING,
+                allowNull: true,
+            },
+            payment_terms: {
+                type: DataTypes.STRING,
                 allowNull: false,
             },
             user_id: {
