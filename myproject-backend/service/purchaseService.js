@@ -24,7 +24,7 @@ exports.getAllPurchases = async (username, pageNumber, pageSize) => {
     }
     const organizationId = user.organization_id;
 
-    const purchases = await PurchaseOrder.findAll({
+    const { count, rows: purchases } = await PurchaseOrder.findAndCountAll({
       include: [
         {
           model: User,
@@ -42,7 +42,8 @@ exports.getAllPurchases = async (username, pageNumber, pageSize) => {
       offset: offset,
     });
 
-    return purchases;
+    const totalPage = Math.ceil(count/ pageSize);
+    return {purchases, totalPage, currentPage: pageNumber};
   } catch (err) {
     console.error("Error fetching purchase orders:", err);
     throw err;

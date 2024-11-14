@@ -1,8 +1,90 @@
-import React from 'react';
+import { React, useState} from 'react';
 import { FaTrashAlt, FaEdit, FaEllipsisV } from 'react-icons/fa';
 
 const PurchaseTable = (props) => {
-    const {purchases, handleDeleteData, handleEditData} = props;
+  const [isTransitioning, setIsTransitioning] = useState(false);
+    const {purchases, handleDeleteData, handleEditData, currentPage, totalPage, setCurrentPage} = props;
+    const handlePageChange = (pageNumber) => {
+      if (currentPage === pageNumber) {
+        return;
+      }
+      setIsTransitioning(true);
+      setTimeout(() => {
+        setCurrentPage(pageNumber);
+        setIsTransitioning(false);
+      }, 300);
+    };
+    const renderPaginationButtons = () => {
+        const pageButtons = [];
+        const totalVisiblePages = 5; 
+        const startPage = Math.max(
+          1,
+          currentPage - Math.floor(totalVisiblePages / 2)
+        );
+        const endPage = Math.min(
+          totalPage,
+          currentPage + Math.floor(totalVisiblePages / 2)
+        );
+    
+        // Always show the first page
+        if (startPage > 1) {
+          pageButtons.push(
+            <button
+              key={1}
+              onClick={() => handlePageChange(1)}
+              className={`mx-1 px-3 py-1 rounded ${
+                currentPage === 1 ? "bg-blue-500 text-white" : "bg-gray-200"
+              }`}
+            >
+              1
+            </button>
+          );
+          if (startPage > 2) {
+            pageButtons.push(
+              <span key="start-ellipsis" className="mx-1 px-3 py-1">
+                ...
+              </span>
+            );
+          }
+        }
+    
+        for (let i = startPage; i <= endPage; i++) {
+          pageButtons.push(
+            <button
+              key={i}
+              onClick={() => handlePageChange(i)}
+              className={`mx-1 px-3 py-1 rounded ${
+                currentPage === i ? "bg-blue-500 text-white" : "bg-gray-200"
+              }`}
+            >
+              {i}
+            </button>
+          );
+        }
+    
+        if (endPage < totalPage) {
+          if (endPage < totalPage - 1) {
+            pageButtons.push(
+              <span key="end-ellipsis" className="mx-1 px-3 py-1">
+                ...
+              </span>
+            );
+          }
+          pageButtons.push(
+            <button
+              key={totalPage}
+              onClick={() => handlePageChange(totalPage)}
+              className={`mx-1 px-3 py-1 rounded ${
+                currentPage === totalPage ? "bg-blue-500 text-white" : "bg-gray-200"
+              }`}
+            >
+              {totalPage}
+            </button>
+          );
+        }
+    
+        return pageButtons;
+      };
 
     if (!purchases) return null;
     
@@ -11,7 +93,9 @@ const PurchaseTable = (props) => {
     <div className="container mr-auto ml-0 p-4 flex flex-col">
       <h2 className="text-2xl font-bold mb-4">Purchase Order</h2>
       <div className="overflow-x-auto">
-        <table className="min-w-full bg-white border border-gray-300 rounded-lg shadow-md">
+        <table className={`min-w-full bg-white border border-gray-300 rounded-lg shadow-md transition-opacity duration-300 ${
+          isTransitioning ? "opacity-0" : "opacity-100"
+        }`}>
           <thead>
             <tr className="border-b">
               <th className="px-4 py-2 text-left"> </th>
@@ -77,6 +161,9 @@ const PurchaseTable = (props) => {
                 )}
             </tbody>
         </table>
+        <div className="flex justify-center mt-4">
+        {renderPaginationButtons()}
+      </div>
       </div>
     </div>
   );

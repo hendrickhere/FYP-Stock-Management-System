@@ -26,6 +26,9 @@ function Purchases() {
 function MainContent() {
   const { username } = useContext(GlobalContext);
   const [loading, setLoading] = useState(false);
+  const [pageNumber, setPageNumber] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
+  const [totalPage, setTotalPage] = useState(0);
   const [data, setData] = useState();
   const navigation = useNavigate();
   const [filter, setFilter] = useState("");
@@ -59,6 +62,8 @@ function MainContent() {
           );
           console.log('Purchase orders response:', response.data);
           setData(response.data);
+          setPageNumber(response.data.currentPage);
+          setTotalPage(response.data.totalPage);
       } catch (err) {
           console.error('Error fetching purchase orders:', err);
           setData({ purchases: [] }); // Set empty array on error
@@ -84,8 +89,8 @@ function MainContent() {
   }
 
   useEffect(() => {
-    fetchPurchases(1, 10);
-  }, [render]);
+    fetchPurchases(pageNumber, pageSize);
+  }, [render, pageNumber]);
 
   function handleEditData(index) {
     navigation('add_purchases', {state: {purchasesuuid: data.purchases[index].purchases_order_id, isAdd: false}});
@@ -160,6 +165,9 @@ function MainContent() {
             purchases={data}
             handleDeleteData={handleDeleteData}
             handleEditData={handleEditData}
+            currentPage = {pageNumber}
+            setCurrentPage = {setPageNumber}
+            totalPage = {totalPage}
           />
         )}
         {loading && <p>Loading...</p>}

@@ -14,7 +14,7 @@ exports.getAllPurchase = async (req, res) => {
     if(result === null){
         return res.status(404).json({ message: "No purchase orders found" });
     }
-    res.status(200).json({ purchases: result });
+    res.status(200).json({ purchases: result.purchases, currentPage: result.currentPage, totalPage: result.totalPage });
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
