@@ -214,6 +214,7 @@ exports.addInventory = async (username, inventoryData) => {
     isExpiryGoods,
     expiryDate,
     price,
+    cost,
     description,
     images
   } = inventoryData;
@@ -235,6 +236,7 @@ exports.addInventory = async (username, inventoryData) => {
       organization_id: user.organization_id,
       status_id: 1,
       price: price,
+      cost: cost, 
       description: description,
       images: images, 
     });

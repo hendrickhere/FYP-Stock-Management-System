@@ -70,6 +70,10 @@ class Product extends Model {
                 type: DataTypes.FLOAT,
                 allowNull: false,
             },
+            cost: {
+                type: DataTypes.FLOAT,
+                allowNull: false, 
+            },
             description: {
                 type: DataTypes.STRING,
                 allowNull: true,

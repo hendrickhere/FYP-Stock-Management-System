@@ -94,7 +94,8 @@ const MainContent = ({ data, isAdd }) => {
     },
     price: isAdd ? "" : data.price,
     description: isAdd ? "" : data.description,
-    quantity: isAdd ? "" : data.product_stock
+    quantity: isAdd ? "" : data.product_stock,
+    cost: isAdd ? "" : data.cost, 
   });
 
   const [errors, setErrors] = useState({});
