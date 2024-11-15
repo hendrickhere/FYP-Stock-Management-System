@@ -50,6 +50,21 @@ class PurchaseOrder extends Model {
                     key: "user_id",
                 },
             },
+            subtotal: {
+                type: DataTypes.DECIMAL(10,2),
+                allowNull: false,
+                defaultValue: 0.00
+            },
+            total_tax: {
+                type: DataTypes.DECIMAL(10,2),
+                allowNull: false,
+                defaultValue: 0.00
+            },
+            grand_total: {
+                type: DataTypes.DECIMAL(10,2),
+                allowNull: false,
+                defaultValue: 0.00
+            },
             created_at: {
                 type: DataTypes.DATE,
                 allowNull: false,
