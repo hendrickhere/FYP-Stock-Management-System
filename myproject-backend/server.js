@@ -23,6 +23,7 @@ const chatbotRoutes = require('./chatbot-api/chatBotServer.js');
 const userController = require('./controller/userController');
 const authMiddleware = require('./backend-middleware/authMiddleware');
 const warrantyRoutes = require('./routes/warrantyRoutes');
+const taxRoutes = require('./routes/taxesRoutes.js')
 
 console.log('\nAfter loading all routes');
 console.log('Final model state:', Object.keys(db).filter(key => key !== 'sequelize' && key !== 'Sequelize'));
@@ -59,6 +60,7 @@ app.use('/api/products', productsRouter);
 app.use('/api/appointment', appointmentsRouter);
 app.use("/api/sales", salesRoutes); 
 app.use('/api/chatbot', chatbotRoutes);
+app.use('/api', taxRoutes)
 app.use('/api', warrantyRoutes);
 
 // Start server

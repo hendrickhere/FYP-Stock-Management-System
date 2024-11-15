@@ -8,10 +8,13 @@ module.exports = (db) => {
         Product, 
         Organization, 
         SalesOrderInventory,
+        SalesOrderTax,
         Appointment,
         PurchaseOrder,
         PurchaseOrderItem,
+        PurchaseOrderTax,
         Vendor,
+        Tax, 
         Warranty,
         WarrantyClaim,
         WarrantyNotification
@@ -48,6 +51,16 @@ module.exports = (db) => {
     });
     console.log('✓ Organization <-> SalesOrder associations established');
 
+    SalesOrder.belongsToMany(Tax, {
+        through: SalesOrderTax,
+        foreignKey: "sales_order_id",
+    });
+    Tax.belongsToMany(SalesOrder, {
+        through: SalesOrderTax,
+        foreignKey: "tax_id",
+    });
+
+    console.log('✓ Tax <-> SalesOrder associations established');
     // Product Associations
     console.log('\n--- Setting up Product Associations ---');
     SalesOrder.belongsToMany(Product, {
@@ -63,6 +76,10 @@ module.exports = (db) => {
     Product.belongsTo(Organization, { foreignKey: 'organization_id', onDelete: 'CASCADE' });
     Organization.hasMany(Product, { foreignKey: 'organization_id', onDelete: 'CASCADE' });
     console.log('✓ Organization <-> Product associations established');
+
+    Tax.belongsTo(Organization, { foreignKey: 'organization_id', onDelete: 'CASCADE' });
+    Organization.hasMany(Tax, { foreignKey: 'organization_id', onDelete: 'CASCADE' });
+    console.log('✓ Tax <-> Organization one-to-many association established');
 
     Product.belongsTo(User, { foreignKey: "user_id" });
     User.hasMany(Product, { foreignKey: "user_id" });
@@ -85,6 +102,16 @@ module.exports = (db) => {
     PurchaseOrder.belongsTo(User, { foreignKey: 'user_id', as: 'user' });
     User.hasMany(PurchaseOrder, { foreignKey: 'user_id' });
     console.log('✓ User <-> PurchaseOrder associations established');
+
+    PurchaseOrder.belongsToMany(Tax, {
+        through: PurchaseOrderTax,
+        foreignKey: "purchase_order_id",
+    });
+    Tax.belongsToMany(PurchaseOrder, {
+        through: PurchaseOrderTax,
+        foreignKey: "tax_id",
+    });
+    console.log('✓ Tax <-> PurchaseOrder associations established');
 
     // User Associations
     console.log('\n--- Setting up User Associations ---');
