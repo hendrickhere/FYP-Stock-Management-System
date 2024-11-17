@@ -36,7 +36,6 @@ exports.createTax = async (requestBody) => {
   const { taxName, taxRate, description, organizationId } = requestBody;
 
   try {
-    // Validate tax rate is a valid number
     if (isNaN(parseFloat(taxRate))) {
       throw new TaxError(
         "Tax rate must be a valid number",
@@ -45,7 +44,6 @@ exports.createTax = async (requestBody) => {
       );
     }
 
-    // Validate tax rate is not negative
     if (parseFloat(taxRate) < 0) {
       throw new TaxError(
         "Tax rate cannot be negative",

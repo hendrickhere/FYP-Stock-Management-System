@@ -121,7 +121,7 @@ exports.updateTax = async (req, res) => {
             message: 'Tax updated successfully',
             data: updatedTax
         });
-
+        
     } catch (err) {
         console.error('Update Tax Error:', err);
 

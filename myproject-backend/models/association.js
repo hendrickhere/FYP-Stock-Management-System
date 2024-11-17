@@ -9,6 +9,8 @@ module.exports = (db) => {
         Organization, 
         SalesOrderInventory,
         SalesOrderTax,
+        SalesOrderDiscount,
+        Discount, 
         Appointment,
         PurchaseOrder,
         PurchaseOrderItem,
@@ -59,8 +61,18 @@ module.exports = (db) => {
         through: SalesOrderTax,
         foreignKey: "tax_id",
     });
-
     console.log('✓ Tax <-> SalesOrder associations established');
+
+    SalesOrder.belongsToMany(Discount, {
+        through: SalesOrderDiscount,
+        foreignKey: "sales_order_id",
+    });
+    Discount.belongsToMany(SalesOrder, {
+        through: SalesOrderDiscount,
+        foreignKey: "discount_id",
+    });
+    console.log('✓ Discount <-> SalesOrder associations established');
+ 
     // Product Associations
     console.log('\n--- Setting up Product Associations ---');
     SalesOrder.belongsToMany(Product, {
