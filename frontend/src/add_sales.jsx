@@ -35,6 +35,7 @@ const MainContent = () => {
   const [apiError, setApiError] = useState(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errors, setErrors] = useState({});
+  const [requiresShipping, setRequiresShipping] = useState(false);
   
   // Form state
   const [formState, setFormState] = useState({
@@ -102,59 +103,93 @@ const MainContent = () => {
   };
 
   const validateForm = () => {
-    const newErrors = {};
-    
-    if (!formState.selectedCustomer) {
-      newErrors.customer = "Customer selection is required";
-    }
-    
-    if (!formState.orderDate) {
-      newErrors.orderDate = "Order date is required";
-    }
-    
-    if (!formState.shipmentDate) {
-      newErrors.shipmentDate = "Shipment date is required";
-    }
-    
-    if (!formState.paymentTerms) {
-      newErrors.paymentTerms = "Payment terms are required";
-    }
+      const newErrors = {};
+      console.log("Validating form state:", formState); // Debug log
+      
+      if (!formState.selectedCustomer) {
+          newErrors.customer = "Customer selection is required";
+      }
+      
+      if (!formState.orderDate) {
+          newErrors.orderDate = "Order date is required";
+      }
+      
+      if (requiresShipping && !formState.shipmentDate) {
+          newErrors.shipmentDate = "Shipment date is required";
+      }
+      
+      if (!formState.paymentTerms) {
+          newErrors.paymentTerms = "Payment terms are required";
+      }
 
-    setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
+      // Check if items array has valid items
+      if (!formState.items || formState.items.length === 0) {
+          newErrors.items = "Please add at least one item to the order";
+      } else {
+          const validItems = formState.items.filter(item => 
+              item.product_uuid && 
+              item.quantity && 
+              item.quantity > 0
+          );
+          if (validItems.length === 0) {
+              newErrors.items = "Please add at least one valid item with quantity";
+          }
+      }
+
+      console.log("Validation errors:", newErrors); // Debug log
+      setErrors(newErrors);
+      return Object.keys(newErrors).length === 0;
   };
 
   const handleSubmit = async (e) => {
-    e?.preventDefault();
-    setIsSubmitting(true);
-    setApiError(null);
+      e?.preventDefault();
+      
+      if (!validateForm()) {
+          return;
+      }
 
-    if (!validateForm()) {
-      setIsSubmitting(false);
-      return;
-    }
+      const validItems = formState.items.filter(item => 
+          item.product_uuid && 
+          item.quantity && 
+          item.quantity > 0
+      );
 
-    try {
-      const salesData = {
-        orderDateTime: formState.orderDate,
-        expectedShipmentDate: formState.shipmentDate,
-        paymentTerms: formState.paymentTerms,
-        deliveryMethod: formState.deliveryMethod,
-        customerUUID: formState.selectedCustomer.customer_uuid,
-        itemsList: formState.items.map(item => ({
-          uuid: item.product_uuid,
-          quantity: item.quantity
-        }))
-      };
+      try {
+          // Get current date and time in ISO format
+          const currentDateTime = new Date().toISOString();
 
-      await instance.post(`http://localhost:3002/api/user/${username}/salesOrder`, salesData);
-      window.alert('Sales order created successfully!');
-      navigate(-1);
-    } catch (error) {
-      setApiError("Failed to create sales order. Please try again.");
-    } finally {
-      setIsSubmitting(false);
-    }
+          const salesData = {
+              // Use current date/time instead of just the date
+              orderDateTime: currentDateTime,
+              expectedShipmentDate: requiresShipping ? 
+                  (formState.shipmentDate ? new Date(formState.shipmentDate).toISOString() : null) : 
+                  null,
+              paymentTerms: formState.paymentTerms,
+              deliveryMethod: requiresShipping ? formState.deliveryMethod : 'N/A',
+              shippingAddress: requiresShipping ? formState.shippingAddress : 'N/A',
+              customerUUID: formState.selectedCustomer.customer_uuid,
+              itemsList: validItems.map(item => ({
+                  uuid: item.product_uuid,
+                  quantity: parseInt(item.quantity),
+                  price: parseFloat(item.price)
+              }))
+          };
+
+          console.log('Submitting sales data:', salesData); // Debug log
+
+          const response = await instance.post(
+              `http://localhost:3002/api/user/${username}/salesOrder`, 
+              salesData
+          );
+
+          if (response.data) {
+              window.alert('Sales order created successfully!');
+              navigate(-1);
+          }
+      } catch (error) {
+          console.error('Error details:', error.response?.data);
+          setApiError(error.response?.data?.message || "Failed to create sales order");
+      }
   };
 
   const handleCancel = () => {
@@ -281,54 +316,71 @@ const MainContent = () => {
                 <CardTitle>Shipping Information</CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
-                <div className="space-y-2">
-                  <label className="text-sm font-medium text-gray-700">Expected Shipment Date</label>
+                <div className="flex items-center space-x-2">
                   <input
-                    type="date"
-                    name="shipmentDate"
-                    value={formState.shipmentDate}
-                    onChange={handleInputChange}
-                    className={`w-full p-2 border rounded-md ${
-                      errors.shipmentDate ? 'border-red-500' : 'border-gray-300'
-                    }`}
+                    type="checkbox"
+                    id="requiresShipping"
+                    checked={requiresShipping}
+                    onChange={(e) => setRequiresShipping(e.target.checked)}
+                    className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
                   />
-                  {errors.shipmentDate && (
-                    <p className="text-red-500 text-sm">{errors.shipmentDate}</p>
-                  )}
+                  <label htmlFor="requiresShipping" className="text-sm font-medium text-gray-700">
+                    This order requires shipping
+                  </label>
                 </div>
 
-                <div className="space-y-2">
-                  <label className="text-sm font-medium text-gray-700">Delivery Date</label>
-                  <input
-                    type="date"
-                    name="deliveryDate"
-                    value={formState.deliveryDate}
-                    onChange={handleInputChange}
-                    className="w-full p-2 border rounded-md"
-                  />
-                </div>
+                {requiresShipping ? (
+                  <>
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium text-gray-700">Expected Shipment Date</label>
+                      <input
+                        type="date"
+                        name="shipmentDate"
+                        value={formState.shipmentDate}
+                        onChange={handleInputChange}
+                        className={`w-full p-2 border rounded-md ${
+                          errors.shipmentDate ? 'border-red-500' : 'border-gray-300'
+                        }`}
+                      />
+                      {errors.shipmentDate && (
+                        <p className="text-red-500 text-sm">{errors.shipmentDate}</p>
+                      )}
+                    </div>
 
-                <div className="space-y-2">
-                  <label className="text-sm font-medium text-gray-700">Delivery Method</label>
-                  <input
-                    type="text"
-                    name="deliveryMethod"
-                    value={formState.deliveryMethod}
-                    onChange={handleInputChange}
-                    className="w-full p-2 border rounded-md"
-                  />
-                </div>
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium text-gray-700">Delivery Date</label>
+                      <input
+                        type="date"
+                        name="deliveryDate"
+                        value={formState.deliveryDate}
+                        onChange={handleInputChange}
+                        className="w-full p-2 border rounded-md"
+                      />
+                    </div>
 
-                <div className="space-y-2">
-                  <label className="text-sm font-medium text-gray-700">Shipping Address</label>
-                  <textarea
-                    name="shippingAddress"
-                    value={formState.shippingAddress || (formState.selectedCustomer ? formState.selectedCustomer.shipping_address : '')}
-                    onChange={handleInputChange}
-                    className="w-full p-2 border rounded-md h-24"
-                    placeholder="Enter shipping address"
-                  />
-                </div>
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium text-gray-700">Delivery Method</label>
+                      <input
+                        type="text"
+                        name="deliveryMethod"
+                        value={formState.deliveryMethod}
+                        onChange={handleInputChange}
+                        className="w-full p-2 border rounded-md"
+                      />
+                    </div>
+
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium text-gray-700">Shipping Address</label>
+                      <textarea
+                        name="shippingAddress"
+                        value={formState.shippingAddress || (formState.selectedCustomer ? formState.selectedCustomer.shipping_address : '')}
+                        onChange={handleInputChange}
+                        className="w-full p-2 border rounded-md h-24"
+                        placeholder="Enter shipping address"
+                      />
+                    </div>
+                  </>
+                ) : null}
               </CardContent>
             </Card>
           </div>

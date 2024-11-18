@@ -8,5 +8,8 @@ router.get('/test', (req, res) => {
 
 router.get('/user/:username', SalesController.getAllSalesOrders);
 router.get('/:salesOrderUUID/total', SalesController.getSalesOrderTotal);
+router.post('/user/:username/salesOrder', SalesController.createSalesOrder);
+router.put('/user/:username/salesOrder/:salesOrderUUID', SalesController.updateSalesOrder);
+router.delete('/user/:username/salesOrder/:salesOrderUUID', SalesController.deleteSalesOrder);
 
 module.exports = router;
