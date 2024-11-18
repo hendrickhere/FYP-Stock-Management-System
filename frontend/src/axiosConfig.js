@@ -1,9 +1,21 @@
 import axios from 'axios';
+import axiosRetry from 'axios-retry';
 
 const instance = axios.create({
-  baseURL: 'http://localhost:3002/api', // Your backend server URL
+  baseURL: 'http://localhost:3002/api', 
   maxContentLength: 50000000, // 50MB
   maxBodyLength: 50000000, // 50MB
+});
+
+// Configure retry behavior
+axiosRetry(instance, {
+  retries: 3,
+  retryDelay: axiosRetry.exponentialDelay,
+  retryCondition: (error) => {
+    // Retry on network errors or 5xx server errors
+    return axiosRetry.isNetworkOrIdempotentRequestError(error) || 
+           (error.response && error.response.status >= 500);
+  }
 });
 
 // Request interceptor to add the token to headers
