@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import Header from "../header";
 import Sidebar from "../sidebar";
 import BotMessage from "./botMessage";
@@ -6,18 +6,19 @@ import UserMessage from "./userMessage";
 import Messages from "./messages";
 import Input from "./input";
 import ChatbotHeader from "./chatbotHeader";
-import { Bot } from 'lucide-react';
+import ChatLoader from './chatLoader';
+import ChatErrorBoundary from "./chatErrorBoundary";
 import axiosInstance from '../axiosConfig';
-import ChatList from "./chatList";
+import { Alert } from "../ui/alert";
+
+const CONNECTION_CHECK_INTERVAL = 30000;
+const SESSION_MESSAGES_KEY = 'stocksavvy_current_messages';
 
 function ChatbotUI() {
   const [isMobile, setIsMobile] = useState(window.innerWidth < 1024);
 
   useEffect(() => {
-    const handleResize = () => {
-      setIsMobile(window.innerWidth < 1024);
-    };
-
+    const handleResize = () => setIsMobile(window.innerWidth < 1024);
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
   }, []);
@@ -26,275 +27,147 @@ function ChatbotUI() {
     <div className="flex flex-col h-screen w-full">
       <Header/>
       <div className="flex flex-row flex-grow">
-        {!isMobile && <Sidebar/>} 
-        <Chatbot isMobile={isMobile} /> 
+        {!isMobile && <Sidebar/>}
+        <ChatErrorBoundary>
+          <Chatbot isMobile={isMobile} />
+        </ChatErrorBoundary>
       </div>
     </div>
   );
 }
 
 function Chatbot({ isMobile }) {
-
-  const [messages, setMessages] = useState([]);
-  const [chats, setChats] = useState(() => {
-    // Load chats from localStorage on component mount
+  // Initialize messages from sessionStorage if available
+  const [messages, setMessages] = useState(() => {
     try {
-      const saved = localStorage.getItem('chats');
-      return saved ? JSON.parse(saved) : [];
+      const savedMessages = sessionStorage.getItem(SESSION_MESSAGES_KEY);
+      return savedMessages ? JSON.parse(savedMessages) : [];
     } catch (error) {
-      console.error('Error loading chats from localStorage:', error);
+      console.error('Error loading messages from session:', error);
       return [];
     }
   });
 
-  const [currentChatId, setCurrentChatId] = useState(() => {
-    try {
-      const saved = localStorage.getItem('currentChatId');
-      return saved || null;
-    } catch (error) {
-      console.error('Error loading currentChatId from localStorage:', error);
-      return null;
-    }
+  const [status, setStatus] = useState({
+    isTyping: false,
+    isOnline: true,
+    authError: false,
+    retryCount: 0,
+    isRetrying: false
   });
 
-  const [isTyping, setIsTyping] = useState(false);
-  const [isOnline, setIsOnline] = useState(true);
-  const [authError, setAuthError] = useState(false);
+  const messageEndRef = useRef(null);
 
-  // Load messages for current chat when currentChatId changes
+  // Save messages to sessionStorage whenever they change
   useEffect(() => {
-    if (currentChatId) {
-      const currentChat = chats.find(chat => chat.id === currentChatId);
-      setMessages(currentChat?.messages || []);
-    } else {
+    try {
+      sessionStorage.setItem(SESSION_MESSAGES_KEY, JSON.stringify(messages));
+    } catch (error) {
+      console.error('Error saving messages to session:', error);
+    }
+  }, [messages]);
+
+  // Clear messages when user logs out
+  useEffect(() => {
+    const handleLogout = () => {
+      sessionStorage.removeItem(SESSION_MESSAGES_KEY);
       setMessages([]);
-    }
-  }, [currentChatId, chats]);
-
-  // Save chats to localStorage whenever they change
-  useEffect(() => {
-    try {
-      localStorage.setItem('chats', JSON.stringify(chats));
-    } catch (error) {
-      console.error('Error saving chats to localStorage:', error);
-    }
-  }, [chats]);
-
-  // Save currentChatId to localStorage whenever it changes
-  useEffect(() => {
-    try {
-      localStorage.setItem('currentChatId', currentChatId || '');
-    } catch (error) {
-      console.error('Error saving currentChatId to localStorage:', error);
-    }
-  }, [currentChatId]);
-
-  const createNewChat = () => {
-    const now = new Date();
-    const defaultTitle = now.toLocaleString('en-US', {
-      month: 'short',
-      day: 'numeric',
-      hour: 'numeric',
-      minute: 'numeric',
-      hour12: true
-    });
-
-    const newChat = {
-      id: `chat-${Date.now()}`,
-      title: defaultTitle,
-      createdAt: now.toISOString(),
-      messages: []
     };
-    
-  // Keep only the 9 most recent chats before adding the new one
-  setChats(prev => {
-      const recentChats = prev.slice(0, 9);
-      return [newChat, ...recentChats];
-    });
-    setCurrentChatId(newChat.id);
-    setMessages([]);
-  };
 
-  const selectChat = (chatId) => {
-    setCurrentChatId(chatId);
-    const chat = chats.find(c => c.id === chatId);
-    setMessages(chat?.messages || []);
-  };
-
-  const updateChatMessages = (chatId, newMessages) => {
-    setChats(prev => prev.map(chat => 
-      chat.id === chatId
-        ? { ...chat, messages: newMessages }
-        : chat
-    ));
-  };
-
-  const editChatTitle = (chatId, newTitle) => {
-    setChats(prev => prev.map(chat => 
-      chat.id === chatId
-        ? { ...chat, title: newTitle }
-        : chat
-    ));
-  };
-
-  const deleteChat = (chatId) => {
-    setChats(prev => {
-      const updatedChats = prev.filter(chat => chat.id !== chatId);
-      if (currentChatId === chatId && updatedChats.length > 0) {
-        // Select the next most recent chat
-        setCurrentChatId(updatedChats[0].id);
-        setMessages(updatedChats[0].messages || []);
-      } else if (updatedChats.length === 0) {
-        // If no chats remain, create a new one
-        createNewChat();
+    // Listen for storage events to sync across tabs
+    const handleStorageChange = (e) => {
+      if (e.key === 'accessToken' && !e.newValue) {
+        handleLogout();
       }
-      return updatedChats;
-    });
-  };
+    };
 
-  // Function to check bot status and authentication
+    window.addEventListener('storage', handleStorageChange);
+    return () => window.removeEventListener('storage', handleStorageChange);
+  }, []);
+
+  // Auto-scroll to bottom when messages change
+  useEffect(() => {
+    messageEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [messages]);
+
+  // Bot Status Check
   const checkBotStatus = async () => {
     try {
-      // Check if we have an access token
       const token = localStorage.getItem('accessToken');
       if (!token) {
-        setAuthError(true);
-        setIsOnline(false);
+        setStatus(prev => ({ ...prev, authError: true, isOnline: false }));
         return;
       }
 
-      await axiosInstance.post("/chatbot/chat", {
-        message: "ping"
-      });
-      setIsOnline(true);
-      setAuthError(false);
+      await axiosInstance.post("/chatbot/chat", { message: "ping" });
+      setStatus(prev => ({ ...prev, isOnline: true, authError: false }));
     } catch (error) {
       console.error('Connection error:', error);
-      if (error.response?.status === 401) {
-        setAuthError(true);
-      }
-      setIsOnline(false);
+      setStatus(prev => ({
+        ...prev,
+        isOnline: false,
+        authError: error.response?.status === 401
+      }));
     }
   };
 
-  const send = async (text) => {
-    if (!text.trim()) return;
-    if (!currentChatId) {
-      createNewChat();
-    }
-
-    // Check for authentication
-    const token = localStorage.getItem('accessToken');
-    if (!token) {
-      setAuthError(true);
-      setIsOnline(false);
-      return;
-    }
-
-    const newUserMessage = {
-      type: 'user',
-      text: text,
-      timestamp: new Date().toISOString()
-    };
-
-    // Update messages state
-    const updatedMessages = [...messages, newUserMessage];
-    setMessages(updatedMessages);
-    
-    // Update chat messages in chats array
-    if (currentChatId) {
-      updateChatMessages(currentChatId, updatedMessages);
-    }
-
-    setIsTyping(true);
-
-    try {
-      const response = await axiosInstance.post("/chatbot/chat", {
-        message: text
-      });
-      
-        setIsOnline(true);
-        setAuthError(false);
-      
-      // Add response validation
-        if (!response.data || !response.data.message) {
-          throw new Error('Invalid response format');
-        }
-      
-      const newBotMessage = {
-        type: 'bot',
-        text: response.data.message,
-        timestamp: new Date().toISOString(),
-        isError: false
-      };
-
-      const finalMessages = [...updatedMessages, newBotMessage];
-      setMessages(finalMessages);
-      
-      // Update chat messages in chats array
-      if (currentChatId) {
-        updateChatMessages(currentChatId, finalMessages);
-      }
-
-    } catch (error) {
-      console.error('Error sending message:', error);
-      setIsOnline(false);
-      
-      const errorMessage = {
-        type: 'bot',
-        text: error.response?.status === 429 
-          ? "Too many requests, please wait a moment..."
-          : "Sorry, I'm currently offline and can't respond to messages. Please try again later.",
-        isError: true,
-        timestamp: new Date().toISOString()
-      };
-      const finalMessages = [...updatedMessages, errorMessage];
-      setMessages(finalMessages);
-
-      // Update chat messages in chats array
-      if (currentChatId) {
-        updateChatMessages(currentChatId, finalMessages);
-      }
-    }
-    finally {
-    setIsTyping(false);
-  }
-};
-  
-  // Check status on mount and periodically
   useEffect(() => {
     checkBotStatus();
-    const interval = setInterval(checkBotStatus, 30000);
+    const interval = setInterval(checkBotStatus, CONNECTION_CHECK_INTERVAL);
     return () => clearInterval(interval);
   }, []);
 
-  // Render message components from data
-  const renderMessages = () => {
-    return messages.map((message, index) => {
-      if (message.type === 'user') {
-        return <UserMessage key={index} text={message.text} />;
-      } else {
-        return <BotMessage 
-          key={index} 
-          text={message.text} 
-          isError={message.isError} 
-        />;
-      }
-    });
-  };
+  const send = async (text) => {
+    if (!text.trim()) return;
 
-  // Create message components array
-  const messageComponents = messages.map((msg, index) => {
-    if (msg.type === 'user') {
-      return <UserMessage key={`msg-${index}`} text={msg.text} />;
-    } else {
-      return <BotMessage 
-        key={`msg-${index}`} 
-        text={msg.text} 
-        isError={msg.isError} 
-      />;
+    const token = localStorage.getItem('accessToken');
+    if (!token) {
+      setStatus(prev => ({ ...prev, authError: true, isOnline: false }));
+      return;
     }
-  });
+
+    // Add user message
+    setMessages(prev => [...prev, {
+      type: 'user',
+      text: text,
+      timestamp: new Date().toISOString()
+    }]);
+
+    setStatus(prev => ({ ...prev, isTyping: true }));
+
+    try {
+      const response = await axiosInstance.post("/chatbot/chat", { message: text });
+      
+      if (!response.data?.message) {
+        throw new Error('Invalid response format');
+      }
+
+      setMessages(prev => [...prev, {
+        type: 'bot',
+        text: response.data.message,
+        data: response.data.data,
+        timestamp: new Date().toISOString()
+      }]);
+      
+      setStatus(prev => ({
+        ...prev,
+        isOnline: true,
+        authError: false,
+        retryCount: 0
+      }));
+
+    } catch (error) {
+      console.error('Chat error:', error);
+      setMessages(prev => [...prev, {
+        type: 'bot',
+        text: 'Sorry, I encountered an error. Please try again.',
+        isError: true,
+        timestamp: new Date().toISOString()
+      }]);
+    } finally {
+      setStatus(prev => ({ ...prev, isTyping: false }));
+    }
+  };
 
   return (
     <div className={`
@@ -302,46 +175,35 @@ function Chatbot({ isMobile }) {
       transition-all duration-300 ease-in-out
       ${isMobile ? 'w-full' : 'ml-[13rem]'}
     `}>
-      <div className="flex flex-col h-full custom-scrollbar">
-        {/* Fixed Header */}
-        <div className="flex-none">
-          <ChatbotHeader 
-            isOnline={isOnline} 
-            onNewChat={createNewChat}
-            currentChatId={currentChatId}
-            chats={chats}
-            onSelectChat={selectChat}
-            onDeleteChat={deleteChat}
-            onEditChatTitle={editChatTitle}
-            isMobile={isMobile}
-          />
-          {/* Status messages */}
-          <div className="space-y-1">
-            {authError && (
-              <div className="bg-yellow-50 px-2 lg:px-4 py-2 text-yellow-700 text-xs lg:text-sm text-center">
-                Please log in to use the chat feature.
-              </div>
-            )}
-            {!isOnline && !authError && (
-              <div className="bg-red-50 px-2 lg:px-4 py-2 text-red-600 text-xs lg:text-sm text-center">
-                Connection lost. Attempting to reconnect...
-              </div>
-            )}
-          </div>
-        </div>
+      <div className="flex flex-col h-full relative">
+        <ChatbotHeader 
+          isOnline={status.isOnline}
+          isMobile={isMobile}
+        />
 
-        {/* Scrollable Messages */}
-        <div className="flex-1 overflow-hidden relative">
+        {(status.authError || !status.isOnline) && (
+          <Alert variant={status.authError ? "warning" : "error"} className="mx-4 my-2">
+            {status.authError 
+              ? "Please log in to use the chat feature."
+              : "Connection lost. Attempting to reconnect..."}
+          </Alert>
+        )}
+
+        <div className="flex-1 relative"> 
           <Messages 
-            messages={messageComponents} 
-            isTyping={isTyping}
+            messages={messages} 
+            isTyping={status.isTyping}
             isMobile={isMobile}
           />
+          <div ref={messageEndRef} />
         </div>
 
-        {/* Fixed Input */}
         <div className="flex-none bg-white border-t">
-          <Input onSend={send} disabled={!isOnline || authError} isMobile={isMobile} />
+          <Input 
+            onSend={send} 
+            disabled={!status.isOnline || status.authError || status.isRetrying}
+            isMobile={isMobile}
+          />
         </div>
       </div>
     </div>

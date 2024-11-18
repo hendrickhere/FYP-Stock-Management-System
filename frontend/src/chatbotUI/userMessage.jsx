@@ -1,7 +1,7 @@
 import React from "react";
 import { User } from 'lucide-react';
 
-export default function UserMessage({ text, isMobile }) {
+export default function UserMessage({ text, timestamp, isMobile }) {  
   return (
     <div className="flex flex-col items-end">
       <div className="flex items-end gap-1.5 lg:gap-2 max-w-[85%] lg:max-w-[80%] group">
