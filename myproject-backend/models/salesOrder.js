@@ -20,7 +20,7 @@ class SalesOrder extends Model {
             },
             expected_shipment_date: {
                 type: DataTypes.DATE,
-                allowNull: false,
+                allowNull: true,
             },
             payment_terms: {
                 type: DataTypes.STRING,
@@ -34,26 +34,6 @@ class SalesOrder extends Model {
                 type: DataTypes.INTEGER,
                 allowNull: false,
             },
-            subtotal: {
-                type: DataTypes.DECIMAL(10,2),
-                allowNull: false,
-                defaultValue: 0.00
-            },
-            discount_amount: {
-                type: DataTypes.DECIMAL(10,2),
-                allowNull: false,
-                defaultValue: 0.00
-            },
-            total_tax: {
-                type: DataTypes.DECIMAL(10,2),
-                allowNull: false,
-                defaultValue: 0.00
-            },
-            grand_total: {
-                type: DataTypes.DECIMAL(10,2),
-                allowNull: false,
-                defaultValue: 0.00
-            }
         }, {
             sequelize,
             modelName: 'SalesOrder',
@@ -65,4 +45,3 @@ class SalesOrder extends Model {
 }
 
 module.exports = SalesOrder;
-
