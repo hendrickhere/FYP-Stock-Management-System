@@ -7,6 +7,8 @@ const fs = require('fs');
 const db = require("../models");
 const { Op } = require("sequelize");
 const authMiddleware = require("../backend-middleware/authMiddleware");
+const multer = require('multer');
+const PDFParser = require('pdf-parse');
 
 // Environment setup
 const envPath = path.join(__dirname, '.env');
@@ -20,9 +22,114 @@ if (fs.existsSync(envPath)) {
 console.log('Environment loaded from:', envPath);
 console.log('API Key present:', !!process.env.OPENAI_API_KEY);
 
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: {
+    fileSize: 2 * 1024 * 1024 // 2MB
+  },
+  fileFilter: (req, file, cb) => {
+    if (file.mimetype === 'application/pdf' || 
+        file.mimetype === 'image/jpeg' || 
+        file.mimetype === 'image/png') {
+      cb(null, true);
+    } else {
+      cb(new Error('Invalid file type'), false);
+    }
+  }
+});
+
 const openai = new OpenAI({
     apiKey: process.env.OPENAI_API_KEY
 });
+
+const maxOutputTokens = 1000
+
+// Rate limiting configuration
+const rateLimiter = {
+    tokens: 0,
+    lastReset: Date.now(),
+    maxTokens: 30000, // OpenAI's limit per minute
+    resetInterval: 60000, // 1 minute in milliseconds
+    maxRequestSize: 15000 // Safe limit for single request
+};
+
+// Token estimation function
+function estimateTokens(text, images = []) {
+    // Rough estimation: 1 token ≈ 4 characters for text
+    const textTokens = Math.ceil(text.length / 4);
+    // Image tokens estimation (if any)
+    const imageTokens = images.length * 1000; // Rough estimate per image
+    return textTokens + imageTokens;
+}
+
+const processFile = async (file) => {
+    let content = '';
+    
+    try {
+        if (file.mimetype === 'application/pdf') {
+            const pdfData = await PDFParser(file.buffer);
+            const textContent = pdfData.text.substring(0, 4000);
+            const estimatedTokens = estimateTokens(textContent);
+            await checkRateLimit(estimatedTokens);
+            content = textContent;
+        } else if (file.mimetype.startsWith('image/')) {
+            const estimatedTokens = estimateTokens('', [file]);
+            await checkRateLimit(estimatedTokens);
+            
+            const response = await openai.chat.completions.create({
+                model: "gpt-4o",
+                messages: [
+                    {
+                        role: "user",
+                        content: [
+                            { type: "text", text: "Analyze this image for inventory details. Focus on product names, quantities, and prices." },
+                            {
+                                type: "image_url",
+                                image_url: {
+                                    url: `data:${file.mimetype};base64,${file.buffer.toString('base64')}`
+                                }
+                            }
+                        ]
+                    }
+                ],
+                max_tokens: rateLimiter.maxRequestSize,
+                temperature: 0.7
+            });
+            content = response.choices[0].message.content;
+        }
+        return { content, metadata: { filename: file.originalname, filesize: file.size } };
+    } catch (error) {
+        if (error.message.includes('rate_limit')) {
+            throw new Error('Rate limit reached. Please try again in a minute.');
+        }
+        console.error('File processing error:', error);
+        throw new Error('Error processing file: ' + error.message);
+    }
+};
+
+async function checkRateLimit(requiredTokens) {
+    const now = Date.now();
+    
+    // Reset tokens if interval passed
+    if (now - rateLimiter.lastReset >= rateLimiter.resetInterval) {
+        rateLimiter.tokens = 0;
+        rateLimiter.lastReset = now;
+    }
+    
+    // Check if single request is too large
+    if (requiredTokens > rateLimiter.maxRequestSize) {
+        throw new Error(`Request too large. Maximum allowed tokens per request is ${rateLimiter.maxRequestSize}`);
+    }
+    
+    // Check if we would exceed rate limit
+    if (rateLimiter.tokens + requiredTokens > rateLimiter.maxTokens) {
+        const waitTime = rateLimiter.resetInterval - (now - rateLimiter.lastReset);
+        throw new Error(`Rate limit exceeded. Please wait ${Math.ceil(waitTime/1000)} seconds. Required tokens: ${requiredTokens}, Remaining capacity: ${rateLimiter.maxTokens - rateLimiter.tokens}`);
+    }
+    
+    // If we reach here, update token count
+    rateLimiter.tokens += requiredTokens;
+}
 
 // Helper function for inventory insights
 async function getInventoryInsights(username) {
@@ -83,10 +190,61 @@ async function getInventoryInsights(username) {
   }
 }
 
+router.post('/process-file', authMiddleware, upload.single('file'), async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ error: 'No file uploaded' });
+    }
+
+    const { content, metadata } = await processFile(req.file);
+    const username = req.user.username;
+
+    // Get inventory context for better analysis
+    const inventoryContext = await userService.getAllInventory(username);
+    
+    const analysis = await openai.chat.completions.create({
+      model: "gpt-4o",
+      messages: [
+        {
+          role: "system",
+          content: `You are analyzing a document in the context of inventory management.
+                  Current inventory context: ${JSON.stringify(inventoryContext)}
+                  
+                  Provide concise, focused analysis with specific insights and figures.
+                  Avoid unnecessary preamble or tangential information.
+                  Include only relevant details that directly relate to inventory management.
+                  Maintain professionalism while being direct and brief.`
+        },
+        {
+          role: "user",
+          content: `Analyze this content and provide relevant insights about inventory, sales, or business operations: ${content}`
+        }
+      ],
+      temperature: 0.7,
+      max_tokens: maxOutputTokens
+    });
+
+    res.json({
+      success: true,
+      message: analysis.choices[0].message.content,
+      fileAnalysis: { content, metadata }
+    });
+
+  } catch (error) {
+    console.error('File processing error:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message || 'Error processing file'
+    });
+  }
+});
+
 router.post('/chat', authMiddleware, async (req, res) => {
   try {
     const userMessage = req.body.message;
     const username = req.user.username;
+    const estimatedTokens = estimateTokens(userMessage) + 500; // Message + buffer
+    await checkRateLimit(estimatedTokens);
     
     if (!userMessage) {
       return res.status(400).json({ error: 'Message is required' });
@@ -167,7 +325,7 @@ router.post('/chat', authMiddleware, async (req, res) => {
         {"role": "user", "content": userMessage}
       ],
       temperature: 0.7,
-      max_tokens: 500
+      max_tokens: maxOutputTokens
     });
 
     res.json({
@@ -184,5 +342,17 @@ router.post('/chat', authMiddleware, async (req, res) => {
     });
   }
 });
+
+async function getMinimalContext(message, username) {
+    const contextData = {};
+    const queryType = message.toLowerCase();
+    
+    if (queryType.includes('stock') || queryType.includes('inventory')) {
+        const inventory = await userService.getAllInventory(username);
+        contextData.inventory = inventory.slice(0, 10); // Limit to 10 items
+    }
+    
+    return contextData;
+}
 
 module.exports = router;

@@ -37,13 +37,12 @@ function ChatbotUI() {
 }
 
 function Chatbot({ isMobile }) {
-  // Initialize messages from sessionStorage if available
   const [messages, setMessages] = useState(() => {
     try {
       const savedMessages = sessionStorage.getItem(SESSION_MESSAGES_KEY);
       return savedMessages ? JSON.parse(savedMessages) : [];
     } catch (error) {
-      console.error('Error loading messages from session:', error);
+      console.error('Error loading messages:', error);
       return [];
     }
   });
@@ -53,69 +52,65 @@ function Chatbot({ isMobile }) {
     isOnline: true,
     authError: false,
     retryCount: 0,
-    isRetrying: false
+    isRetrying: false,
+    isProcessingFile: false
   });
 
   const messageEndRef = useRef(null);
 
-  // Save messages to sessionStorage whenever they change
   useEffect(() => {
     try {
       sessionStorage.setItem(SESSION_MESSAGES_KEY, JSON.stringify(messages));
     } catch (error) {
-      console.error('Error saving messages to session:', error);
+      console.error('Error saving messages:', error);
     }
   }, [messages]);
 
-  // Clear messages when user logs out
-  useEffect(() => {
-    const handleLogout = () => {
-      sessionStorage.removeItem(SESSION_MESSAGES_KEY);
-      setMessages([]);
-    };
+  const handleFileUpload = async (file) => {
+    const token = localStorage.getItem('accessToken');
+    if (!token) {
+      setStatus(prev => ({ ...prev, authError: true, isOnline: false }));
+      return;
+    }
 
-    // Listen for storage events to sync across tabs
-    const handleStorageChange = (e) => {
-      if (e.key === 'accessToken' && !e.newValue) {
-        handleLogout();
-      }
-    };
+    setStatus(prev => ({ ...prev, isProcessingFile: true }));
 
-    window.addEventListener('storage', handleStorageChange);
-    return () => window.removeEventListener('storage', handleStorageChange);
-  }, []);
-
-  // Auto-scroll to bottom when messages change
-  useEffect(() => {
-    messageEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages]);
-
-  // Bot Status Check
-  const checkBotStatus = async () => {
     try {
-      const token = localStorage.getItem('accessToken');
-      if (!token) {
-        setStatus(prev => ({ ...prev, authError: true, isOnline: false }));
-        return;
-      }
+      const formData = new FormData();
+      formData.append('file', file);
 
-      await axiosInstance.post("/chatbot/chat", { message: "ping" });
-      setStatus(prev => ({ ...prev, isOnline: true, authError: false }));
+      // Add file message to chat
+      setMessages(prev => [...prev, {
+        type: 'user',
+        text: `Uploaded file: ${file.name}`,
+        timestamp: new Date().toISOString()
+      }]);
+
+      const response = await axiosInstance.post("/chatbot/process-file", formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data'
+        }
+      });
+
+      setMessages(prev => [...prev, {
+        type: 'bot',
+        text: response.data.message,
+        data: response.data.data,
+        timestamp: new Date().toISOString()
+      }]);
+
     } catch (error) {
-      console.error('Connection error:', error);
-      setStatus(prev => ({
-        ...prev,
-        isOnline: false,
-        authError: error.response?.status === 401
-      }));
+      console.error('File processing error:', error);
+      setMessages(prev => [...prev, {
+        type: 'bot',
+        text: 'Sorry, I encountered an error processing your file. Please try again.',
+        isError: true,
+        timestamp: new Date().toISOString()
+      }]);
+    } finally {
+      setStatus(prev => ({ ...prev, isProcessingFile: false }));
     }
   };
-
-  useEffect(() => {
-    checkBotStatus();
-    const interval = setInterval(checkBotStatus, CONNECTION_CHECK_INTERVAL);
-    return () => clearInterval(interval);
-  }, []);
 
   const send = async (text) => {
     if (!text.trim()) return;
@@ -126,7 +121,6 @@ function Chatbot({ isMobile }) {
       return;
     }
 
-    // Add user message
     setMessages(prev => [...prev, {
       type: 'user',
       text: text,
@@ -138,10 +132,6 @@ function Chatbot({ isMobile }) {
     try {
       const response = await axiosInstance.post("/chatbot/chat", { message: text });
       
-      if (!response.data?.message) {
-        throw new Error('Invalid response format');
-      }
-
       setMessages(prev => [...prev, {
         type: 'bot',
         text: response.data.message,
@@ -182,7 +172,7 @@ function Chatbot({ isMobile }) {
         />
 
         {(status.authError || !status.isOnline) && (
-          <Alert variant={status.authError ? "warning" : "error"} className="mx-4 my-2">
+          <Alert variant="warning" className="mx-4 my-2">
             {status.authError 
               ? "Please log in to use the chat feature."
               : "Connection lost. Attempting to reconnect..."}
@@ -192,7 +182,7 @@ function Chatbot({ isMobile }) {
         <div className="flex-1 relative"> 
           <Messages 
             messages={messages} 
-            isTyping={status.isTyping}
+            isTyping={status.isTyping || status.isProcessingFile}
             isMobile={isMobile}
           />
           <div ref={messageEndRef} />
@@ -201,6 +191,7 @@ function Chatbot({ isMobile }) {
         <div className="flex-none bg-white border-t">
           <Input 
             onSend={send} 
+            onFileUpload={handleFileUpload}
             disabled={!status.isOnline || status.authError || status.isRetrying}
             isMobile={isMobile}
           />
