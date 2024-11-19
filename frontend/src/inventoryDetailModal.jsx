@@ -18,7 +18,7 @@ const ProductDetailModal = ({
   handleEditData,
   username,
   onProductUpdate
-}) => {
+  }) => {
   const [isDeleting, setIsDeleting] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
@@ -43,9 +43,11 @@ const ProductDetailModal = ({
     is_expiry_goods: product?.is_expiry_goods || false,
     expiry_date: product?.expiry_date || null,
     price: product?.price || "",
+    cost: product?.cost || "", 
     description: product?.description || "",
     product_stock: product?.product_stock || ""
   });
+
   const [errors, setErrors] = useState({});
   const [hasChanges, setHasChanges] = useState(false);
 
@@ -110,6 +112,7 @@ const ProductDetailModal = ({
       is_expiry_goods: product.is_expiry_goods || false,
       expiry_date: product.expiry_date ? new Date(product.expiry_date).toISOString().split('T')[0] : '',
       price: product.price || "",
+      cost: product.cost || "",
       description: product.description || "",
       product_stock: product.product_stock || ""
     }));
@@ -134,6 +137,13 @@ const ProductDetailModal = ({
       case 'price':
         if (value < 0) {
           newErrors[name] = 'Price cannot be negative';
+        } else {
+          delete newErrors[name];
+        }
+        break;
+      case 'cost':
+        if (value < 0) {
+          newErrors[name] = 'Cost cannot be negative';
         } else {
           delete newErrors[name];
         }
@@ -179,18 +189,18 @@ const ProductDetailModal = ({
     setHasChanges(true);
   };
 
-const handleDimensionsChange = (dimension, value) => {
-  validateField(`dimensions.${dimension}`, value);
-  
-  setFormData(prev => ({
-    ...prev,
-    dimensions: {
-      ...prev.dimensions,
-      [dimension]: value
-    }
-  }));
-  setHasChanges(true);
-};
+  const handleDimensionsChange = (dimension, value) => {
+    validateField(`dimensions.${dimension}`, value);
+    
+    setFormData(prev => ({
+      ...prev,
+      dimensions: {
+        ...prev.dimensions,
+        [dimension]: value
+      }
+    }));
+    setHasChanges(true);
+  };
 
   const handleWeightChange = (value) => {
     validateField('weight.value', value);
@@ -222,6 +232,7 @@ const handleDimensionsChange = (dimension, value) => {
 
   const handleSave = async () => {
   // Validate all fields
+  console.log('Current cost before save:', formData.cost);
   let isValid = true;
   Object.entries(formData).forEach(([field, value]) => {
     if (!validateField(field, value)) {
@@ -257,7 +268,8 @@ const handleDimensionsChange = (dimension, value) => {
       weightUnit: formData.weight.unit,
       isExpiryGoods: formData.is_expiry_goods,
       expiryDate: formData.is_expiry_goods ? formData.expiry_date : null,
-      price: formData.price,
+      price: parseFloat(formData.price), 
+      cost: parseFloat(formData.cost),
       description: formData.description,
       images: {
         images: formData.images.map(img => {
@@ -274,7 +286,8 @@ const handleDimensionsChange = (dimension, value) => {
       updateData
     );
 
-    console.log('Response:', response.data);
+    console.log('Response data:', response.data);
+    console.log('Updated product cost:', response.data.inventory.cost);
 
     if (response.status === 200) {
       toast.success('Product updated successfully!');
@@ -582,6 +595,42 @@ const handleDimensionsChange = (dimension, value) => {
                 {/* Stock & Pricing Panel */}
                 <Tab.Panel className="space-y-4">
                   <div className="space-y-2">
+                    <label className="text-sm font-medium text-gray-700">Purchase Cost (MYR)</label>
+                    <input
+                      type="number"
+                      name="cost"
+                      value={formData.cost}
+                      onChange={handleInputChange}
+                      className={`w-full p-2 border rounded-md ${
+                        errors.cost ? 'border-red-500' : 'border-gray-300'
+                      }`}
+                      disabled={!isEditing}
+                    />
+                    <p className="text-xs text-gray-500">The cost price you pay to acquire this item</p>
+                    {errors.cost && (
+                      <p className="text-red-500 text-xs">{errors.cost}</p>
+                    )}
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium text-gray-700">Selling Price (MYR)</label>
+                    <input
+                      type="number"
+                      name="price"
+                      value={formData.price}
+                      onChange={handleInputChange}
+                      className={`w-full p-2 border rounded-md ${
+                        errors.price ? 'border-red-500' : 'border-gray-300'
+                      }`}
+                      disabled={!isEditing}
+                    />
+                    <p className="text-xs text-gray-500">The price you sell this item to customers</p>
+                    {errors.price && (
+                      <p className="text-red-500 text-xs">{errors.price}</p>
+                    )}
+                  </div>
+
+                  <div className="space-y-2">
                     <label className="text-sm font-medium text-gray-700">Stock Quantity</label>
                     <input
                       type="number"
@@ -595,23 +644,6 @@ const handleDimensionsChange = (dimension, value) => {
                     />
                     {errors.product_stock && (
                       <p className="text-red-500 text-xs">{errors.product_stock}</p>
-                    )}
-                  </div>
-
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium text-gray-700">Price (MYR)</label>
-                    <input
-                      type="number"
-                      name="price"
-                      value={formData.price}
-                      onChange={handleInputChange}
-                      className={`w-full p-2 border rounded-md ${
-                        errors.price ? 'border-red-500' : 'border-gray-300'
-                      }`}
-                      disabled={!isEditing}
-                    />
-                    {errors.price && (
-                      <p className="text-red-500 text-xs">{errors.price}</p>
                     )}
                   </div>
                 </Tab.Panel>

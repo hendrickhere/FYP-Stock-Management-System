@@ -51,6 +51,69 @@ exports.uploadVendor = async (username, vendorData) => {
   return newVendor.dataValues;
 };
 
+exports.updateVendor = async (vendorId, vendorData, username) => {
+  try {
+    const user = await getUserFromUsername(username);
+    if (!user) {
+      throw new Error("User not found");
+    }
+
+    const existingVendor = await Vendor.findOne({
+      where: {
+        vendor_id: vendorId,
+        user_id: user.user_id
+      }
+    });
+
+    if (!existingVendor) {
+      throw new Error("Vendor not found");
+    }
+
+    await Vendor.update(
+      {
+        vendor_name: vendorData.vendorName,
+        contact_person: vendorData.contactPerson,
+        phone_number: vendorData.phoneNumber,
+        address: vendorData.address,
+        updated_at: new Date()
+      },
+      {
+        where: {
+          vendor_id: vendorId,
+          user_id: user.user_id
+        }
+      }
+    );
+
+    const updatedVendor = await Vendor.findOne({
+      where: {
+        vendor_id: vendorId,
+        user_id: user.user_id
+      }
+    });
+
+    return updatedVendor;
+  } catch (error) {
+    console.error("Service error updating vendor:", error);
+    throw new Error(`Failed to update vendor: ${error.message}`);
+  }
+};
+
+exports.deleteVendor = async (vendorId, username) => {
+  const user = await getUserFromUsername(username);
+  if (!user) throw new Error("User not found");
+
+  const result = await Vendor.destroy({
+    where: {
+      vendor_id: vendorId,
+      user_id: user.user_id
+    }
+  });
+
+  if (!result) throw new Error("Vendor not found or already deleted");
+  return true;
+};
+
 exports.addCustomer = async (customerData, username) => {
   const {
     customerName,
@@ -151,3 +214,73 @@ async function getUserFromUsername(username) {
 
   return user;
 }
+
+exports.updateCustomer = async (uuid, customerData, username) => {
+  try {
+    // First verify the user exists
+    const user = await getUserFromUsername(username);
+    if (!user) {
+      throw new Error("User not found");
+    }
+
+    // Find the customer first to verify it exists
+    const existingCustomer = await Customer.findOne({
+      where: {
+        customer_uuid: uuid,
+        user_id: user.user_id
+      }
+    });
+
+    if (!existingCustomer) {
+      throw new Error("Customer not found");
+    }
+
+    // Update the customer
+    await Customer.update(
+      {
+        customer_name: customerData.customerName,
+        customer_email: customerData.customerEmail,
+        customer_designation: customerData.customerDesignation,
+        customer_contact: customerData.customerContact,
+        customer_company: customerData.customerCompany,
+        billing_address: customerData.billingAddress,
+        shipping_address: customerData.shippingAddress,
+        updated_at: new Date()
+      },
+      {
+        where: {
+          customer_uuid: uuid,
+          user_id: user.user_id
+        }
+      }
+    );
+
+    // Fetch and return the updated customer
+    const updatedCustomer = await Customer.findOne({
+      where: {
+        customer_uuid: uuid,
+        user_id: user.user_id
+      }
+    });
+
+    return updatedCustomer;
+  } catch (error) {
+    console.error("Service error updating customer:", error);
+    throw new Error(`Failed to update customer: ${error.message}`);
+  }
+};
+
+exports.deleteCustomer = async (uuid, username) => {
+  const user = await getUserFromUsername(username);
+  if (!user) throw new Error("User not found");
+
+  const result = await Customer.destroy({
+    where: {
+      customer_uuid: uuid,
+      user_id: user.user_id
+    }
+  });
+
+  if (!result) throw new Error("Customer not found or already deleted");
+  return true;
+};

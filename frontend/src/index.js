@@ -6,14 +6,16 @@ import Dashboard from './dashboard';
 import Inventory from './inventory';
 import Sales from './sales';
 import Purchases from './purchases';
-import Stakeholders from './stakeholders';
+import Customers from '../src/customer_module/customers'; 
+import Vendors from '../src/vendor_module/vendors';    
+import Staff from '../src/staff_module/staff';
 import Appointments from './appointments';
 import AddSales from './add_sales';
 import AddInventory from './add_inventory';
 import AddPurchases from './add_purchases';
-import AddVendor from './add_vendor';
-import AddCustomer from './add_customer';
-import AddStaff from './add_staff';
+import AddVendor from './vendor_module/add_vendor';
+import AddCustomer from './customer_module/add_customer';
+import AddStaff from './staff_module/add_staff';
 import AddAppointment from './add_appointment';
 import Profile from './profile';
 import { GlobalProvider } from './globalContext';
@@ -32,17 +34,19 @@ ReactDOM.render(
           <Route path="/inventory" element={<Inventory />} />
           <Route path="/sales" element={<Sales />} />
           <Route path="/purchases" element={<Purchases />} />
-          <Route path="/stakeholders" element={<Stakeholders />} />
+          <Route path="/customers" element={<Customers />} />
+          <Route path="/vendors" element={<Vendors />} />
+          <Route path="/staff" element={<Staff />} />
           <Route path="/appointments" element={<Appointments />} />
-          <Route path="/sales/add_sales" element={<AddSales />}></Route>
-          <Route path="/inventory/add_inventory" element={<AddInventory/>}></Route>
-          <Route path="/chatbot" element={<Chatbot/>}></Route>
-          <Route path="/purchases/add_purchases" element={<AddPurchases/>}></Route>
-          <Route path="/stakeholders/add_vendor" element={<AddVendor/>}></Route>
-          <Route path="/stakeholders/add_staff" element={<AddStaff/>}></Route>
-          <Route path="/stakeholders/add_customer" element={<AddCustomer/>}></Route>
-          <Route path="/appointments/add_appointment" element={<AddAppointment/>}></Route>
-          <Route path="/profile" element={<Profile/>}></Route>
+          <Route path="/sales/add_sales" element={<AddSales />} />
+          <Route path="/inventory/add_inventory" element={<AddInventory/>} />
+          <Route path="/chatbot" element={<Chatbot/>} />
+          <Route path="/purchases/add_purchases" element={<AddPurchases/>} />
+          <Route path="/vendors/add_vendor" element={<AddVendor/>} />
+          <Route path="/staff/add_staff" element={<AddStaff/>} />
+          <Route path="/customers/add_customer" element={<AddCustomer/>} />
+          <Route path="/appointments/add_appointment" element={<AddAppointment/>} />
+          <Route path="/profile" element={<Profile/>} />
         </Routes>
       </Router>
     </GlobalProvider>

@@ -1,19 +1,19 @@
 import React, { useState, useContext } from "react";
 import { useNavigate } from 'react-router-dom';
-import { GlobalContext } from "./globalContext";
-import instance from "./axiosConfig";
+import { GlobalContext } from "../globalContext";
+import instance from "../axiosConfig";
 import { 
   Card,
   CardContent,
   CardHeader,
   CardTitle
-} from "./ui/card";
-import { Alert, AlertDescription } from "./ui/alert";
+} from "../ui/card";
+import { Alert, AlertDescription } from "../ui/alert";
 import { AlertCircle } from "lucide-react";
-import Header from "./header";
-import Sidebar from "./sidebar";
+import Header from "../header";
+import Sidebar from "../sidebar";
 
-const AddVendor = () => {
+const AddStaff = () => {
   return (
     <div className="flex flex-col h-screen w-full overflow-hidden">
       <Header />
@@ -32,25 +32,35 @@ const MainContent = () => {
   const [apiError, setApiError] = useState(null);
 
   const [formState, setFormState] = useState({
-    vendorName: "",
-    contactPerson: "",
+    staffName: "",
+    position: "",
     phoneNumber: "",
     address: "",
-    activityStatus: "active", 
-    username: username
+    hireDate: new Date().toISOString().split('T')[0], // Today's date as default
+    status: "active" // Default to active
   });
 
   const [errors, setErrors] = useState({});
 
+  const positions = [
+    "Manager",
+    "Sales Representative",
+    "Inventory Specialist",
+    "Customer Service",
+    "Administrative Staff",
+    "Warehouse Staff",
+    "Other"
+  ];
+
   const validateForm = () => {
     const newErrors = {};
     
-    if (!formState.vendorName.trim()) {
-      newErrors.vendorName = "Vendor name is required";
+    if (!formState.staffName.trim()) {
+      newErrors.staffName = "Staff name is required";
     }
     
-    if (!formState.contactPerson.trim()) {
-      newErrors.contactPerson = "Contact person name is required";
+    if (!formState.position) {
+      newErrors.position = "Position is required";
     }
     
     if (!formState.phoneNumber.trim()) {
@@ -59,6 +69,10 @@ const MainContent = () => {
     
     if (!formState.address.trim()) {
       newErrors.address = "Address is required";
+    }
+
+    if (!formState.hireDate) {
+      newErrors.hireDate = "Hire date is required";
     }
 
     setErrors(newErrors);
@@ -92,13 +106,13 @@ const MainContent = () => {
 
     try {
       await instance.post(
-        `http://localhost:3002/api/stakeholders/vendors`,
+        `http://localhost:3002/api/user/${username}/staff`,
         formState
       );
       navigate(-1);
     } catch (error) {
-      setApiError("Failed to add vendor. Please try again.");
-      console.error("Error adding vendor:", error);
+      setApiError("Failed to add staff member. Please try again.");
+      console.error("Error adding staff:", error);
     } finally {
       setIsSubmitting(false);
     }
@@ -115,7 +129,7 @@ const MainContent = () => {
     <div className="flex-auto ml-52 overflow-y-auto pb-20 p-4 custom-scrollbar">
       <div className="max-w-[1400px] mx-auto">
         <div className="flex items-center justify-between mb-6">
-          <h1 className="text-2xl font-bold pl-6">Add New Vendor</h1>
+          <h1 className="text-2xl font-bold pl-6">Add New Staff</h1>
         </div>
 
         {apiError && (
@@ -128,55 +142,63 @@ const MainContent = () => {
         <form onSubmit={handleSubmit} className="space-y-6">
           <Card>
             <CardHeader>
-              <CardTitle>Vendor Information</CardTitle>
+              <CardTitle>Staff Information</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="space-y-2">
-                <label className="text-sm font-medium text-gray-700">Vendor Name</label>
+                <label className="text-sm font-medium text-gray-700">Staff Name</label>
                 <input
                   type="text"
-                  name="vendorName"
-                  value={formState.vendorName}
+                  name="staffName"
+                  value={formState.staffName}
                   onChange={handleInputChange}
                   className={`w-full p-2 border rounded-md ${
-                    errors.vendorName ? 'border-red-500' : 'border-gray-300'
+                    errors.staffName ? 'border-red-500' : 'border-gray-300'
                   }`}
                 />
-                {errors.vendorName && (
-                  <p className="text-red-500 text-sm">{errors.vendorName}</p>
+                {errors.staffName && (
+                  <p className="text-red-500 text-sm">{errors.staffName}</p>
                 )}
               </div>
 
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-gray-700">Contact Person</label>
-                <input
-                  type="text"
-                  name="contactPerson"
-                  value={formState.contactPerson}
-                  onChange={handleInputChange}
-                  className={`w-full p-2 border rounded-md ${
-                    errors.contactPerson ? 'border-red-500' : 'border-gray-300'
-                  }`}
-                />
-                {errors.contactPerson && (
-                  <p className="text-red-500 text-sm">{errors.contactPerson}</p>
-                )}
-              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <label className="text-sm font-medium text-gray-700">Position</label>
+                  <select
+                    name="position"
+                    value={formState.position}
+                    onChange={handleInputChange}
+                    className={`w-full p-2 border rounded-md ${
+                      errors.position ? 'border-red-500' : 'border-gray-300'
+                    }`}
+                  >
+                    <option value="">Select Position</option>
+                    {positions.map((pos) => (
+                      <option key={pos} value={pos.toLowerCase()}>
+                        {pos}
+                      </option>
+                    ))}
+                  </select>
+                  {errors.position && (
+                    <p className="text-red-500 text-sm">{errors.position}</p>
+                  )}
+                </div>
 
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-gray-700">Phone Number</label>
-                <input
-                  type="tel"
-                  name="phoneNumber"
-                  value={formState.phoneNumber}
-                  onChange={handleInputChange}
-                  className={`w-full p-2 border rounded-md ${
-                    errors.phoneNumber ? 'border-red-500' : 'border-gray-300'
-                  }`}
-                />
-                {errors.phoneNumber && (
-                  <p className="text-red-500 text-sm">{errors.phoneNumber}</p>
-                )}
+                <div className="space-y-2">
+                  <label className="text-sm font-medium text-gray-700">Phone Number</label>
+                  <input
+                    type="tel"
+                    name="phoneNumber"
+                    value={formState.phoneNumber}
+                    onChange={handleInputChange}
+                    className={`w-full p-2 border rounded-md ${
+                      errors.phoneNumber ? 'border-red-500' : 'border-gray-300'
+                    }`}
+                  />
+                  {errors.phoneNumber && (
+                    <p className="text-red-500 text-sm">{errors.phoneNumber}</p>
+                  )}
+                </div>
               </div>
 
               <div className="space-y-2">
@@ -195,18 +217,36 @@ const MainContent = () => {
                 )}
               </div>
 
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-gray-700">Activity Status</label>
-                <select
-                  name="activityStatus"
-                  value={formState.activityStatus}
-                  onChange={handleInputChange}
-                  className="w-full p-2 border rounded-md"
-                >
-                  <option value="active">Active</option>
-                  <option value="inactive">Inactive</option>
-                  <option value="discontinued">Discontinued</option>
-                </select>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <label className="text-sm font-medium text-gray-700">Hire Date</label>
+                  <input
+                    type="date"
+                    name="hireDate"
+                    value={formState.hireDate}
+                    onChange={handleInputChange}
+                    className={`w-full p-2 border rounded-md ${
+                      errors.hireDate ? 'border-red-500' : 'border-gray-300'
+                    }`}
+                  />
+                  {errors.hireDate && (
+                    <p className="text-red-500 text-sm">{errors.hireDate}</p>
+                  )}
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-sm font-medium text-gray-700">Status</label>
+                  <select
+                    name="status"
+                    value={formState.status}
+                    onChange={handleInputChange}
+                    className="w-full p-2 border rounded-md"
+                  >
+                    <option value="active">Active</option>
+                    <option value="onLeave">On Leave</option>
+                    <option value="terminated">Terminated</option>
+                  </select>
+                </div>
               </div>
             </CardContent>
           </Card>
@@ -244,4 +284,4 @@ const MainContent = () => {
   );
 };
 
-export default AddVendor;
+export default AddStaff;

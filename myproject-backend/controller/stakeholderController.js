@@ -50,6 +50,53 @@ exports.uploadVendors = async (req, res) => {
   }
 };
 
+exports.updateVendor = async (req, res) => {
+  try {
+    const vendorId = req.params.vendor_id;
+    const username = req.query.username;
+    const vendorData = req.body;
+
+    if (!vendorId || !username) {
+      return res.status(400).json({ 
+        message: "Vendor ID and username are required" 
+      });
+    }
+
+    const updatedVendor = await StakeholderService.updateVendor(
+      vendorId,
+      vendorData,
+      username
+    );
+
+    return res.status(200).json({
+      vendor: updatedVendor,
+      message: "Vendor updated successfully"
+    });
+
+  } catch (error) {
+    console.error("Error updating vendor:", error);
+    return res.status(500).json({ 
+      message: error.message || "Failed to update vendor" 
+    });
+  }
+};
+
+exports.deleteVendor = async (req, res) => {
+  try {
+    const vendorId = req.params.vendor_id;
+    const username = req.query.username;
+
+    if (!vendorId || !username) {
+      return res.status(400).json({ message: "Vendor ID and username are required" });
+    }
+
+    await StakeholderService.deleteVendor(vendorId, username);
+    return res.status(200).json({ message: "Vendor deleted successfully" });
+  } catch (error) {
+    return res.status(500).json({ message: error.message });
+  }
+};
+
 exports.addCustomer = async (req, res) => {
   const customerData = req.body;
   const username = req.query.username;
@@ -107,6 +154,53 @@ exports.getCustomer = async (req, res) => {
     } else {
       res.status(500).send({ message: err.message });
     }
+  }
+};
+
+exports.updateCustomer = async (req, res) => {
+  try {
+    const uuid = req.params.uuid;
+    const username = req.query.username;
+    const customerData = req.body;
+
+    if (!uuid || !username) {
+      return res.status(400).json({ 
+        message: "Customer UUID and username are required" 
+      });
+    }
+
+    const updatedCustomer = await StakeholderService.updateCustomer(
+      uuid, 
+      customerData, 
+      username
+    );
+
+    return res.status(200).json({
+      customer: updatedCustomer,
+      message: "Customer updated successfully"
+    });
+
+  } catch (error) {
+    console.error("Error updating customer:", error);
+    return res.status(500).json({ 
+      message: error.message || "Failed to update customer" 
+    });
+  }
+};
+
+exports.deleteCustomer = async (req, res) => {
+  try {
+    const uuid = req.params.uuid;
+    const username = req.query.username;
+
+    if (!uuid || !username) {
+      return res.status(400).json({ message: "Customer UUID and username are required" });
+    }
+
+    await StakeholderService.deleteCustomer(uuid, username);
+    return res.status(200).json({ message: "Customer deleted successfully" });
+  } catch (error) {
+    return res.status(500).json({ message: error.message });
   }
 };
 

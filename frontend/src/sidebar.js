@@ -5,6 +5,7 @@ import { MdOutlineInventory2 } from "react-icons/md";
 import { AiOutlineStock } from "react-icons/ai";
 import { BsCashCoin } from "react-icons/bs";
 import { GrStakeholder, GrSchedules, GrLogout } from "react-icons/gr";
+import { FaUsers, FaUserTie, FaUser } from 'react-icons/fa';
 import { motion, AnimatePresence } from 'framer-motion';
 
 const springTransition = {
@@ -45,7 +46,9 @@ function Sidebar({ scrollDirection, isAtTop }) {
     { path: '/inventory', icon: MdOutlineInventory2, label: 'Inventory' },
     { path: '/sales', icon: AiOutlineStock, label: 'Sales' },
     { path: '/purchases', icon: BsCashCoin, label: 'Purchases' },
-    { path: '/stakeholders', icon: GrStakeholder, label: 'Stakeholders' },
+    { path: '/customers', icon: FaUsers, label: 'Customers' },
+    { path: '/vendors', icon: FaUserTie, label: 'Vendors' },
+    { path: '/staff', icon: FaUser, label: 'Staff' },
     { path: '/appointments', icon: GrSchedules, label: 'Appointments' },
   ];
 
@@ -64,10 +67,9 @@ function Sidebar({ scrollDirection, isAtTop }) {
         }}
         transition={springTransition}
       >
-        {/* Rest of the sidebar content remains the same */}
         <ul className="list-none p-0 m-0 flex-grow flex flex-col mt-4">
           {menuItems.map(({ path, icon: Icon, label }) => (
-            <li key={path} className="flex items-center relative my-4">
+            <li key={path} className="flex items-center relative my-3">
               <Link
                 to={path}
                 className={`
