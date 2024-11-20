@@ -122,10 +122,6 @@ exports.login = async (req, res) => {
 
     await UserService.storeRefreshToken(user.user_id, refreshToken);
 
-<<<<<<< Updated upstream
-    // Return tokens and user details
-    res.status(200).json({ message: 'Login successful', accessToken, refreshToken, user: { username: user.username, organization_id: user.organization_id } });
-=======
     // Include role in the response
     res.status(200).json({ 
       message: 'Login successful', 
@@ -133,10 +129,11 @@ exports.login = async (req, res) => {
       refreshToken, 
       user: { 
         username: user.username,
-        role: user.role 
+        role: user.role, 
+        organization_id: user.organization_id 
       }
     });
->>>>>>> Stashed changes
+
   } catch (error) {
     console.error("Error during login:", error);
     res.status(500).json({ message: 'Server error', error: error.message });
