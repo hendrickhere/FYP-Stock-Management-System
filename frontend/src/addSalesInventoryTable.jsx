@@ -212,28 +212,25 @@ const ItemTable = ({ items, setItems }) => {
       {/* Main Table */}
       <div className="overflow-x-auto rounded-lg border border-gray-200">
         <table className="min-w-full divide-y divide-gray-200">
-        <thead className="bg-gray-50">
-          <tr>
-            <th className="w-1/3 px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-              Item Details
-            </th>
-            <th className="w-1/6 px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-              Quantity
-            </th>
-            <th className="w-1/6 px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-              Rate (MYR)
-            </th>
-            <th className="w-1/6 px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-              Discount (%)
-            </th>
-            <th className="w-1/4 px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-              Amount (MYR)
-            </th>
-            <th className="w-1/12 px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-              Actions
-            </th>
-          </tr>
-        </thead>
+          <thead className="bg-gray-50">
+            <tr>
+              <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                Item Details
+              </th>
+              <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                Quantity
+              </th>
+              <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                Rate (MYR)
+              </th>
+              <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                Amount (MYR)
+              </th>
+              <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                Actions
+              </th>
+            </tr>
+          </thead>
           <tbody className="bg-white divide-y divide-gray-200">
             {items.map((item, index) => (
               <tr key={index} className="hover:bg-gray-50">
@@ -320,42 +317,8 @@ const ItemTable = ({ items, setItems }) => {
                     {item.price ? item.price.toFixed(2) : '-'}
                   </div>
                 </td>
-
-                {/* Discount Cell */}
-                <td className="px-6 py-4">
-                  <div className="flex items-center space-x-2">
-                    <input
-                      type="number"
-                      min="0"
-                      max="100"
-                      value={item.discount || ''}
-                      onChange={(e) => handleDiscountChange(e, index)}
-                      className="w-20 px-2 py-1 text-sm border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      placeholder="0"
-                    />
-                    <span className="text-sm text-gray-500">%</span>
-                  </div>
-                </td>
-
-                {/* Subtotal Cell */}
-                <td className="px-6 py-4">
-                  {item.price && item.quantity ? (
-                    <div className="text-sm">
-                      <div className="font-medium">
-                        {calculateItemTotal(item).toFixed(2)}
-                      </div>
-                      {(item.discount > 0 || taxAmount > 0) && (
-                        <div className="text-xs text-gray-500">
-                          {item.discount > 0 && (
-                            <div>- {calculateItemDiscount(item).toFixed(2)} discount</div>
-                          )}
-                          {taxAmount > 0 && (
-                            <div>+ {calculateTaxForItem(item).toFixed(2)} tax</div>
-                          )}
-                        </div>
-                      )}
-                    </div>
-                  ) : '-'}
+                <td className="px-6 py-4 text-sm font-medium">
+                  {calculateTotal(item)}
                 </td>
 
                 {/* Actions Cell */}
@@ -385,46 +348,6 @@ const ItemTable = ({ items, setItems }) => {
           <Plus className="h-4 w-4 mr-2" />
           Add Item
         </button>
-
-        {/* Summary Card */}
-        <Card className="w-96">
-          <CardContent className="p-6">
-            <div className="space-y-4">
-              {/* Tax Selection */}
-              <div className="flex justify-between items-center">
-                <label className="text-sm font-medium text-gray-700">Tax Rate</label>
-                <select
-                  className="w-32 px-2 py-1 text-sm border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  value={taxAmount}
-                  onChange={(e) => setTaxAmount(parseFloat(e.target.value))}
-                >
-                  <option value={0}>No Tax</option>
-                  <option value={0.06}>SST (6%)</option>
-                </select>
-              </div>
-
-              {/* Calculations */}
-              <div className="space-y-2 pt-4 border-t">
-                <div className="flex justify-between text-sm">
-                  <span className="text-gray-600">Subtotal:</span>
-                  <span>MYR {(calculateSubTotal() + calculateTotalDiscount()).toFixed(2)}</span>
-                </div>
-                <div className="flex justify-between text-sm">
-                  <span className="text-gray-600">Total Discount:</span>
-                  <span className="text-red-500">- MYR {calculateTotalDiscount().toFixed(2)}</span>
-                </div>
-                <div className="flex justify-between text-sm">
-                  <span className="text-gray-600">Tax Amount:</span>
-                  <span>MYR {calculateTotalTax().toFixed(2)}</span>
-                </div>
-                <div className="flex justify-between text-base font-bold pt-2 border-t">
-                  <span>Total:</span>
-                  <span>MYR {calculateGrandTotal().toFixed(2)}</span>
-                </div>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
       </div>
 
       {/* Item Selection Modal */}

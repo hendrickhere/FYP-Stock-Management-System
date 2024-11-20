@@ -95,7 +95,7 @@ const MainContent = ({ data, isAdd }) => {
     price: isAdd ? "" : data.price,
     description: isAdd ? "" : data.description,
     quantity: isAdd ? "" : data.product_stock,
-    cost: isAdd ? "" : data.cost, 
+    cost: isAdd ? 50 : data.cost, 
   });
 
   const [errors, setErrors] = useState({});
@@ -220,6 +220,7 @@ const MainContent = ({ data, isAdd }) => {
         expiryDate: formState.expiry.date,
         price: formState.price,
         description: formState.description,
+        cost: formState.cost,
         images: {
           images: await extractBase64Strings(formState.images)
         }

@@ -63,6 +63,7 @@ function Login({ onLoginSuccess }) {
         localStorage.setItem('accessToken', response.data.accessToken);
         localStorage.setItem('refreshToken', response.data.refreshToken);
         localStorage.setItem('username', response.data.user.username);
+        localStorage.setItem('organization_id', response.data.user.organization_id);
         setUsername(response.data.user.username);
         navigate('/dashboard');
       } else {

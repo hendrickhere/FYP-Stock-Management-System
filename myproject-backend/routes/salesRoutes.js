@@ -11,5 +11,6 @@ router.get('/:salesOrderUUID/total', SalesController.getSalesOrderTotal);
 router.post('/user/:username/salesOrder', SalesController.createSalesOrder);
 router.put('/user/:username/salesOrder/:salesOrderUUID', SalesController.updateSalesOrder);
 router.delete('/user/:username/salesOrder/:salesOrderUUID', SalesController.deleteSalesOrder);
+router.post('/taxAndDiscount', SalesController.validateSalesOrderRequest, SalesController.calculateSalesOrderTotal)
 
 module.exports = router;
