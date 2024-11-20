@@ -12,59 +12,71 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "../ui/alert-dialog";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
-} from "../ui/dialog";
 import instance from '../axiosConfig';
 
-const CustomerTable = ({ customers, handleEditData, searchConfig }) => {
+const AppointmentTable = ({ appointments, searchConfig }) => {
   const { username } = useContext(GlobalContext);
   const [sortConfig, setSortConfig] = useState({ key: null, direction: null });
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
-  const [selectedCustomer, setSelectedCustomer] = useState(null);
+  const [selectedAppointment, setSelectedAppointment] = useState(null);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [editFormData, setEditFormData] = useState({});
 
-  // Sorting function
-  const sortedCustomers = React.useMemo(() => {
-    if (!customers) return [];
-    let sortableCustomers = [...customers];
+  const sortedAppointments = React.useMemo(() => {
+    if (!appointments) return [];
+    let sortableAppointments = [...appointments];
     if (sortConfig.key !== null) {
-      sortableCustomers.sort((a, b) => {
-        if (a[sortConfig.key] < b[sortConfig.key]) {
+      sortableAppointments.sort((a, b) => {
+        let aValue, bValue;
+
+        // Handle nested Customer properties
+        if (sortConfig.key === 'customer_name') {
+          aValue = a.Customer?.customer_name;
+          bValue = b.Customer?.customer_name;
+        } else {
+          aValue = a[sortConfig.key];
+          bValue = b[sortConfig.key];
+        }
+
+        // Handle null/undefined values
+        if (!aValue) aValue = '';
+        if (!bValue) bValue = '';
+        
+        // Special handling for dates
+        if (sortConfig.key === 'appointment_date') {
+          aValue = new Date(aValue).getTime();
+          bValue = new Date(bValue).getTime();
+        }
+
+        if (aValue < bValue) {
           return sortConfig.direction === 'ascending' ? -1 : 1;
         }
-        if (a[sortConfig.key] > b[sortConfig.key]) {
+        if (aValue > bValue) {
           return sortConfig.direction === 'ascending' ? 1 : -1;
         }
         return 0;
       });
     }
-    return sortableCustomers;
-  }, [customers, sortConfig]);
+    return sortableAppointments;
+  }, [appointments, sortConfig]);
 
-  // Filtered customers based on search
-  const filteredCustomers = React.useMemo(() => {
-    if (!customers) return [];
-    if (!searchConfig?.term) return sortedCustomers;
+  const filteredAppointments = React.useMemo(() => {
+    if (!appointments) return [];
+    if (!searchConfig?.term) return sortedAppointments;
     
-    return sortedCustomers.filter(customer => {
+    return sortedAppointments.filter(appointment => {
       const searchTerm = searchConfig.term.toLowerCase().trim();
       
-      const matchesId = customer.customer_id?.toString().toLowerCase().includes(searchTerm);
-      const matchesName = customer.customer_name?.toLowerCase().includes(searchTerm);
-      const matchesEmail = customer.customer_email?.toLowerCase().includes(searchTerm);
-      const matchesPhone = customer.customer_contact?.toString().toLowerCase().includes(searchTerm);
-      const matchesCompany = customer.customer_company?.toLowerCase().includes(searchTerm);
-      const matchesAddress = customer.shipping_address?.toLowerCase().includes(searchTerm);
+      const matchesId = appointment.appointment_sn?.toString().toLowerCase().includes(searchTerm);
+      const matchesCustomer = appointment.Customer?.customer_name?.toLowerCase().includes(searchTerm);
+      const matchesService = appointment.service_type?.toLowerCase().includes(searchTerm);
+      const matchesDate = new Date(appointment.appointment_date)?.toLocaleDateString()?.toLowerCase().includes(searchTerm);
+      const matchesTime = appointment.time_slot?.toLowerCase().includes(searchTerm);
+      const matchesStatus = appointment.status?.toLowerCase().includes(searchTerm);
       
-      return matchesId || matchesName || matchesEmail || matchesPhone || matchesCompany || matchesAddress;
+      return matchesId || matchesCustomer || matchesService || matchesDate || matchesTime || matchesStatus;
     });
-  }, [customers, searchConfig, sortedCustomers]);
+  }, [appointments, searchConfig, sortedAppointments]);
 
   const requestSort = (key) => {
     let direction = 'ascending';
@@ -81,47 +93,42 @@ const CustomerTable = ({ customers, handleEditData, searchConfig }) => {
       <FaSortDown className="w-3 h-3" />;
   };
 
-  const handleDeleteData = async (customer) => {
-  if (!customer?.customer_uuid) return;
-  
-  try {
-    const response = await instance.delete(
-      `/stakeholders/customer/${customer.customer_uuid}?username=${username}`
-    );
-    if (response.data) {
-      // Refresh the customer list or remove from local state
-      window.location.reload();
+  const handleDeleteData = async (appointment) => {
+    if (!appointment?.appointment_id) return;
+    
+    try {
+      const response = await instance.delete(
+        `/appointment/${appointment.appointment_id}?username=${username}`
+      );
+      if (response.data) {
+        window.location.reload();
+      }
+    } catch (error) {
+      console.error('Error deleting appointment:', error);
     }
-  } catch (error) {
-    console.error('Error deleting customer:', error);
-  }
   };
 
-  // Delete handling
-  const handleDeleteClick = (customer) => {
-    setSelectedCustomer(customer);
+  const handleDeleteClick = (appointment) => {
+    setSelectedAppointment(appointment);
     setDeleteDialogOpen(true);
   };
 
   const confirmDelete = () => {
-    if (selectedCustomer) {
-      handleDeleteData(selectedCustomer);
+    if (selectedAppointment) {
+      handleDeleteData(selectedAppointment);
       setDeleteDialogOpen(false);
-      setSelectedCustomer(null);
+      setSelectedAppointment(null);
     }
   };
 
-  // Edit handling
-  const handleEditClick = (customer) => {
+  const handleEditClick = (appointment) => {
     setEditFormData({
-      customer_uuid: customer.customer_uuid,
-      customer_name: customer.customer_name,
-      customer_email: customer.customer_email,
-      customer_contact: customer.customer_contact,
-      customer_company: customer.customer_company,
-      customer_designation: customer.customer_designation,
-      billing_address: customer.billing_address,
-      shipping_address: customer.shipping_address
+      appointment_id: appointment.appointment_id,
+      customer_id: appointment.Customer?.customer_id,
+      service_type: appointment.service_type,
+      appointment_date: appointment.appointment_date,
+      time_slot: appointment.time_slot,
+      status: appointment.status
     });
     setEditDialogOpen(true);
   };
@@ -136,18 +143,14 @@ const CustomerTable = ({ customers, handleEditData, searchConfig }) => {
 
   const handleEditSubmit = async () => {
     try {
-      console.log("Submitting edit for customer:", editFormData); 
-
       const response = await instance.put(
-        `/stakeholders/customers/${editFormData.customer_uuid}?username=${username}`,
+        `/appointment/appointments/${editFormData.appointment_id}?username=${username}`,
         {
-          customerName: editFormData.customer_name,
-          customerEmail: editFormData.customer_email,
-          customerDesignation: editFormData.customer_designation || 'Mr',
-          customerContact: editFormData.customer_contact,
-          customerCompany: editFormData.customer_company,
-          billingAddress: editFormData.billing_address,
-          shippingAddress: editFormData.shipping_address
+          customer_id: editFormData.customer_id,
+          service_type: editFormData.service_type,
+          appointment_date: editFormData.appointment_date,
+          time_slot: editFormData.time_slot,
+          status: editFormData.status
         }
       );
 
@@ -156,22 +159,22 @@ const CustomerTable = ({ customers, handleEditData, searchConfig }) => {
         window.location.reload();
       }
     } catch (error) {
-      console.error('Error updating customer:', error);
+      console.error('Error updating appointment:', error);
     }
   };
 
-  if (!customers) return null;
+  if (!appointments) return null;
 
   return (
     <div className="w-full -mt-4 lg:mt-0">
       {/* Mobile View - Card Layout */}
       <div className="block lg:hidden space-y-4 px-4 max-h-[calc(100vh-15rem)] overflow-y-auto">
-        {customers.length === 0 ? (
+        {appointments.length === 0 ? (
           <EmptyState />
         ) : (
-          filteredCustomers.map((customer, index) => (
+          filteredAppointments.map((appointment, index) => (
             <motion.div
-              key={customer.customer_id}
+              key={appointment.appointment_id}
               className="bg-white rounded-lg shadow-sm p-4 space-y-3 border border-gray-200"
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
@@ -179,18 +182,18 @@ const CustomerTable = ({ customers, handleEditData, searchConfig }) => {
             >
               <div className="flex justify-between items-start">
                 <div>
-                  <h3 className="font-medium text-gray-900">{customer.customer_name}</h3>
-                  <p className="text-sm text-gray-500">ID: {customer.customer_id}</p>
+                  <h3 className="font-medium text-gray-900">{appointment.Customer?.customer_name}</h3>
+                  <p className="text-sm text-gray-500">ID: {appointment.appointment_id}</p>
                 </div>
                 <div className="flex items-center gap-2">
                   <button
-                    onClick={() => handleEditClick(customer)}
+                    onClick={() => handleEditClick(appointment)}
                     className="p-2 hover:bg-gray-100 rounded-full transition-colors"
                   >
                     <FaEdit className="text-gray-500 hover:text-gray-700 w-4 h-4" />
                   </button>
                   <button
-                    onClick={() => handleDeleteClick(customer)}
+                    onClick={() => handleDeleteClick(appointment)}
                     className="p-2 hover:bg-gray-100 rounded-full transition-colors"
                   >
                     <FaTrashAlt className="text-red-500 hover:text-red-700 w-4 h-4" />
@@ -200,28 +203,20 @@ const CustomerTable = ({ customers, handleEditData, searchConfig }) => {
               
               <div className="grid grid-cols-2 gap-3 text-sm">
                 <div>
-                  <p className="text-gray-500 text-xs uppercase tracking-wider">Email</p>
-                  <p className="font-medium text-gray-900 truncate">{customer.customer_email}</p>
+                  <p className="text-gray-500 text-xs uppercase tracking-wider">Service Type</p>
+                  <p className="font-medium text-gray-900 truncate">{appointment.service_type}</p>
                 </div>
                 <div>
-                  <p className="text-gray-500 text-xs uppercase tracking-wider">Phone</p>
-                  <p className="font-medium text-gray-900">{customer.customer_contact}</p>
+                  <p className="text-gray-500 text-xs uppercase tracking-wider">Date</p>
+                  <p className="font-medium text-gray-900">{appointment.appointment_date}</p>
                 </div>
                 <div>
-                  <p className="text-gray-500 text-xs uppercase tracking-wider">Company</p>
-                  <p className="font-medium text-gray-900">{customer.customer_company || 'unknown'}</p>
+                  <p className="text-gray-500 text-xs uppercase tracking-wider">Time</p>
+                  <p className="font-medium text-gray-900">{appointment.time_slot}</p>
                 </div>
                 <div>
-                  <p className="text-gray-500 text-xs uppercase tracking-wider">Created At</p>
-                  <p className="font-medium text-gray-900">
-                    {new Date(customer.created_at).toLocaleDateString()}
-                  </p>
-                </div>
-                <div className="col-span-2">
-                  <p className="text-gray-500 text-xs uppercase tracking-wider">Address</p>
-                  <p className="font-medium text-gray-900 break-words">
-                    {customer.shipping_address}
-                  </p>
+                  <p className="text-gray-500 text-xs uppercase tracking-wider">Status</p>
+                  <p className="font-medium text-gray-900">{appointment.status}</p>
                 </div>
               </div>
             </motion.div>
@@ -237,13 +232,12 @@ const CustomerTable = ({ customers, handleEditData, searchConfig }) => {
               <thead className="bg-gray-50 sticky top-0 z-10">
                 <tr>
                   {[
-                    { key: 'customer_id', label: 'ID' },
-                    { key: 'customer_name', label: 'Name' },
-                    { key: 'customer_email', label: 'Email' },
-                    { key: 'customer_contact', label: 'Phone' },
-                    { key: 'customer_company', label: 'Company' },
-                    { key: 'shipping_address', label: 'Address' },
-                    { key: 'created_at', label: 'Created At' },
+                    { key: 'appointment_id', label: 'ID' },
+                    { key: 'customer_name', label: 'Customer' },
+                    { key: 'service_type', label: 'Service Type' },
+                    { key: 'appointment_date', label: 'Date' },
+                    { key: 'time_slot', label: 'Time' },
+                    { key: 'status', label: 'Status' },
                   ].map(column => (
                     <th
                       key={column.key}
@@ -262,52 +256,49 @@ const CustomerTable = ({ customers, handleEditData, searchConfig }) => {
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
-                {filteredCustomers.length === 0 ? (
+                {filteredAppointments.length === 0 ? (
                   <tr>
-                    <td colSpan="8">
+                    <td colSpan="7">
                       <EmptyState />
                     </td>
                   </tr>
                 ) : (
-                  filteredCustomers.map((customer, index) => (
+                  filteredAppointments.map((appointment, index) => (
                     <motion.tr
-                      key={customer.customer_id}
+                      key={appointment.appointment_id}
                       initial={{ opacity: 0 }}
                       animate={{ opacity: 1 }}
                       transition={{ delay: index * 0.05 }}
                       className="hover:bg-gray-50"
                     >
                       <td className="px-3 py-4 text-sm text-gray-900">
-                        {customer.customer_id}
+                        {appointment.appointment_id}
                       </td>
                       <td className="px-3 py-4 text-sm text-gray-900">
-                        {customer.customer_name}
-                      </td>
-                      <td className="px-3 py-4 text-sm text-gray-500 truncate">
-                        {customer.customer_email}
+                        {appointment.Customer?.customer_name}
                       </td>
                       <td className="px-3 py-4 text-sm text-gray-500">
-                        {customer.customer_contact}
+                        {appointment.service_type}
                       </td>
                       <td className="px-3 py-4 text-sm text-gray-500">
-                        {customer.customer_company || 'unknown'}
-                      </td>
-                      <td className="px-3 py-4 text-sm text-gray-500 truncate">
-                        {customer.shipping_address}
+                        {new Date(appointment.appointment_date).toLocaleDateString()}
                       </td>
                       <td className="px-3 py-4 text-sm text-gray-500">
-                        {new Date(customer.created_at).toLocaleDateString()}
+                        {appointment.time_slot}
+                      </td>
+                      <td className="px-3 py-4 text-sm text-gray-500">
+                        {appointment.status}
                       </td>
                       <td className="px-3 py-4 text-right text-sm font-medium sticky right-0 bg-white">
                         <div className="flex items-center justify-end gap-2">
                           <button
-                            onClick={() => handleEditClick(customer)}
+                            onClick={() => handleEditClick(appointment)}
                             className="p-1.5 hover:bg-gray-100 rounded-full transition-colors"
                           >
                             <FaEdit className="w-4 h-4 text-gray-500 hover:text-gray-700" />
                           </button>
                           <button
-                            onClick={() => handleDeleteClick(customer)}
+                            onClick={() => handleDeleteClick(appointment)}
                             className="p-1.5 hover:bg-gray-100 rounded-full transition-colors"
                           >
                             <FaTrashAlt className="w-4 h-4 text-red-500 hover:text-red-700" />
@@ -327,9 +318,9 @@ const CustomerTable = ({ customers, handleEditData, searchConfig }) => {
       <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
         <AlertDialogContent className="bg-white">
           <AlertDialogHeader>
-            <AlertDialogTitle>Delete Customer</AlertDialogTitle>
+            <AlertDialogTitle>Delete Appointment</AlertDialogTitle>
             <AlertDialogDescription>
-              Are you sure you want to delete this customer? This action cannot be undone.
+              Are you sure you want to delete this appointment? This action cannot be undone.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -345,99 +336,57 @@ const CustomerTable = ({ customers, handleEditData, searchConfig }) => {
       <AlertDialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
         <AlertDialogContent className="bg-white sm:max-w-2xl">
           <AlertDialogHeader>
-            <AlertDialogTitle>Edit Customer</AlertDialogTitle>
+            <AlertDialogTitle>Edit Appointment</AlertDialogTitle>
           </AlertDialogHeader>
           <div className="grid gap-4 py-4">
             <div className="grid grid-cols-4 items-center gap-4">
               <label className="text-right text-sm font-medium text-gray-700 required-field">
-                Name
+                Service Type
               </label>
               <input
-                name="customer_name"
-                value={editFormData.customer_name || ''}
+                name="service_type"
+                value={editFormData.service_type || ''}
                 onChange={handleEditFormChange}
-                maxLength={255}
                 className="col-span-3 p-2 border rounded-md"
               />
             </div>
             <div className="grid grid-cols-4 items-center gap-4">
               <label className="text-right text-sm font-medium text-gray-700 required-field">
-                Email
+                Date
               </label>
               <input
-                name="customer_email"
-                type="email"
-                value={editFormData.customer_email || ''}
+                type="date"
+                name="appointment_date"
+                value={editFormData.appointment_date || ''}
                 onChange={handleEditFormChange}
-                maxLength={255}
                 className="col-span-3 p-2 border rounded-md"
               />
             </div>
             <div className="grid grid-cols-4 items-center gap-4">
               <label className="text-right text-sm font-medium text-gray-700 required-field">
-                Contact
+                Time Slot
               </label>
               <input
-                name="customer_contact"
-                value={editFormData.customer_contact || ''}
+                name="time_slot"
+                value={editFormData.time_slot || ''}
                 onChange={handleEditFormChange}
-                maxLength={255}
                 className="col-span-3 p-2 border rounded-md"
               />
             </div>
             <div className="grid grid-cols-4 items-center gap-4">
               <label className="text-right text-sm font-medium text-gray-700">
-                Company
-              </label>
-              <input
-                name="customer_company"
-                value={editFormData.customer_company || ''}
-                onChange={handleEditFormChange}
-                maxLength={255}
-                className="col-span-3 p-2 border rounded-md"
-              />
-            </div>
-            <div className="grid grid-cols-4 items-center gap-4">
-              <label className="text-right text-sm font-medium text-gray-700">
-                Designation
+                Status
               </label>
               <select
-                name="customer_designation"
-                value={editFormData.customer_designation || 'Mr'}
+                name="status"
+                value={editFormData.status || ''}
                 onChange={handleEditFormChange}
                 className="col-span-3 p-2 border rounded-md"
               >
-                <option value="Mr">Mr</option>
-                <option value="Mrs">Mrs</option>
-                <option value="Ms">Ms</option>
-                <option value="Dr">Dr</option>
+                <option value="Scheduled">Scheduled</option>
+                <option value="Completed">Completed</option>
+                <option value="Cancelled">Cancelled</option>
               </select>
-            </div>
-            <div className="grid grid-cols-4 items-center gap-4">
-              <label className="text-right text-sm font-medium text-gray-700">
-                Billing Address
-              </label>
-              <textarea
-                name="billing_address"
-                value={editFormData.billing_address || ''}
-                onChange={handleEditFormChange}
-                maxLength={255}
-                rows={3}
-                className="col-span-3 p-2 border rounded-md"
-              />
-            </div>
-            <div className="grid grid-cols-4 items-center gap-4">
-              <label className="text-right text-sm font-medium text-gray-700">
-                Shipping Address
-              </label>
-              <textarea
-                name="shipping_address"
-                value={editFormData.shipping_address || ''}
-                onChange={handleEditFormChange}
-                maxLength={255}
-                rows={3}
-                className="col-span-3 p-2 border rounded-md"
-              />
             </div>
           </div>
           <AlertDialogFooter>
@@ -473,15 +422,15 @@ const EmptyState = () => (
           strokeLinecap="round"
           strokeLinejoin="round"
           strokeWidth="2"
-          d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"
+          d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
         />
       </svg>
-      <span className="text-lg font-medium text-gray-900">No customers found</span>
+      <span className="text-lg font-medium text-gray-900">No appointments found</span>
       <p className="text-sm text-gray-500">
-        Add a new customer to get started
+        Add a new appointment to get started
       </p>
     </div>
   </div>
 );
 
-export default CustomerTable;
+export default AppointmentTable;
