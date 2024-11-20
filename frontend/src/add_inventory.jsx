@@ -21,6 +21,16 @@ const AddInventory = () => {
   const [data, setData] = useState({});
   const [loading, setLoading] = useState(true);
   const [apiError, setApiError] = useState(null);
+  const [isMobile, setIsMobile] = useState(window.innerWidth < 1024);
+
+  useEffect(() => {
+    const handleResize = () => {
+      setIsMobile(window.innerWidth < 1024);
+    };
+
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -58,17 +68,17 @@ const AddInventory = () => {
   }
 
   return (
-    <div className="flex flex-col h-screen w-full overflow-hidden">
+    <div className="flex flex-col h-screen w-full">
       <Header />
-      <div className="flex flex-row flex-grow overflow-hidden">
+      <div className="flex flex-row flex-grow">
         <Sidebar />
-        <MainContent data={isAdd ? {} : data} isAdd={isAdd} />
+        <MainContent data={isAdd ? {} : data} isAdd={isAdd} isMobile={isMobile}/>
       </div>
     </div>
   );
 };
 
-const MainContent = ({ data, isAdd }) => {
+const MainContent = ({ data, isAdd, isMobile }) => {
   const navigate = useNavigate();
   const { username } = useContext(GlobalContext);
   const [formState, setFormState] = useState({
@@ -322,8 +332,8 @@ const MainContent = ({ data, isAdd }) => {
   };
 
   return (
-    <div className="flex-auto ml-52 overflow-y-auto pb-20 p-4 custom-scrollbar">
-      <div className="max-w-[1400px] mx-auto">
+    <div className={`h-[calc(100vh-4rem)] pb-8 overflow-y-auto ${isMobile ? 'w-full' : 'ml-[13rem]'}`}>
+      <div className="p-6">
         <div className="flex items-center justify-between mb-6">
           <h1 className="text-2xl font-bold pl-6">{isAdd ? "Add New Inventory" : "Edit Inventory"}</h1>
         </div>
@@ -621,7 +631,10 @@ const MainContent = ({ data, isAdd }) => {
           </div>
 
           {/* Action Buttons */}
-          <div className="fixed bottom-0 left-52 right-0 bg-white border-t p-4 flex justify-end space-x-4">
+          <div className="fixed bottom-0 right-0 bg-white border-t p-4 z-10"
+                style={{ 
+                  left: isMobile ? '0' : '13rem'
+                }}>
             <div className="max-w-[1400px] mx-auto w-full flex justify-end space-x-4">
               <button
                 type="button"

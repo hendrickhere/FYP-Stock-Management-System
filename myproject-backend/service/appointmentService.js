@@ -3,7 +3,6 @@ const {Appointment, User, Customer, Organization} = require('../models');
 const { v4: uuidv4 } = require('uuid');
 const StakeholderService = require("../service/stakeholderService");
 
-
 exports.getAllAppointmentWithCustomersId = async (customerId) => {
     const appointments = await Appointments.findAll(
         {
@@ -39,39 +38,55 @@ exports.insertAppointment = async (requestBody) => {
 }
 
 exports.getAllAppointmentWithUsername = async (username, pageNumber, pageSize) => {
-    const offset = (pageNumber - 1) * pageSize;
+  const offset = (pageNumber - 1) * pageSize;
 
+  try {
     const user = await User.findOne({
-        where: { username },
-        attributes: ['organization_id'],
-      });
-    
-      if (!user) {
-        throw new Error('User not found');
-      }
+      where: { username },
+      attributes: ['organization_id'],
+    });
 
-      const appointments = await Appointment.findAll({
-        include: [
-          {
-            model: Customer,
-            include: [
-              {
-                model: User,
-                where: {
-                  organization_id: user.organization_id,  
-                },
-                attributes: [],  
+    if (!user) {
+      throw new Error('User not found');
+    }
+
+    const appointments = await Appointment.findAll({
+      include: [
+        {
+          model: Customer,
+          required: true, 
+          include: [
+            {
+              model: User,
+              where: {
+                organization_id: user.organization_id,
               },
-            ],
-            attributes: ['customer_id', 'customer_name', 'customer_email', 'customer_contact'],  
-          },
-        ],
-        limit: pageSize,
-        offset: offset,
-      });
-    
-      return appointments;
-}
+              required: true,
+              attributes: []
+            }
+          ],
+          attributes: ['customer_id', 'customer_name', 'customer_email', 'customer_contact']
+        }
+      ],
+      attributes: [
+        'appointment_id',
+        'appointment_sn',
+        'service_type',
+        'appointment_date',
+        'time_slot',
+        'status'
+      ],
+      limit: pageSize,
+      offset: offset,
+      order: [['appointment_id', 'DESC']]
+    });
+
+    return appointments;
+  } catch (error) {
+    console.error('Error fetching appointments:', error);
+    throw error;
+  }
+};
 
 exports.updateAppointment = async (appointmentId, requestBody) => {
   const {
@@ -116,11 +131,11 @@ exports.deleteAppointment = async (appointmentId) => {
   try {
     const result = await Appointment.destroy({
       where: {
-        appointmentId: appointmentId,
+        appointment_id: appointmentId, 
       },
     });
 
-    if (deletedCount === 0) {
+    if (result === 0) { 
       return false;
     }
     return true;
