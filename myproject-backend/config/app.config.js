@@ -3,7 +3,7 @@ const { database_name, username, password } = require("./env.js");
 const JWT_CONFIG = {
   ACCESS_TOKEN_SECRET: 'secretkey123',
   REFRESH_TOKEN_SECRET: 'refreshSecretKey123',
-  ACCESS_TOKEN_EXPIRY: '1h',
+  ACCESS_TOKEN_EXPIRY: '30min',
   REFRESH_TOKEN_EXPIRY: '7d'
 };
 

@@ -21,6 +21,7 @@ import Profile from './profile';
 import Settings from './settings_module/settings';
 import { GlobalProvider } from './globalContext';
 import Chatbot from './chatbotUI/chatbot';
+import { ProtectedRoute } from './token_expiration_module/protectedRoute';
 import './styles/tailwind.css';
 import './styles/index.css';
 
@@ -31,24 +32,96 @@ ReactDOM.render(
         <Routes>
           <Route path="/" element={<LoginWrapper />} />
           <Route path="/login" element={<LoginWrapper />} />
-          <Route path="/dashboard" element={<Dashboard />} />
-          <Route path="/inventory" element={<Inventory />} />
-          <Route path="/sales" element={<Sales />} />
-          <Route path="/purchases" element={<Purchases />} />
-          <Route path="/customers" element={<Customers />} />
-          <Route path="/vendors" element={<Vendors />} />
-          <Route path="/staff" element={<Staff />} />
-          <Route path="/appointments" element={<Appointments />} />
-          <Route path="/sales/add_sales" element={<AddSales />} />
-          <Route path="/inventory/add_inventory" element={<AddInventory/>} />
-          <Route path="/chatbot" element={<Chatbot/>} />
-          <Route path="/purchases/add_purchases" element={<AddPurchases/>} />
-          <Route path="/vendors/add_vendor" element={<AddVendor/>} />
-          <Route path="/staff/add_staff" element={<AddStaff/>} />
-          <Route path="/customers/add_customer" element={<AddCustomer/>} />
-          <Route path="/appointments/add_appointment" element={<AddAppointment/>} />
-          <Route path="/profile" element={<Profile/>} />
-          <Route path="/settings/*" element={<Settings />} />
+          <Route path="/dashboard" element={
+            <ProtectedRoute>
+              <Dashboard />
+            </ProtectedRoute>
+          } />
+          <Route path="/inventory" element={
+            <ProtectedRoute>
+              <Inventory />
+            </ProtectedRoute>
+          } />
+          <Route path="/sales" element={
+            <ProtectedRoute>
+              <Sales />
+            </ProtectedRoute>
+          } />
+          <Route path="/purchases" element={
+            <ProtectedRoute>
+              <Purchases />
+            </ProtectedRoute>
+          } />
+          <Route path="/customers" element={
+            <ProtectedRoute>
+              <Customers />
+            </ProtectedRoute>
+          } />
+          <Route path="/vendors" element={
+            <ProtectedRoute>
+              <Vendors />
+            </ProtectedRoute>
+          } />
+          <Route path="/staff" element={
+            <ProtectedRoute>
+              <Staff />
+            </ProtectedRoute>
+          } />
+          <Route path="/appointments" element={
+            <ProtectedRoute>
+              <Appointments />
+            </ProtectedRoute>
+          } />
+          <Route path="/sales/add_sales" element={
+            <ProtectedRoute>
+              <AddSales />
+            </ProtectedRoute>
+          } />
+          <Route path="/inventory/add_inventory" element={
+            <ProtectedRoute>
+             <AddInventory/>
+            </ProtectedRoute>
+          } />
+          <Route path="/chatbot" element={
+            <ProtectedRoute>
+             <Chatbot/>
+            </ProtectedRoute>
+          } />
+          <Route path="/purchases/add_purchases" element={
+            <ProtectedRoute>
+              <AddPurchases/>
+            </ProtectedRoute>
+          } />
+          <Route path="/vendors/add_vendor" element={
+            <ProtectedRoute>
+             <AddVendor/>
+            </ProtectedRoute>
+          } />
+          <Route path="/staff/add_staff" element={
+            <ProtectedRoute>
+             <AddStaff/>
+            </ProtectedRoute>
+          } />
+          <Route path="/customers/add_customer" element={
+            <ProtectedRoute>
+             <AddCustomer/>
+            </ProtectedRoute>
+          } />
+          <Route path="/appointments/add_appointment" element={
+            <ProtectedRoute>
+             <AddAppointment/>
+            </ProtectedRoute>
+          } />
+          <Route path="/profile" element={
+            <ProtectedRoute>
+              <Profile/>
+            </ProtectedRoute>
+          } />
+          <Route path="/settings/*" element={
+            <ProtectedRoute>
+             <Settings />
+            </ProtectedRoute>
+          } />
         </Routes>
       </Router>
     </GlobalProvider>

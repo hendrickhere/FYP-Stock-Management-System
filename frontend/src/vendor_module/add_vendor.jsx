@@ -156,7 +156,7 @@ const MainContent = ({ isMobile }) => {
         <div className="p-6">
           <div className="max-w-[1400px] mx-auto">
             <div className="mb-8">
-              <h1 className="text-2xl font-bold">Add New Vendor</h1>
+              <h1 className="text-2xl font-bold pl-6">Add New Vendor</h1>
             </div>
 
             {apiError && (

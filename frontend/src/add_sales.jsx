@@ -17,20 +17,41 @@ import ItemTable from "./addSalesInventoryTable";
 import SalesSummary from "./sales_summary";
 import MultiDiscountSelection from "./discount_section";
 import { FaTemperatureHigh } from "react-icons/fa";
+import { 
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "./ui/alert-dialog";
 
 const AddSales = () => {
+  const [isMobile, setIsMobile] = useState(window.innerWidth < 1024);
+
+  useEffect(() => {
+    const handleResize = () => {
+      setIsMobile(window.innerWidth < 1024);
+    };
+
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
   return (
-    <div className="flex flex-col h-screen w-full overflow-hidden">
+    <div className="flex flex-col h-screen w-full">
       <Header />
-      <div className="flex flex-row flex-grow overflow-hidden">
+      <div className="flex flex-row flex-grow">
         <Sidebar />
-        <MainContent />
+        <MainContent isMobile={isMobile} />
       </div>
     </div>
   );
 };
 
-const MainContent = () => {
+const MainContent = ({ isMobile }) => {
   const navigate = useNavigate();
   const { username } = useContext(GlobalContext);
   const dropdownRef = useRef(null);
@@ -50,6 +71,7 @@ const MainContent = () => {
   const [isDiscountLoading, setIsDiscountLoading] = useState(false);
   const [discountError, setDiscountError] = useState(null);
   const [tempPaymentInfo, setTempPaymentInfo] = useState(null);
+  const [showCancelDialog, setShowCancelDialog] = useState(false);
 
   const [formState, setFormState] = useState({
     customerData: null,
@@ -77,12 +99,13 @@ const MainContent = () => {
   const fetchDiscounts = async () => {
     try {
       setIsDiscountLoading(true);
-      // Replace with your actual API call
-      const response = await instance.get(
-        `http://localhost:3002/api/discounts?organizationId=${organizationId}`
-      );
+      if (!organizationId) {
+        throw new Error('Organization ID is missing');
+      }
+      const response = await instance.get(`/discounts?organization_id=${organizationId}`);
       setDiscounts(response.data.discounts);
     } catch (err) {
+      console.error('Fetch discounts error:', err);
       setDiscountError("Failed to load discount rates");
     } finally {
       setIsDiscountLoading(false);
@@ -91,16 +114,18 @@ const MainContent = () => {
 
   const fetchTaxes = async () => {
     try {
-      const response = await instance.get(`http://localhost:3002/api/taxes?orgId=${organizationId}`);
-      setTaxes(response.data.data); 
+      if (!organizationId) {
+        throw new Error('Organization ID is missing');
+      }
+      const response = await instance.get(`/taxes?organization_id=${organizationId}`);
+      setTaxes(response.data.data);
       setIsTaxLoading(false);
     } catch (err) {
-      console.error(err);
+      console.error('Fetch taxes error:', err);
       setTaxError('Failed to load tax rates');
       setIsTaxLoading(false);
     }
   };
-
 
   const handleDiscountChange = async (discount) => {
     setSelectedDiscounts(prev => {
@@ -131,24 +156,22 @@ const MainContent = () => {
   }
 
   const fetchPrice = async (discountIds, itemList, taxIds) => {
-    const reqBody = {
-      itemLists: itemList.map((item) => ({
-        product_id: item.product_uuid,
-        quantity: item.quantity,
-      })),
-      discountIds:
-        discountIds.length > 0
-          ? discountIds.map((discount) => discount.discount_id)
-          : undefined,
-      taxIds: taxIds.length > 0 ? taxIds.map((tax) => tax.tax_id) : undefined,
-    };
-    const response = await instance.post(
-      `http://localhost:3002/api/sales/taxAndDiscount`,
-      reqBody
-    );
-
-    if(response) {
-      setTempPaymentInfo(response.data.data);
+    try {
+      const reqBody = {
+        itemLists: itemList.map((item) => ({
+          product_id: item.product_uuid,
+          quantity: item.quantity,
+        })),
+        discountIds: discountIds.length > 0 ? discountIds.map((discount) => discount.discount_id) : undefined,
+        taxIds: taxIds.length > 0 ? taxIds.map((tax) => tax.tax_id) : undefined,
+        organization_id: organizationId
+      };
+      const response = await instance.post('/sales/taxAndDiscount', reqBody);
+      if(response) {
+        setTempPaymentInfo(response.data.data);
+      }
+    } catch (err) {
+      console.error('Fetch price error:', err);
     }
   };
 
@@ -305,10 +328,12 @@ const MainContent = () => {
   };
 
   const handleCancel = () => {
-    const shouldExit = window.confirm("Are you sure you want to discard changes?");
-    if (shouldExit) {
-      navigate(-1);
-    }
+    setShowCancelDialog(true);
+  };
+
+  const handleConfirmCancel = () => {
+    setShowCancelDialog(false);
+    navigate(-1);
   };
 
   if (loading) {
@@ -320,32 +345,52 @@ const MainContent = () => {
   }
 
   return (
-    <div className="flex-auto ml-52 overflow-y-auto pb-20 p-4 custom-scrollbar">
-      <div className="max-w-[1400px] mx-auto">
-        <div className="flex items-center justify-between mb-6">
-          <h1 className="text-2xl font-bold pl-6">Add New Sales Order</h1>
-        </div>
+    <main className="flex-1">
+      <div className={`h-[calc(100vh-4rem)] overflow-y-auto ${isMobile ? 'w-full' : 'ml-[13rem]'}`}>
 
-        {apiError && (
-          <Alert variant="destructive" className="mb-4">
-            <AlertCircle className="h-4 w-4" />
-            <AlertDescription>{apiError}</AlertDescription>
-          </Alert>
-        )}
+          <AlertDialog open={showCancelDialog} onOpenChange={setShowCancelDialog}>
+            <AlertDialogContent className="bg-white">
+              <AlertDialogHeader>
+                <AlertDialogTitle>Discard Changes</AlertDialogTitle>
+                <AlertDialogDescription>
+                  Are you sure you want to discard your changes? This action cannot be undone.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                <AlertDialogAction onClick={handleConfirmCancel}>
+                  Discard Changes
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
 
-        <form onSubmit={handleSubmit} className="space-y-6">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div className="p-4 md:p-6">
+          <div className="max-w-[1400px] mx-auto">
+            <div className="mb-6">
+              <h1 className="text-2xl font-bold pl-6">Add New Sales Order</h1>
+            </div>
+
+            {apiError && (
+              <Alert variant="destructive" className="mb-4">
+                <AlertCircle className="h-4 w-4" />
+                <AlertDescription>{apiError}</AlertDescription>
+              </Alert>
+            )}
+
+        <form onSubmit={handleSubmit} className="space-y-4 md:space-y-6 pb-24">
+          <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
             {/* Customer Information Card */}
             <Card>
-              <CardHeader>
+              <CardHeader className="pb-2">
                 <CardTitle>Customer Information</CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
-                <div className="space-y-2">
+                <div className="grid gap-4">
                   <label className="text-sm font-medium text-gray-700">
                     Customer Name
                   </label>
-                  <div className="relative">
+                  <div className="relative mt-1">
                     <input
                       type="text"
                       readOnly
@@ -384,8 +429,9 @@ const MainContent = () => {
                     )}
                   </div>
                 </div>
-
-                <div className="space-y-2">
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
                   <label className="text-sm font-medium text-gray-700">
                     Sales Order Reference
                   </label>
@@ -397,8 +443,9 @@ const MainContent = () => {
                     className="w-full p-2 border rounded-md"
                   />
                 </div>
+              </div>
 
-                <div className="space-y-2">
+                <div>
                   <label className="text-sm font-medium text-gray-700">
                     Order Date
                   </label>
@@ -407,7 +454,7 @@ const MainContent = () => {
                     name="orderDate"
                     value={formState.orderDate}
                     onChange={handleInputChange}
-                    className={`w-full p-2 border rounded-md ${
+                    className={`mt-1 w-full p-2 border rounded-md ${
                       errors.orderDate ? "border-red-500" : "border-gray-300"
                     }`}
                   />
@@ -440,11 +487,11 @@ const MainContent = () => {
 
             {/* Shipping Information Card */}
             <Card>
-              <CardHeader>
+              <CardHeader className="pb-2">
                 <CardTitle>Shipping Information</CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
-                <div className="flex items-center space-x-2">
+                <div className="flex items-center mb-4">
                   <input
                     type="checkbox"
                     id="requiresShipping"
@@ -454,7 +501,7 @@ const MainContent = () => {
                   />
                   <label
                     htmlFor="requiresShipping"
-                    className="text-sm font-medium text-gray-700"
+                    className="text-sm font-medium text-gray-700 ml-2"
                   >
                     This order requires shipping
                   </label>
@@ -462,7 +509,8 @@ const MainContent = () => {
 
                 {requiresShipping ? (
                   <>
-                    <div className="space-y-2">
+                    <div className="grid gap-4">
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <label className="text-sm font-medium text-gray-700">
                         Expected Shipment Date
                       </label>
@@ -509,6 +557,7 @@ const MainContent = () => {
                         className="w-full p-2 border rounded-md"
                       />
                     </div>
+                    </div>
 
                     <div className="space-y-2">
                       <label className="text-sm font-medium text-gray-700">
@@ -534,25 +583,26 @@ const MainContent = () => {
           </div>
 
           {/* Items Table */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Order Items</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <ItemTable
-                items={formState.items}
-                setItems={(items) =>
-                  setFormState((prev) => ({ ...prev, items }))
-                }
-              />
-            </CardContent>
-          </Card>
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle>Order Items</CardTitle>
+              </CardHeader>
+              <CardContent className="overflow-x-auto">
+                <div className="min-w-[600px]">
+                  <ItemTable
+                    items={formState.items}
+                    setItems={(items) => setFormState((prev) => ({ ...prev, items }))}
+                  />
+                </div>
+              </CardContent>
+            </Card>
+
           {/* Tax and Discount section */}
           <Card>
-            <CardHeader>
+            <CardHeader className="pb-2">
               <CardTitle>Tax and Discount</CardTitle>
             </CardHeader>
-            <CardContent>
+            <CardContent className="space-y-4">
               {!isTaxLoading && (
                 <MultiTaxSelection
                   selectedTaxes={selectedTaxes}
@@ -574,18 +624,30 @@ const MainContent = () => {
               )}
             </CardContent>
           </Card>
-
+          
           {/* Sales Summary */}
-          <SalesSummary
-            subTotal={tempPaymentInfo?.subtotal ?? 0}
-            grandTotal={tempPaymentInfo?.grandtotal ?? 0}
-            discountAmount={tempPaymentInfo?.totalDiscountAmount ?? 0}
-            taxAmount={tempPaymentInfo?.totalTaxAmount ?? 0}
-            discounts={tempPaymentInfo?.discounts ?? []}
-            taxes={tempPaymentInfo?.taxes ?? []}
-          />
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle>Order Summary</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <SalesSummary
+                  subTotal={tempPaymentInfo?.subtotal ?? 0}
+                  grandTotal={tempPaymentInfo?.grandtotal ?? 0}
+                  discountAmount={tempPaymentInfo?.totalDiscountAmount ?? 0}
+                  taxAmount={tempPaymentInfo?.totalTaxAmount ?? 0}
+                  discounts={tempPaymentInfo?.discounts ?? []}
+                  taxes={tempPaymentInfo?.taxes ?? []}
+                />
+              </CardContent>
+            </Card>
+          </form>
+
           {/* Action Buttons */}
-          <div className="fixed bottom-0 left-52 right-0 bg-white border-t p-4 flex justify-end space-x-4">
+          <div className="fixed bottom-0 right-0 bg-white border-t p-4 z-10"
+                style={{ 
+                  left: isMobile ? '0' : '13rem'
+                }}>
             <div className="max-w-[1400px] mx-auto w-full flex justify-end space-x-4">
               <button
                 type="button"
@@ -596,8 +658,8 @@ const MainContent = () => {
                 Cancel
               </button>
               <button
-                type="submit"
-                className="px-4 py-2 text-white bg-blue-500 rounded-md hover:bg-blue-600 disabled:opacity-50 relative cursor-pointer"
+                onClick={handleSubmit}
+                className="px-4 py-2 text-white bg-blue-500 rounded-md hover:bg-blue-600 disabled:opacity-50 relative"
                 disabled={isSubmitting}
               >
                 {isSubmitting ? (
@@ -613,10 +675,11 @@ const MainContent = () => {
               </button>
             </div>
           </div>
-        </form>
+        </div>
       </div>
     </div>
-  );
+  </main>
+);
 };
 
 export default AddSales;
