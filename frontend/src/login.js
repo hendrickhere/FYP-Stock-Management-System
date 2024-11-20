@@ -6,7 +6,6 @@ import styles from './styles/login.module.css';
 import { GlobalContext } from './globalContext';
 import logoImage from './logo.png';
 
-// Integrated Modal Component
 const ConfirmationModal = ({ isOpen, message, onClose, title }) => {
   if (!isOpen) return null;
 
@@ -33,53 +32,61 @@ const ConfirmationModal = ({ isOpen, message, onClose, title }) => {
 };
 
 function Login({ onLoginSuccess }) {
-  const {username, setUsername} = useContext(GlobalContext); 
-  // State variables to handle user inputs and form status
-  const [name, setName] = useState('');
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
+  const {username, setUsername} = useContext(GlobalContext);
+  
+  const [signUpData, setSignUpData] = useState({
+    name: '',
+    email: '',
+    password: ''
+  });
+  const [signInData, setSignInData] = useState({
+    email: '',
+    password: ''
+  });
   const [role, setRole] = useState('Staff');
   const [isSignUp, setIsSignUp] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-  
-  // Modal states
   const [modalOpen, setModalOpen] = useState(false);
   const [modalMessage, setModalMessage] = useState('');
   const [modalTitle, setModalTitle] = useState('');
 
   const navigate = useNavigate();
 
-  // Update state based on form input changes
   const handleInputChange = (event) => {
     const { name, value } = event.target;
-    if (name === 'name') setName(value);
-    else if (name === 'email') setEmail(value);
-    else if (name === 'password') setPassword(value);
-    else if (name === 'role') setRole(value);
+    if (isSignUp) {
+      setSignUpData(prev => ({
+        ...prev,
+        [name]: value
+      }));
+    } else {
+      setSignInData(prev => ({
+        ...prev,
+        [name]: value
+      }));
+    }
+    if (name === 'role') setRole(value);
   };
 
-  // Toggle the visibility of Sign Up and Sign In forms
   const toggleSignUp = () => {
     setIsSignUp(!isSignUp);
     const container = document.getElementById('container');
     if (isSignUp) {
       container.classList.remove("active");
-    }
-    else {
+    } else {
       container.classList.add("active");
     }
   }
 
-  // Handle form submission for both sign up and sign in
   const handleSubmit = async (event) => {
     event.preventDefault();
     setIsLoading(true);
     
     const userData = {
-      username: name, 
+      username: isSignUp ? signUpData.name : signInData.email,
       created_at: new Date().toISOString(),
-      email,
-      password, 
+      email: isSignUp ? signUpData.email : signInData.email,
+      password: isSignUp ? signUpData.password : signInData.password,
       role,
     }    
 
@@ -92,9 +99,8 @@ function Login({ onLoginSuccess }) {
         setModalMessage('Sign up successful! Please log in with your new account.');
         setModalOpen(true);
         setIsSignUp(false);
-        setEmail('');
-        setPassword('');
-        setName('');
+        setSignUpData({ name: '', email: '', password: '' });
+        setSignInData({ email: '', password: '' });
       } else if (response.data.message === 'Login successful') {
         setModalTitle('Welcome Back');
         setModalMessage('Login successful! Redirecting to dashboard...');
@@ -161,19 +167,17 @@ function Login({ onLoginSuccess }) {
   );
 
   return (
-  <div className="min-h-screen w-full flex items-center justify-center p-4">
-    <div className={styles.mobileBg} />
+    <div className="min-h-screen w-full flex items-center justify-center p-4">
+      <div className={styles.mobileBg} />
       <div 
         className={`flex bg-white rounded-[30px] relative overflow-hidden w-[768px] max-w-full min-h-[480px] ${styles.container} ${isSignUp ? styles.active : ''}`} 
         id="container"
       >
-          
         <div className="md:hidden">
           <MobileHeader />
           <MobileNav isSignUp={isSignUp} onToggle={toggleSignUp} />
         </div>
       
-        {/* Sign Up Form Container */}
         <div className={`absolute top-0 h-full w-1/2 ${styles.signUpContainer} ${styles.formContainer}`}>
           <form onSubmit={handleSubmit} className="bg-white flex flex-col items-center justify-center h-full px-6 md:px-10">
             <h1 className="text-2xl font-bold mb-8 text-[#3B1E54]">Create Account</h1>
@@ -206,7 +210,7 @@ function Login({ onLoginSuccess }) {
                 type="text"
                 name="name"
                 placeholder="Name"
-                value={name}
+                value={signUpData.name}
                 onChange={handleInputChange}
                 className="w-full bg-[#F8F7FF] border-0 p-3 rounded-lg text-sm focus:ring-2 focus:ring-[#3B1E54] outline-none transition-all duration-300"
               />
@@ -214,7 +218,7 @@ function Login({ onLoginSuccess }) {
                 type="email"
                 name="email"
                 placeholder="Email"
-                value={email}
+                value={signUpData.email}
                 onChange={handleInputChange}
                 className="w-full bg-[#F8F7FF] border-0 p-3 rounded-lg text-sm focus:ring-2 focus:ring-[#3B1E54] outline-none transition-all duration-300"
               />
@@ -222,7 +226,7 @@ function Login({ onLoginSuccess }) {
                 type="password"
                 name="password"
                 placeholder="Password"
-                value={password}
+                value={signUpData.password}
                 onChange={handleInputChange}
                 className="w-full bg-[#F8F7FF] border-0 p-3 rounded-lg text-sm focus:ring-2 focus:ring-[#3B1E54] outline-none transition-all duration-300"
               />
@@ -236,7 +240,6 @@ function Login({ onLoginSuccess }) {
           </form>
         </div>
 
-        {/* Sign In Form Container */}
         <div className={`absolute top-0 h-full w-1/2 ${styles.signInContainer} ${styles.formContainer}`}>
           <form onSubmit={handleSubmit} className="bg-white flex flex-col items-center justify-center h-full px-6 md:px-10">
             <h1 className="text-2xl font-bold mb-8 text-[#3B1E54]">Sign In</h1>
@@ -245,7 +248,7 @@ function Login({ onLoginSuccess }) {
                 type="email"
                 name="email"
                 placeholder="Email"
-                value={email}
+                value={signInData.email}
                 onChange={handleInputChange}
                 className="w-full bg-[#F8F7FF] border-0 p-3 rounded-lg text-sm focus:ring-2 focus:ring-[#3B1E54] outline-none transition-all duration-300"
               />
@@ -253,7 +256,7 @@ function Login({ onLoginSuccess }) {
                 type="password"
                 name="password"
                 placeholder="Password"
-                value={password}
+                value={signInData.password}
                 onChange={handleInputChange}
                 className="w-full bg-[#F8F7FF] border-0 p-3 rounded-lg text-sm focus:ring-2 focus:ring-[#3B1E54] outline-none transition-all duration-300"
               />
@@ -270,10 +273,8 @@ function Login({ onLoginSuccess }) {
           </form>
         </div>
 
-        {/* Toggle Container */}
         <div className={`absolute top-0 left-1/2 w-1/2 h-full overflow-hidden ${styles.toggleContainer} z-[5]`}>
           <div className="relative -left-full h-full w-[200%] transition-transform duration-600 ease-in-out bg-gradient-to-r from-[#38304C] to-[#B9B4C7]">
-            {/* Left Panel */}
             <div className={`absolute w-1/2 h-full flex items-center justify-center flex-col px-6 md:px-8 text-center ${styles.togglePanel}`}>
               <h2 className="text-2xl font-bold mb-4 text-white">
                 {isSignUp ? "Hello!" : "Welcome Back!"}
@@ -290,7 +291,6 @@ function Login({ onLoginSuccess }) {
                 {isSignUp ? "Sign In" : "Sign Up"}
               </button>
             </div>
-            {/* Right Panel */}
             <div className={`absolute right-0 w-1/2 h-full flex items-center justify-center flex-col px-6 md:px-8 text-center ${styles.togglePanel}`}>
               <h2 className="text-2xl font-bold mb-4 text-white">
                 {isSignUp ? "Welcome Back!" : "Hello!"}
@@ -310,7 +310,6 @@ function Login({ onLoginSuccess }) {
           </div>
         </div>
 
-        {/* Modal */}
         <ConfirmationModal 
           isOpen={modalOpen}
           message={modalMessage}
