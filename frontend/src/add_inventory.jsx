@@ -21,6 +21,16 @@ const AddInventory = () => {
   const [data, setData] = useState({});
   const [loading, setLoading] = useState(true);
   const [apiError, setApiError] = useState(null);
+  const [isMobile, setIsMobile] = useState(window.innerWidth < 1024);
+
+  useEffect(() => {
+    const handleResize = () => {
+      setIsMobile(window.innerWidth < 1024);
+    };
+
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -58,17 +68,17 @@ const AddInventory = () => {
   }
 
   return (
-    <div className="flex flex-col h-screen w-full overflow-hidden">
+    <div className="flex flex-col h-screen w-full">
       <Header />
-      <div className="flex flex-row flex-grow overflow-hidden">
+      <div className="flex flex-row flex-grow">
         <Sidebar />
-        <MainContent data={isAdd ? {} : data} isAdd={isAdd} />
+        <MainContent data={isAdd ? {} : data} isAdd={isAdd} isMobile={isMobile}/>
       </div>
     </div>
   );
 };
 
-const MainContent = ({ data, isAdd }) => {
+const MainContent = ({ data, isAdd, isMobile }) => {
   const navigate = useNavigate();
   const { username } = useContext(GlobalContext);
   const [formState, setFormState] = useState({
@@ -98,6 +108,16 @@ const MainContent = ({ data, isAdd }) => {
     cost: isAdd ? 50 : data.cost, 
   });
 
+  console.log("Initial form state:", {
+    inventoryName: formState.inventoryName,
+    quantity: formState.quantity,
+    unit: formState.unit,
+    manufacturer: formState.manufacturer,
+    weight: formState.weight,
+    price: formState.price,
+    cost: formState.cost
+});
+
   const [errors, setErrors] = useState({});
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [apiError, setApiError] = useState(null);
@@ -124,30 +144,54 @@ const MainContent = ({ data, isAdd }) => {
   };
 
   const validateForm = () => {
-    const newErrors = {};
-    
-    if (!formState.inventoryName.trim()) {
-      newErrors.inventoryName = "Product name is required";
-    }
-    
-    if (!formState.skuNumber.trim()) {
-      newErrors.skuNumber = "SKU number is required";
-    }
-    
-    if (formState.unit === "none") {
-      newErrors.unit = "Please select a unit";
-    }
-    
-    if (!formState.quantity || formState.quantity < 0) {
-      newErrors.quantity = "Please enter a valid quantity";
-    }
-    
-    if (!formState.price || formState.price < 0) {
-      newErrors.price = "Please enter a valid price";
-    }
+      const newErrors = {};
+      
+      // Log initial form state
+      console.log("Validating form state:", formState);
 
-    setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
+      if (!formState.inventoryName?.trim()) {
+          console.log("Product name validation failed");
+          newErrors.inventoryName = "Product name is required";
+      }
+      
+      if (!formState.quantity || formState.quantity < 0) {
+          console.log("Quantity validation failed:", formState.quantity);
+          newErrors.quantity = "Please enter a valid quantity";
+      }
+      
+      if (formState.unit === "none") {
+          console.log("Unit validation failed");
+          newErrors.unit = "Please select a unit";
+      }
+
+      if (!formState.manufacturer?.trim()) {
+          console.log("Manufacturer validation failed");
+          newErrors.manufacturer = "Manufacturer is required";
+      }
+      
+      if (!formState.weight.unit) {
+          console.log("Weight unit validation failed");
+          newErrors.weightUnit = "Weight unit is required";
+      }
+
+      if (!formState.price || formState.price < 0) {
+          console.log("Price validation failed:", formState.price);
+          newErrors.price = "Please enter a valid price";
+      }
+
+      if (!formState.cost || formState.cost < 0) {
+          console.log("Cost validation failed:", formState.cost);
+          newErrors.cost = "Please enter a valid cost";
+      }
+      
+      // Log all validation errors
+      console.log("Validation errors:", newErrors);
+      setErrors(newErrors);
+
+      const isValid = Object.keys(newErrors).length === 0;
+      console.log("Form is valid:", isValid);
+
+      return isValid;
   };
 
   const handleInputChange = (e) => {
@@ -195,49 +239,89 @@ const MainContent = ({ data, isAdd }) => {
   };
 
   const handleSubmit = async (e) => {
-    e.preventDefault();
-    setIsSubmitting(true);
-    setApiError(null);
+      e.preventDefault();
+      setIsSubmitting(true);
+      setApiError(null);
 
-    if (!validateForm()) {
-      setIsSubmitting(false);
-      return;
-    }
+      console.log("Starting form submission"); 
 
-    try {
-      const formData = {
-        productName: formState.inventoryName,
-        productStock: formState.quantity,
-        skuNumber: formState.skuNumber,
-        unit: formState.unit,
-        brand: formState.brand,
-        dimensions: `${formState.dimensions.height} x ${formState.dimensions.width} x ${formState.dimensions.length}`,
-        dimensionsUnit: formState.dimensions.unit,
-        manufacturer: formState.manufacturer,
-        weight: formState.weight.value,
-        weightUnit: formState.weight.unit,
-        isExpiryGoods: formState.expiry.isExpiryGoods,
-        expiryDate: formState.expiry.date,
-        price: formState.price,
-        description: formState.description,
-        cost: formState.cost,
-        images: {
-          images: await extractBase64Strings(formState.images)
+      if (!validateForm()) {
+        console.log("Form validation failed"); 
+        setIsSubmitting(false);
+        return;
+      }
+
+      try {
+        const formData = {
+          // Required fields 
+          productName: formState.inventoryName,
+          productStock: parseInt(formState.quantity),
+          unit: formState.unit,
+          dimensions: formState.dimensions.height && formState.dimensions.width && formState.dimensions.length ? 
+            `${formState.dimensions.height}x${formState.dimensions.width}x${formState.dimensions.length}` : '0x0x0',
+          dimensionsUnit: formState.dimensions.unit || 'cm',
+          manufacturer: formState.manufacturer || 'Unknown', 
+          weightUnit: formState.weight.unit || 'kg',
+          isExpiryGoods: Boolean(formState.expiry.isExpiryGoods),
+          price: parseFloat(formState.price),
+          cost: parseFloat(formState.cost || 0), 
+          statusId: 1, 
+
+          // Optional fields
+          skuNumber: formState.skuNumber || null,
+          brand: formState.brand || null,
+          weight: formState.weight.value ? parseFloat(formState.weight.value) : null,
+          expiryDate: formState.expiry.isExpiryGoods ? formState.expiry.date : null,
+          description: formState.description || null,
+          images: formState.images ? await extractBase64Strings(formState.images) : null
+        };
+
+        console.log("Form data prepared:", formData); 
+
+        // Make sure all required fields have values
+        const requiredFields = [
+          'productName', 'productStock', 'unit', 'dimensions', 
+          'dimensionsUnit', 'manufacturer', 'weightUnit', 
+          'isExpiryGoods', 'price', 'cost', 'statusId'
+        ];
+
+        const missingFields = requiredFields.filter(field => 
+          formData[field] === undefined || formData[field] === null || formData[field] === ''
+        );
+
+        if (missingFields.length > 0) {
+          console.log("Missing fields:", missingFields); 
+          setApiError(`Missing required fields: ${missingFields.join(', ')}`);
+          setIsSubmitting(false);
+          return;
         }
-      };
 
-      await instance.post(
-        `http://localhost:3002/api/user/${username}/addInventory`,
-        formData
-      );
+        console.log("Making API request to:", `/user/${username}/addInventory`); 
 
-      navigate(-1);
-    } catch (error) {
-      setApiError("Failed to save inventory. Please try again.");
-      console.error("Error saving inventory:", error);
-    } finally {
-      setIsSubmitting(false);
-    }
+        const response = await instance.post(
+          `/user/${username}/addInventory`,
+          formData
+        );
+
+        console.log("API Response:", response); 
+
+        if (response.data) {
+          console.log("Success response:", response.data); 
+          window.alert('Inventory added successfully!');
+          navigate(-1);
+        }
+      } catch (error) {
+        console.log("Full error object:", error); 
+        console.error("Error details:", {
+          message: error.message,
+          response: error.response,
+          data: error.response?.data
+        });
+        setApiError(error.response?.data?.message || "Failed to save inventory. Please try again.");
+      } finally {
+        console.log("Form submission completed"); 
+        setIsSubmitting(false);
+      }
   };
 
   const handleCancel = () => {
@@ -248,8 +332,8 @@ const MainContent = ({ data, isAdd }) => {
   };
 
   return (
-    <div className="flex-auto ml-52 overflow-y-auto pb-20 p-4 custom-scrollbar">
-      <div className="max-w-[1400px] mx-auto">
+    <div className={`h-[calc(100vh-4rem)] pb-8 overflow-y-auto ${isMobile ? 'w-full' : 'ml-[13rem]'}`}>
+      <div className="p-6">
         <div className="flex items-center justify-between mb-6">
           <h1 className="text-2xl font-bold pl-6">{isAdd ? "Add New Inventory" : "Edit Inventory"}</h1>
         </div>
@@ -482,7 +566,24 @@ const MainContent = ({ data, isAdd }) => {
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="space-y-2">
-                  <label className="text-sm font-medium text-gray-700">Price (MYR)</label>
+                  <label className="text-sm font-medium text-gray-700">Purchase Cost (MYR)</label>
+                  <input
+                    type="number"
+                    name="cost"
+                    value={formState.cost}
+                    onChange={handleInputChange}
+                    className={`w-full p-2 border rounded-md ${
+                      errors.cost ? 'border-red-500' : 'border-gray-300'
+                    }`}
+                  />
+                  <p className="text-xs text-gray-500">The cost price you pay to acquire this item</p>
+                  {errors.cost && (
+                    <p className="text-red-500 text-sm">{errors.cost}</p>
+                  )}
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-sm font-medium text-gray-700">Selling Price (MYR)</label>
                   <input
                     type="number"
                     name="price"
@@ -492,6 +593,7 @@ const MainContent = ({ data, isAdd }) => {
                       errors.price ? 'border-red-500' : 'border-gray-300'
                     }`}
                   />
+                  <p className="text-xs text-gray-500">The price you sell this item to customers</p>
                   {errors.price && (
                     <p className="text-red-500 text-sm">{errors.price}</p>
                   )}
@@ -529,7 +631,10 @@ const MainContent = ({ data, isAdd }) => {
           </div>
 
           {/* Action Buttons */}
-          <div className="fixed bottom-0 left-52 right-0 bg-white border-t p-4 flex justify-end space-x-4">
+          <div className="fixed bottom-0 right-0 bg-white border-t p-4 z-10"
+                style={{ 
+                  left: isMobile ? '0' : '13rem'
+                }}>
             <div className="max-w-[1400px] mx-auto w-full flex justify-end space-x-4">
               <button
                 type="button"

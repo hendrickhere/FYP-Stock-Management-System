@@ -3,21 +3,23 @@ const AppointmentService = require("../service/appointmentService");
 exports.getAllAppointment = async (req, res) => {
   try {
     const username = req.params.username;
-    const pageNumber = req.query.pageNumber;
-    const pageSize = req.query.pageSize;
+    const pageNumber = parseInt(req.query.pageNumber) || 1;
+    const pageSize = parseInt(req.query.pageSize) || 10;
 
-    const appointmentsWithCustomers =
-      await AppointmentService.getAllAppointmentWithUsername(
-        username,
-        pageNumber,
-        pageSize
-      );
+    const appointmentsWithCustomers = await AppointmentService.getAllAppointmentWithUsername(
+      username,
+      pageNumber,
+      pageSize
+    );
+
+    console.log('Appointments retrieved:', JSON.stringify(appointmentsWithCustomers, null, 2));
+
     res.status(200).send({
       appointmentDetails: appointmentsWithCustomers,
-      message: "Appointment retrieved successfully.",
+      message: "Appointments retrieved successfully."
     });
   } catch (err) {
-    console.error(err);
+    console.error('Error in getAllAppointment:', err);
     res.status(500).json({ error: err.message });
   }
 };

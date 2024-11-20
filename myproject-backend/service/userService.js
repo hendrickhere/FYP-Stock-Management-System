@@ -200,25 +200,32 @@ exports.verifyUser = async (email, password) => {
 
 exports.addInventory = async (username, inventoryData) => {
   const user = await getUserByUsername(username);
-  const {
-    productName,
-    productStock,
-    skuNumber,
-    unit,
-    brand,
-    dimensions,
-    dimensionsUnit,
-    manufacturer,
-    weight,
-    weightUnit,
-    isExpiryGoods,
-    expiryDate,
-    price,
-    cost,
-    description,
-    images
-  } = inventoryData;
-  if (user) {
+  if (!user) {
+    throw new Error("User not found");
+  }
+
+  try {
+    const {
+      productName,
+      productStock,
+      skuNumber,
+      unit,
+      brand,
+      dimensions,
+      dimensionsUnit,
+      manufacturer,
+      weight,
+      weightUnit,
+      isExpiryGoods,
+      expiryDate,
+      price,
+      cost,
+      description,
+      images,
+      statusId
+    } = inventoryData;
+
+    // Create inventory with correctly mapped field names
     const inventory = await Product.create({
       product_name: productName,
       product_stock: productStock,
@@ -226,7 +233,7 @@ exports.addInventory = async (username, inventoryData) => {
       unit: unit,
       brand: brand,
       dimensions: dimensions,
-      dimensions_unit: dimensionsUnit, 
+      dimensions_unit: dimensionsUnit,
       manufacturer: manufacturer,
       weight: weight,
       weight_unit: weightUnit,
@@ -234,18 +241,21 @@ exports.addInventory = async (username, inventoryData) => {
       expiry_date: expiryDate,
       user_id: user.user_id,
       organization_id: user.organization_id,
-      status_id: 1,
+      status_id: statusId,
       price: price,
-      cost: cost, 
+      cost: cost,
       description: description,
-      images: images, 
+      images: images ? { images } : null,
     });
+
     if (!inventory) {
       throw new Error("Failed to create inventory");
     }
+    
     return inventory;
-  } else {
-    throw new Error("User not found");
+  } catch (error) {
+    console.error("Error in addInventory:", error);
+    throw new Error(error.message || "Failed to create inventory");
   }
 };
 
@@ -268,7 +278,8 @@ exports.updateInventory = async (username, inventoryUUID, updateData) => {
     weightUnit,  
     isExpiryGoods,
     expiryDate,
-    price,         
+    price,  
+    cost,       
     description,      
     images             
   } = updateData;
@@ -286,7 +297,8 @@ exports.updateInventory = async (username, inventoryUUID, updateData) => {
     weight_unit: weightUnit,       
     is_expiry_goods: isExpiryGoods,
     expiry_date: expiryDate,
-    price: price,                    
+    price: price,
+    cost: cost,                    
     description: description,         
     images: images,                   
     user_id: user.user_id,

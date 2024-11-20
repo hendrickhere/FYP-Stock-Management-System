@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { FaUser } from "react-icons/fa";
+import { FaUsers, FaUserTie, FaUser } from 'react-icons/fa';  
 import { IoChatbubbleEllipsesOutline } from "react-icons/io5";
 import { IoIosNotificationsOutline } from "react-icons/io";
 import { IoMenu } from "react-icons/io5";
@@ -35,7 +35,9 @@ function Header({ scrollDirection, isAtTop }) {
     { path: '/inventory', icon: MdOutlineInventory2, label: 'Inventory' },
     { path: '/sales', icon: AiOutlineStock, label: 'Sales' },
     { path: '/purchases', icon: BsCashCoin, label: 'Purchases' },
-    { path: '/stakeholders', icon: GrStakeholder, label: 'Stakeholders' },
+    { path: '/customers', icon: FaUsers, label: 'Customers' },
+    { path: '/vendors', icon: FaUserTie, label: 'Vendors' },
+    { path: '/staff', icon: FaUser, label: 'Staff' },
     { path: '/appointments', icon: GrSchedules, label: 'Appointments' },
   ];
 
