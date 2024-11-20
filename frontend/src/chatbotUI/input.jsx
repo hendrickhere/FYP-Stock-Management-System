@@ -147,16 +147,18 @@ const Input = ({ onSend, disabled, onFileUpload }) => {
             <Search className="w-5 h-5 sm:w-6 sm:h-6" />
           </button>
 
-          <input
-            type="text"
+          <textarea
+            rows="1"
             onChange={(e) => setText(e.target.value)}
             value={text}
             disabled={disabled}
             placeholder={disabled ? "Bot is offline..." : "Ask about your inventory..."}
             className={`flex-1 px-3 sm:px-4 py-1.5 sm:py-2 text-sm sm:text-base rounded-full 
               focus:outline-none focus:ring-2 focus:ring-purple-500 focus:bg-white
+              overflow-x-hidden whitespace-normal break-words resize-none
               ${disabled ? 'bg-gray-100 text-gray-400' : 'bg-gray-100'}
             `}
+            style={{ minHeight: '40px' }}
           />
 
           <input

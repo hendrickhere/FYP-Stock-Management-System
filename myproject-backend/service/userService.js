@@ -128,33 +128,34 @@ exports.login = async (loginData) => {
       email: email,
     },
   });
+  
   if (result) {
-    console.log(result.dataValues);
+    console.log("Found user data:", result.dataValues); 
     const user = result.dataValues;
     const isValid = await bcrypt.compare(password, user.password_hash);
     if (isValid) {
-      // Generate access token
       const accessToken = jwt.sign(
         { id: user.user_id, username: user.username },
         JWT_CONFIG.ACCESS_TOKEN_SECRET,
         { expiresIn: JWT_CONFIG.ACCESS_TOKEN_EXPIRY }
       );
 
-      // Generate refresh token
       const refreshToken = jwt.sign(
         { id: user.user_id, username: user.username },
         JWT_CONFIG.REFRESH_TOKEN_SECRET,
         { expiresIn: JWT_CONFIG.REFRESH_TOKEN_EXPIRY }
       );
 
-      // Store the refresh token in the database
       await storeRefreshToken(user.user_id, refreshToken);
 
       return { 
         message: 'Login successful', 
         accessToken, 
         refreshToken, 
-        user: { username: user.username }
+        user: { 
+          username: user.username,
+          role: user.role  
+        }
       };
     } else {
       throw new Error("Invalid Credentials");
@@ -167,7 +168,6 @@ exports.login = async (loginData) => {
 exports.verifyUser = async (email, password) => {
   try {
     console.log("Verifying user with email:", email);
-    // Find user by email
     const result = await User.findOne({
       attributes: ['user_id', 'username', 'email', 'password_hash', 'role', 'created_at', 'refreshToken', 'organization_id'],
       where: {
@@ -181,17 +181,28 @@ exports.verifyUser = async (email, password) => {
     }
 
     const user = result.dataValues;
+    console.log("Found user data:", user);
 
-    // Verify the password using bcrypt
-    console.log("Comparing passwords...");
     const isValid = await bcrypt.compare(password, user.password_hash);
     if (!isValid) {
       console.log("Invalid password for user:", email);
       return null;
     }
 
-    console.log("User verified successfully:", email);
-    return user;
+    console.log("User verified successfully:", {
+      user_id: user.user_id,
+      username: user.username,
+      role: user.role
+    });
+    
+    return {
+      user_id: user.user_id,
+      username: user.username,
+      role: user.role,
+      email: user.email,
+      created_at: user.created_at,
+      refreshToken: user.refreshToken
+    };
   } catch (error) {
     console.error("Error verifying user:", error);
     throw new Error("Error during user verification");

@@ -1,13 +1,15 @@
-import React, { useEffect, useState } from 'react';
-import { FaUsers, FaUserTie, FaUser } from 'react-icons/fa';  
-import { IoChatbubbleEllipsesOutline } from "react-icons/io5";
+import React, { useEffect, useState, useRef } from 'react';
+import { FaUsers, FaUserTie, FaUsersCog } from 'react-icons/fa';  
+import { IoChatbubbleEllipsesOutline, IoReceiptOutline } from "react-icons/io5";
 import { IoIosNotificationsOutline } from "react-icons/io";
-import { IoMenu } from "react-icons/io5";
-import { MdOutlineInventory2 } from "react-icons/md";
+import { IoMenu, IoSettingsSharp } from "react-icons/io5";
+import { MdOutlineInventory2, MdDashboard, MdDiscount } from "react-icons/md";
 import { AiOutlineStock } from "react-icons/ai";
 import { BsCashCoin } from "react-icons/bs";
 import { AlertTriangle } from 'lucide-react';
-import { GrStakeholder, GrSchedules, GrLogout } from "react-icons/gr";
+import { GrSchedules, GrLogout } from "react-icons/gr";
+import { CgProfile } from "react-icons/cg";
+import { TbNumbers } from "react-icons/tb";
 import { useNavigate, Link, useLocation } from 'react-router-dom';
 import { Alert, AlertDescription } from "./ui/alert";
 import instance from "./axiosConfig";
@@ -22,6 +24,11 @@ function Header({ scrollDirection, isAtTop }) {
   const [showMobileMenu, setShowMobileMenu] = useState(false);
   const [showLogoutAlert, setShowLogoutAlert] = useState(false);
   const [showSessionExpiredAlert, setShowSessionExpiredAlert] = useState(false);
+  const [showSettingsMenu, setShowSettingsMenu] = useState(false);
+  
+  const userMenuRef = useRef(null);
+  const settingsMenuRef = useRef(null);
+  
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -30,23 +37,67 @@ function Header({ scrollDirection, isAtTop }) {
     return cached ? JSON.parse(cached) : null;
   });
 
+  // Main navigation items
   const menuItems = [
-    { path: '/dashboard', icon: FaUser, label: 'Dashboard' },
+    { path: '/dashboard', icon: MdDashboard, label: 'Dashboard' },
     { path: '/inventory', icon: MdOutlineInventory2, label: 'Inventory' },
     { path: '/sales', icon: AiOutlineStock, label: 'Sales' },
     { path: '/purchases', icon: BsCashCoin, label: 'Purchases' },
     { path: '/customers', icon: FaUsers, label: 'Customers' },
     { path: '/vendors', icon: FaUserTie, label: 'Vendors' },
-    { path: '/staff', icon: FaUser, label: 'Staff' },
+    { path: '/staff', icon: FaUsersCog, label: 'Staff' },
     { path: '/appointments', icon: GrSchedules, label: 'Appointments' },
+    { path: '/settings', icon: IoSettingsSharp, label: 'Settings' }, // Add this line
   ];
+
+  // Settings menu items with role-based access
+  const settingsItems = [
+    { 
+      path: '/settings/tax', 
+      icon: IoReceiptOutline, 
+      label: 'Tax',
+      roles: ['admin', 'manager']
+    },
+    { 
+      path: '/settings/discount', 
+      icon: MdDiscount, 
+      label: 'Discount',
+      roles: ['admin', 'manager']
+    },
+    { 
+      path: '/settings/user-management', 
+      icon: FaUsersCog, 
+      label: 'User Management',
+      roles: ['admin']
+    },
+    { 
+      path: '/settings/order-settings', 
+      icon: TbNumbers, 
+      label: 'Order Settings',
+      roles: ['admin', 'manager']
+    }
+  ];
+
+  // Click outside handlers
+  useEffect(() => {
+    function handleClickOutside(event) {
+      if (userMenuRef.current && !userMenuRef.current.contains(event.target)) {
+        setShowUserMenu(false);
+      }
+      if (settingsMenuRef.current && !settingsMenuRef.current.contains(event.target)) {
+        setShowSettingsMenu(false);
+      }
+    }
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   const handleSessionExpired = () => {
     localStorage.removeItem('accessToken');
     sessionStorage.removeItem('userData');
     setShowSessionExpiredAlert(true);
     
-    // Auto-dismiss after 3 seconds and redirect
     setTimeout(() => {
       setShowSessionExpiredAlert(false);
       navigate('/login', { 
@@ -57,6 +108,7 @@ function Header({ scrollDirection, isAtTop }) {
     }, 3000);
   };
 
+  // User data fetch effect
   useEffect(() => {
     async function fetchCurrentUser() {
       try {
@@ -68,7 +120,6 @@ function Header({ scrollDirection, isAtTop }) {
           return;
         }
 
-        // Check if we have cached data
         if (userData) {
           setUsername(userData.username);
           setUserRole(userData.role);
@@ -82,7 +133,6 @@ function Header({ scrollDirection, isAtTop }) {
             username: response.data.username,
             role: response.data.role
           };
-          // Cache the data
           sessionStorage.setItem('userData', JSON.stringify(data));
           setUserData(data);
           setUsername(data.username);
@@ -98,18 +148,20 @@ function Header({ scrollDirection, isAtTop }) {
     }
 
     fetchCurrentUser();
-
-    // Set up interval to check token periodically
-    const tokenCheckInterval = setInterval(fetchCurrentUser, 5 * 60 * 1000); // Check every 5 minutes
-
+    const tokenCheckInterval = setInterval(fetchCurrentUser, 5 * 60 * 1000);
     return () => clearInterval(tokenCheckInterval);
   }, [navigate, userData]);
 
-  // Clear cache on logout
   const handleLogout = () => {
     localStorage.removeItem('accessToken');
     sessionStorage.removeItem('userData');
     navigate('/login');
+  };
+
+  const handleSettingsClick = (e) => {
+    e.stopPropagation();
+    setShowSettingsMenu(!showSettingsMenu);
+    setShowUserMenu(false);
   };
 
   const handleChatClick = () => {
@@ -123,69 +175,180 @@ function Header({ scrollDirection, isAtTop }) {
 
   if (isLoading) {
     return (
-      <>
-        <header className="sticky top-0 z-50 bg-white shadow-sm">
-          <div className="flex justify-between items-center px-3 md:px-4 py-2 md:py-3">
-            {/* Logo Section - Keep exact same structure */}
-            <div className="flex items-center space-x-2 md:space-x-3">
-              <img 
-                src={require('./logo.png')} 
-                alt="StockSavvy Logo" 
-                className="w-8 h-8 md:w-10 md:h-10"
-              />
-              <span className="text-lg md:text-xl font-bold">StockSavvy</span>
-            </div>
-
-            {/* Mobile Menu Button Placeholder */}
-            <div className="lg:hidden w-10 h-10" />
-
-            {/* Desktop Actions Placeholder */}
-            <div className="hidden lg:flex items-center space-x-4">
-              <div className="w-10 h-10 bg-gray-100 rounded-full animate-pulse" />
-              <div className="w-10 h-10 bg-gray-100 rounded-full animate-pulse" />
-              <div className="w-48 h-10 bg-gray-100 rounded-lg animate-pulse" />
-            </div>
+      <header className="sticky top-0 z-50 bg-white shadow-sm">
+        <div className="flex justify-between items-center px-3 md:px-4 py-2 md:py-3">
+          <div className="flex items-center space-x-2 md:space-x-3">
+            <img 
+              src={require('./logo.png')} 
+              alt="StockSavvy Logo" 
+              className="w-8 h-8 md:w-10 md:h-10"
+            />
+            <span className="text-lg md:text-xl font-bold">StockSavvy</span>
           </div>
-        </header>
-      </>
+          <div className="lg:hidden w-10 h-10" />
+          <div className="hidden lg:flex items-center space-x-4">
+            <div className="w-10 h-10 bg-gray-100 rounded-full animate-pulse" />
+            <div className="w-10 h-10 bg-gray-100 rounded-full animate-pulse" />
+            <div className="w-48 h-10 bg-gray-100 rounded-lg animate-pulse" />
+          </div>
+        </div>
+      </header>
     );
   }
-    console.log('Header scroll props:', { 
-    scrollDirection, 
-    isAtTop,
-    shouldHide: scrollDirection === 'down' && !isAtTop 
-  });
+
+  // Desktop user menu
+  const renderDesktopUserMenu = () => (
+    <div 
+      ref={userMenuRef}
+      className="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg py-1 z-50 border border-gray-100"
+    >
+      <Link 
+        to="/profile" 
+        className="flex items-center px-4 py-2 text-gray-700 hover:bg-gray-100"
+        onClick={() => setShowUserMenu(false)}
+      >
+        <CgProfile className="w-5 h-5 mr-2" />
+        <span>Profile</span>
+      </Link>
+
+      <Link
+        to="/settings"
+        className="flex items-center px-4 py-2 text-gray-700 hover:bg-gray-100"
+        onClick={() => setShowUserMenu(false)}
+      >
+        <IoSettingsSharp className="w-5 h-5 mr-2" />
+        <span>Settings</span>
+      </Link>
+    </div>
+  );
+
+  // Mobile menu
+  const renderMobileMenu = () => (
+    <div className={`
+      lg:hidden fixed inset-0 top-[57px] bg-white z-50 overflow-y-auto
+      transition-transform duration-300 ease-in-out
+      ${showMobileMenu ? 'translate-x-0' : 'translate-x-full'}
+    `}>
+      <div className="px-4 py-3 space-y-4 max-w-lg mx-auto">
+        {/* User Info with Quick Actions */}
+        <div className="bg-gray-50 rounded-lg">
+          <div className="flex items-center space-x-3 p-3">
+            <CgProfile className="w-6 h-6 text-gray-600" />
+            <div>
+              <div className="font-semibold">{username}</div>
+              <div className="text-sm text-gray-500">{userRole}</div>
+            </div>
+          </div>
+          
+          {/* Quick Actions */}
+          <div className="flex justify-around border-t border-gray-200 p-2">
+            <button 
+              onClick={handleChatClick}
+              className="p-2 hover:bg-gray-200 rounded-full transition-colors"
+            >
+              <IoChatbubbleEllipsesOutline className="w-5 h-5" />
+            </button>
+            <button className="p-2 hover:bg-gray-200 rounded-full transition-colors">
+              <IoIosNotificationsOutline className="w-6 h-6" />
+            </button>
+            {userData && (userData.role === 'admin' || userData.role === 'manager') && (
+              <button 
+                onClick={handleSettingsClick}
+                className="p-2 hover:bg-gray-200 rounded-full transition-colors"
+              >
+                <IoSettingsSharp className="w-6 h-6" />
+              </button>
+            )}
+          </div>
+        </div>
+
+        {/* Settings Menu (if open) */}
+        {showSettingsMenu && (
+          <div className="bg-white rounded-lg shadow-md">
+            <div className="p-3 border-b border-gray-200">
+              <h3 className="font-semibold">Settings</h3>
+            </div>
+            <div className="p-2 space-y-1">
+              {settingsItems.map(item => (
+                userData && item.roles.includes(userData.role) && (
+                  <Link
+                    key={item.path}
+                    to={item.path}
+                    className="flex items-center p-2 text-gray-700 hover:bg-gray-100 rounded-md"
+                    onClick={() => {
+                      setShowSettingsMenu(false);
+                      setShowMobileMenu(false);
+                    }}
+                  >
+                    <item.icon className="w-5 h-5 mr-3" />
+                    <span>{item.label}</span>
+                  </Link>
+                )
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Main Navigation */}
+        <div className="space-y-2">
+          {menuItems.map(({ path, icon: Icon, label }) => (
+            <Link
+              key={path}
+              to={path}
+              className={`
+                flex items-center space-x-4 p-4 rounded-lg
+                ${isActiveRoute(path)
+                  ? 'bg-[#38304C] text-white'
+                  : 'text-gray-700 hover:bg-gray-50'}
+                transition-colors duration-150
+              `}
+              onClick={() => setShowMobileMenu(false)}
+            >
+              <Icon className={`w-5 h-5 ${isActiveRoute(path) ? 'text-white' : 'text-gray-500'}`} />
+              <span className="font-medium">{label}</span>
+            </Link>
+          ))}
+        </div>
+
+        {/* Settings at the bottom */}
+        <div className="mt-4 space-y-2">
+          <button 
+            className="flex items-center space-x-4 w-full p-4 text-red-600 hover:bg-red-50 rounded-lg"
+            onClick={() => setShowLogoutAlert(true)}
+          >
+            <GrLogout className="w-5 h-5" />
+            <span className="font-medium">Logout</span>
+          </button>
+        </div>
+    </div>
+  </div>
+  );
 
   return (
     <>
       {showSessionExpiredAlert && (
         <div className="fixed top-0 left-0 right-0 z-50 bg-yellow-100 border-b border-yellow-200">
-          <div className="max-w-7xl mx-auto px-4 py-3">
+          <div className="max-w-7xl mx-auto px-4 py-2">
             <div className="flex items-center justify-between">
               <div className="flex items-center">
-                <div className="flex-shrink-0">
-                  <AlertTriangle className="h-5 w-5 text-yellow-400" />
-                </div>
-                <div className="ml-3">
-                  <p className="text-sm text-yellow-700">
-                    Your session has expired. Logging out for security reasons...
-                  </p>
-                </div>
+                <AlertTriangle className="h-4 w-4 text-yellow-400" />
+                <p className="ml-3 text-sm text-yellow-700">
+                  Your session has expired. Logging out for security reasons...
+                </p>
               </div>
             </div>
           </div>
         </div>
       )}
+
       {error && (
-        <Alert variant="destructive" className="mb-2">
+        <Alert variant="destructive" className="mb-1">
           <AlertDescription>{error}</AlertDescription>
         </Alert>
       )}
-      <motion.header 
-        className="sticky top-0 z-50 bg-white shadow-sm"
-      >
-        {/* Main Header */}
-      <div className="flex justify-between items-center px-3 md:px-4 py-2 md:py-3">
+
+      <motion.header className="sticky top-0 z-50 bg-white shadow-sm h-16">
+        <div className="flex justify-between items-center px-3 md:px-4 h-full">
           {/* Logo Section */}
           <div className="flex items-center space-x-2 md:space-x-3">
             <img 
@@ -230,105 +393,28 @@ function Header({ scrollDirection, isAtTop }) {
                 aria-label="User menu"
                 aria-expanded={showUserMenu}
               >
-                <FaUser className="w-6 h-6 text-gray-600" />
-                <div className="flex flex-col items-start">
+                <CgProfile className="w-6 h-6 text-gray-600" />
+                <div className="flex items-center space-x-2">
                   <span className="font-semibold max-w-[150px] truncate">
                     {username}
                   </span>
-                  <span className="text-sm text-gray-500 -mt-1">
-                    {userRole}
-                  </span>
+                  {userRole && (
+                    <span className="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full">
+                      {userRole}
+                    </span>
+                  )}
                 </div>
               </button>
 
-              {showUserMenu && (
-                <div className="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg py-1 z-50 border border-gray-100">
-                  <Link 
-                    to="/profile" 
-                    className="block px-4 py-2 text-gray-700 hover:bg-gray-100"
-                    onClick={() => setShowUserMenu(false)}
-                  >
-                    Profile
-                  </Link>
-                </div>
-              )}
+              {showUserMenu && renderDesktopUserMenu()}
             </div>
           </div>
         </div>
 
         {/* Mobile Menu */}
         {showMobileMenu && (
-          <div className={`
-            lg:hidden fixed inset-0 top-[57px] bg-white z-50 overflow-y-auto mobile-menu-container
-            transition-transform duration-300 ease-in-out
-            ${showMobileMenu ? 'translate-x-0' : 'translate-x-full'}
-          `}>
-            <div className="px-4 py-3 space-y-4 max-w-lg mx-auto">
-              {/* Mobile User Info */}
-              <div className="flex items-center space-x-3 p-3 bg-gray-50 rounded-lg">
-                <FaUser className="w-6 h-6 text-gray-600" />
-                <div>
-                  <div className="font-semibold">{username}</div>
-                  <div className="text-sm text-gray-500">{userRole}</div>
-                </div>
-              </div>
-
-              {/* Navigation Menu Items */}
-              <div className="space-y-2">
-                {menuItems.map(({ path, icon: Icon, label }) => (
-                  <Link
-                    key={path}
-                    to={path}
-                    className={`
-                      flex items-center space-x-4 p-4 rounded-lg
-                      ${isActiveRoute(path)
-                        ? 'bg-[#38304C] text-white'
-                        : 'text-gray-700 hover:bg-gray-50'}
-                      transition-colors duration-150
-                    `}
-                    onClick={() => setShowMobileMenu(false)}
-                  >
-                    <Icon className={`w-5 h-5 ${isActiveRoute(path) ? 'text-white' : 'text-gray-500'}`} />
-                    <span className="font-medium">{label}</span>
-                  </Link>
-                ))}
-              </div>
-
-              {/* Actions Section */}
-              <div className="space-y-2 border-t border-gray-100 pt-4">
-                <Link 
-                  to="/profile" 
-                  className="flex items-center space-x-4 p-4 text-gray-700 hover:bg-gray-50 rounded-lg"
-                  onClick={() => setShowMobileMenu(false)}
-                >
-                  <FaUser className="w-5 h-5 text-gray-500" />
-                  <span className="font-medium">Profile</span>
-                </Link>
-
-                <button 
-                  className="flex items-center space-x-4 w-full p-4 text-gray-700 hover:bg-gray-50 rounded-lg"
-                  onClick={handleChatClick}
-                >
-                  <IoChatbubbleEllipsesOutline className="w-5 h-5 text-gray-500" />
-                  <span className="font-medium">Chat</span>
-                </button>
-
-                <button 
-                  className="flex items-center space-x-4 w-full p-4 text-gray-700 hover:bg-gray-50 rounded-lg"
-                >
-                  <IoIosNotificationsOutline className="w-5 h-5 text-gray-500" />
-                  <span className="font-medium">Notifications</span>
-                </button>
-
-                <button 
-                  className="flex items-center space-x-4 w-full p-4 text-red-600 hover:bg-red-50 rounded-lg"
-                  onClick={() => setShowLogoutAlert(true)}
-                >
-                  <GrLogout className="w-5 h-5" />
-                  <span className="font-medium">Logout</span>
-                </button>
-              </div>
-            </div>
+          <div className="lg:hidden fixed inset-0 top-16 bg-white z-50 overflow-y-auto">
+            {renderMobileMenu()}
           </div>
         )}
       </motion.header>

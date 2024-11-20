@@ -6,19 +6,20 @@ const generateAccessToken = (user) => {
   return jwt.sign(
     { 
       id: user.user_id, 
-      username: user.username 
+      username: user.username,
+      role: user.role 
     },
     JWT_CONFIG.ACCESS_TOKEN_SECRET,
     { expiresIn: JWT_CONFIG.ACCESS_TOKEN_EXPIRY }
   );
 };
 
-// Function to generate a refresh token
 const generateRefreshToken = (user) => {
   return jwt.sign(
     { 
       id: user.user_id, 
-      username: user.username 
+      username: user.username,
+      role: user.role 
     },
     JWT_CONFIG.REFRESH_TOKEN_SECRET,
     { expiresIn: JWT_CONFIG.REFRESH_TOKEN_EXPIRY }
@@ -27,22 +28,23 @@ const generateRefreshToken = (user) => {
 
 exports.getCurrentUser = async (req, res) => {
   try {
-    console.log("Received request to fetch current user"); // Log that request was received
-    console.log("Request User ID:", req.user?.id); // Log the user ID from req
-    // Assuming `req.user` is populated by the auth middleware
+    console.log("Received request to fetch current user");
+    console.log("Request User ID:", req.user?.id);
+    
     const user = await UserService.getUserById(req.user.id);
     if (!user) {
       console.log("User not found with ID:", req.user.id);
       return res.status(404).json({ message: 'User not found' });
     }
     console.log("User data fetched successfully:", user.username);
-    return res.status(200).json({ username: user.username }); // Make sure to return the username
+    return res.status(200).json({ 
+      username: user.username,
+      role: user.role  
+    });
   } catch (error) {
     console.error("Error fetching current user:", error);
     return res.status(500).json({ message: 'Server error', error: error.message });
   }
-  console.log('Fetching user with ID:', req.user.id); // Check if the ID is correct
-
 };
 
 exports.refreshToken = async (req, res) => {
@@ -100,31 +102,41 @@ exports.signup = async (req, res) => {
 
 exports.login = async (req, res) => {
   try {
-    console.log("Login request received:", req.body); // Log incoming request
+    console.log("Login request received:", req.body);
 
     const { email, password } = req.body;
 
-    // Validate that required fields are provided
     if (!email || !password) {
       return res.status(400).json({ message: "Email and password are required" });
     }
 
-    // Call verifyUser from UserService
     const user = await UserService.verifyUser(email, password);
     if (!user) {
-      return res.status(401).json({ message: 'Invalid credentials' }); // Return if credentials are invalid
+      return res.status(401).json({ message: 'Invalid credentials' });
     }
 
-    // Generate an access token and a refresh token for the verified user
-    console.log("Generating token for user:", user.username);
+    console.log("Verified user data:", user); 
+
     const accessToken = generateAccessToken(user);
     const refreshToken = generateRefreshToken(user);
 
-    // Store the refresh token in the user's database record
     await UserService.storeRefreshToken(user.user_id, refreshToken);
 
+<<<<<<< Updated upstream
     // Return tokens and user details
     res.status(200).json({ message: 'Login successful', accessToken, refreshToken, user: { username: user.username, organization_id: user.organization_id } });
+=======
+    // Include role in the response
+    res.status(200).json({ 
+      message: 'Login successful', 
+      accessToken, 
+      refreshToken, 
+      user: { 
+        username: user.username,
+        role: user.role 
+      }
+    });
+>>>>>>> Stashed changes
   } catch (error) {
     console.error("Error during login:", error);
     res.status(500).json({ message: 'Server error', error: error.message });

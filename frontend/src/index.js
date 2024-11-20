@@ -18,10 +18,11 @@ import AddCustomer from './customer_module/add_customer';
 import AddStaff from './staff_module/add_staff';
 import AddAppointment from './appointments_module/add_appointment';
 import Profile from './profile';
+import Settings from './settings_module/settings';
 import { GlobalProvider } from './globalContext';
 import Chatbot from './chatbotUI/chatbot';
 import './styles/tailwind.css';
-import './styles/login.css';
+import './styles/index.css';
 
 ReactDOM.render(
   <React.StrictMode>
@@ -47,6 +48,7 @@ ReactDOM.render(
           <Route path="/customers/add_customer" element={<AddCustomer/>} />
           <Route path="/appointments/add_appointment" element={<AddAppointment/>} />
           <Route path="/profile" element={<Profile/>} />
+          <Route path="/settings/*" element={<Settings />} />
         </Routes>
       </Router>
     </GlobalProvider>

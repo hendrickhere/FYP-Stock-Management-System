@@ -9,6 +9,19 @@ module.exports = {
        
         extend: {
             colors: {
+                primary: {
+                  DEFAULT: '#38304C',  
+                  light: '#B9B4C7'
+                },
+                purple: {
+                  dark: '#3B1E54',    
+                  medium: '#9B7EBD', 
+                  light: '#D4BEE4',   
+                  lightest: '#EEEEEE' 
+                },
+                background: {
+                  light: '#F7F7F7'
+                },
                 button:{
                     100: '#5489fc',
                 },
@@ -22,10 +35,15 @@ module.exports = {
               'progress': {
               '0%': { transform: 'translateX(-100%)' },
               '100%': { transform: 'translateX(100%)' }
+              },
+              move: {
+              '0%, 49.99%': { opacity: '0', zIndex: '1' },
+              '50%, 100%': { opacity: '1', zIndex: '5' }
               }
             },
             animation: {
-              'progress': 'progress-bar 1s infinite linear'
+              'progress': 'progress-bar 1s infinite linear',
+                move: 'move 0.6s forwards'
             }
         }, 
     },

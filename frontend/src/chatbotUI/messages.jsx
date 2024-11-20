@@ -22,7 +22,7 @@ export default function Messages({ messages, isTyping, isMobile }) {
   return (
     <div 
       className={`
-        absolute inset-0 overflow-y-auto scroll-smooth
+        absolute inset-0 overflow-y-auto overflow-x-hidden scroll-smooth
         ${isMobile ? 'px-2' : 'px-4'}
       `}
       ref={scrollContainerRef}
