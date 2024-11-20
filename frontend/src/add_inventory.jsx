@@ -105,7 +105,7 @@ const MainContent = ({ data, isAdd, isMobile }) => {
     price: isAdd ? "" : data.price,
     description: isAdd ? "" : data.description,
     quantity: isAdd ? "" : data.product_stock,
-    cost: isAdd ? "" : data.cost, 
+    cost: isAdd ? 50 : data.cost, 
   });
 
   console.log("Initial form state:", {

@@ -124,7 +124,7 @@ exports.login = async (req, res) => {
     await UserService.storeRefreshToken(user.user_id, refreshToken);
 
     // Return tokens and user details
-    res.status(200).json({ message: 'Login successful', accessToken, refreshToken, user: { username: user.username } });
+    res.status(200).json({ message: 'Login successful', accessToken, refreshToken, user: { username: user.username, organization_id: user.organization_id } });
   } catch (error) {
     console.error("Error during login:", error);
     res.status(500).json({ message: 'Server error', error: error.message });

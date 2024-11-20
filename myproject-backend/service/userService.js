@@ -169,7 +169,7 @@ exports.verifyUser = async (email, password) => {
     console.log("Verifying user with email:", email);
     // Find user by email
     const result = await User.findOne({
-      attributes: ['user_id', 'username', 'email', 'password_hash', 'role', 'created_at', 'refreshToken'],
+      attributes: ['user_id', 'username', 'email', 'password_hash', 'role', 'created_at', 'refreshToken', 'organization_id'],
       where: {
         email: email,
       },

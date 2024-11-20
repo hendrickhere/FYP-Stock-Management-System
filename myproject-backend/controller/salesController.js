@@ -1,5 +1,5 @@
 const SalesService = require('../service/salesService');
-
+const SalesError = require("../errors/salesError");
 exports.getAllSalesOrders = async (req, res) => {
     try {
         console.log('Received request params:', req.params);
@@ -84,10 +84,10 @@ exports.updateSalesOrder = async (req, res) => {
         res.status(500).json({
             success: false,
             message: error.message || 'Failed to update sales order'
-        });
-    }
-};
 
+        })
+    }
+}
 exports.deleteSalesOrder = async (req, res) => {
     try {
         const { username, salesOrderUUID } = req.params;
@@ -108,6 +108,167 @@ exports.deleteSalesOrder = async (req, res) => {
         res.status(500).json({
             success: false,
             message: error.message || 'Failed to delete sales order'
+        })
+    }
+}
+
+exports.validateSalesOrderRequest = (req, res, next) => {
+    const { itemLists, taxIds, discountIds } = req.body;
+
+    try {
+        if (!itemLists || !Array.isArray(itemLists) || itemLists.length === 0) {
+            return res.status(400).json({
+                success: false,
+                error: 'VALIDATION_ERROR',
+                message: 'Item list cannot be empty'
+            });
+        }
+
+        const invalidItems = itemLists.filter(
+            item => !item.product_id || 
+                   !Number.isInteger(item.quantity) || 
+                   item.quantity <= 0
+        );
+
+        if (invalidItems.length > 0) {
+            return res.status(400).json({
+                success: false,
+                error: 'VALIDATION_ERROR',
+                message: 'Invalid items in the item list',
+                invalidItems: invalidItems
+            });
+        }
+
+        if (taxIds !== undefined) {
+            if (!Array.isArray(taxIds)) {
+                return res.status(400).json({
+                    success: false,
+                    error: 'VALIDATION_ERROR',
+                    message: 'Tax IDs must be an array'
+                });
+            }
+
+            const invalidTaxIds = taxIds.filter(
+                id => !Number.isInteger(Number(id)) || Number(id) <= 0
+            );
+
+            if (invalidTaxIds.length > 0) {
+                return res.status(400).json({
+                    success: false,
+                    error: 'VALIDATION_ERROR',
+                    message: 'Invalid tax IDs provided',
+                    invalidTaxIds: invalidTaxIds
+                });
+            }
+        }
+
+        if (discountIds !== undefined) {
+            if (!Array.isArray(discountIds)) {
+                return res.status(400).json({
+                    success: false,
+                    error: 'VALIDATION_ERROR',
+                    message: 'Discount IDs must be an array'
+                });
+            }
+
+            const invalidDiscountIds = discountIds.filter(
+                id => !Number.isInteger(Number(id)) || Number(id) <= 0
+            );
+
+            if (invalidDiscountIds.length > 0) {
+                return res.status(400).json({
+                    success: false,
+                    error: 'VALIDATION_ERROR',
+                    message: 'Invalid discount IDs provided',
+                    invalidDiscountIds: invalidDiscountIds
+                });
+            }
+        }
+
+        next();
+    } catch (err) {
+        logger.error('Validation error:', {
+            error: err,
+            body: req.body
+        });
+
+        return res.status(400).json({
+            success: false,
+            error: 'VALIDATION_ERROR',
+            message: 'Request validation failed'
+        });
+    }
+};
+
+// Example of a valid request body:
+/*
+{
+    "itemLists": [
+        { "product_id": 1, "quantity": 2 },
+        { "product_id": 2, "quantity": 1 }
+    ],
+    "taxIds": [1, 2, 3],        // Optional array of tax IDs
+    "discountIds": [1, 2]       // Optional array of discount IDs
+}
+*/
+
+exports.calculateSalesOrderTotal = async (req, res) => {
+    try {
+        const reqBody = req.body;
+        if (!reqBody || Object.keys(reqBody).length === 0) {
+            return res.status(400).json({
+                success: false,
+                error: 'VALIDATION_ERROR',
+                message: 'Request body cannot be empty'
+            });
+        }
+
+        const { itemLists } = reqBody;
+        if (!itemLists || !Array.isArray(itemLists) || itemLists.length === 0) {
+            return res.status(400).json({
+                success: false,
+                error: 'VALIDATION_ERROR',
+                message: 'Item list must be a non-empty array'
+            });
+        }
+
+        const total = await SalesService.calculateSalesOrderTotal(reqBody);
+
+        if (typeof total !== 'object' || total.grandtotal <= 0) {
+            return res.status(422).json({
+                success: false,
+                error: 'PROCESSING_ERROR',
+                message: 'Invalid total calculated'
+            });
+        }
+
+        return res.status(200).json({
+            success: true,
+            message: 'Total calculated successfully',
+            data: total
+        });
+
+    } catch (err) {
+        if (err instanceof SalesError) {
+            return res.status(err.statusCode || 400).json({
+                success: false,
+                error: err.code,
+                message: err.message
+            });
+        }
+
+        if (err.name === 'SequelizeError' || err.name === 'SequelizeValidationError') {
+            return res.status(400).json({
+                success: false,
+                error: 'DATABASE_ERROR',
+                message: 'Invalid data provided'
+            });
+        }
+        return res.status(500).json({
+            success: false,
+            error: 'INTERNAL_SERVER_ERROR',
+            message: 'An unexpected error occurred while processing your request',
+            ...(process.env.NODE_ENV === 'development' && { detail: err.message })
         });
     }
 };

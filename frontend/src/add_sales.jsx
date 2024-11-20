@@ -2,6 +2,7 @@ import React, { useState, useContext, useEffect, useRef } from "react";
 import { useNavigate } from 'react-router-dom';
 import { GlobalContext } from "./globalContext";
 import instance from "./axiosConfig";
+import MultiTaxSelection from './tax_section';
 import { 
   Card,
   CardContent,
@@ -13,6 +14,9 @@ import { AlertCircle } from "lucide-react";
 import Header from "./header";
 import Sidebar from "./sidebar";
 import ItemTable from "./addSalesInventoryTable";
+import SalesSummary from "./sales_summary";
+import MultiDiscountSelection from "./discount_section";
+import { FaTemperatureHigh } from "react-icons/fa";
 
 const AddSales = () => {
   return (
@@ -30,14 +34,23 @@ const MainContent = () => {
   const navigate = useNavigate();
   const { username } = useContext(GlobalContext);
   const dropdownRef = useRef(null);
-  
+  const {organizationId} = useContext(GlobalContext);
+
   const [loading, setLoading] = useState(false);
   const [apiError, setApiError] = useState(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errors, setErrors] = useState({});
   const [requiresShipping, setRequiresShipping] = useState(false);
-  
-  // Form state
+  const [selectedTaxes, setSelectedTaxes] = useState([]);
+  const [taxes, setTaxes] = useState([]);
+  const [isTaxLoading, setIsTaxLoading] = useState(false);
+  const [taxError, setTaxError] = useState(null);
+  const [selectedDiscount, setSelectedDiscounts] = useState([]);
+  const [discounts, setDiscounts] = useState([]);
+  const [isDiscountLoading, setIsDiscountLoading] = useState(false);
+  const [discountError, setDiscountError] = useState(null);
+  const [tempPaymentInfo, setTempPaymentInfo] = useState(null);
+
   const [formState, setFormState] = useState({
     customerData: null,
     selectedCustomer: null,
@@ -48,15 +61,96 @@ const MainContent = () => {
     paymentTerms: "",
     deliveryMethod: "",
     deliveryDate: "",
+    cost: 50, 
     items: [{}]
   });
 
   useEffect(() => {
-    document.addEventListener('mousedown', handleClickOutside);
+    fetchDiscounts();
+    fetchTaxes();
+    document.addEventListener("mousedown", handleClickOutside);
     return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener("mousedown", handleClickOutside);
     };
   }, []);
+
+  const fetchDiscounts = async () => {
+    try {
+      setIsDiscountLoading(true);
+      // Replace with your actual API call
+      const response = await instance.get(
+        `http://localhost:3002/api/discounts?organizationId=${organizationId}`
+      );
+      setDiscounts(response.data.discounts);
+    } catch (err) {
+      setDiscountError("Failed to load discount rates");
+    } finally {
+      setIsDiscountLoading(false);
+    }
+  };
+
+  const fetchTaxes = async () => {
+    try {
+      const response = await instance.get(`http://localhost:3002/api/taxes?orgId=${organizationId}`);
+      setTaxes(response.data.data); 
+      setIsTaxLoading(false);
+    } catch (err) {
+      console.error(err);
+      setTaxError('Failed to load tax rates');
+      setIsTaxLoading(false);
+    }
+  };
+
+
+  const handleDiscountChange = async (discount) => {
+    setSelectedDiscounts(prev => {
+      const exists = prev.find(d => d.discount_id === discount.discount_id);
+      if (exists) {
+        return prev.filter(d => d.discount_id !== discount.discount_id);
+      }
+      return [...prev, discount];
+    });
+  };
+
+  const handleTaxChange = async (tax) => {
+    setSelectedTaxes(prev => {
+      const exists = prev.find(t => t.tax_id === tax.tax_id);
+      if (exists) {
+        return prev.filter(t => t.tax_id !== tax.tax_id);
+      }
+      return [...prev, tax];
+    });
+  }
+
+  useEffect(() => {
+    fetchPrice(selectedDiscount, formState.items, selectedTaxes);
+  }, [selectedDiscount, selectedTaxes, formState.items])
+
+  const removeTax = async (taxId) => {
+    setSelectedTaxes(prev => prev.filter(tax => tax.tax_id !== taxId));
+  }
+
+  const fetchPrice = async (discountIds, itemList, taxIds) => {
+    const reqBody = {
+      itemLists: itemList.map((item) => ({
+        product_id: item.product_uuid,
+        quantity: item.quantity,
+      })),
+      discountIds:
+        discountIds.length > 0
+          ? discountIds.map((discount) => discount.discount_id)
+          : undefined,
+      taxIds: taxIds.length > 0 ? taxIds.map((tax) => tax.tax_id) : undefined,
+    };
+    const response = await instance.post(
+      `http://localhost:3002/api/sales/taxAndDiscount`,
+      reqBody
+    );
+
+    if(response) {
+      setTempPaymentInfo(response.data.data);
+    }
+  };
 
   const handleClickOutside = (event) => {
     if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
@@ -142,54 +236,72 @@ const MainContent = () => {
   };
 
   const handleSubmit = async (e) => {
-      e?.preventDefault();
-      
-      if (!validateForm()) {
-          return;
-      }
+    e?.preventDefault();
 
-      const validItems = formState.items.filter(item => 
-          item.product_uuid && 
-          item.quantity && 
-          item.quantity > 0
+    if (!validateForm()) {
+      return;
+    }
+
+    const validItems = formState.items.filter(
+      (item) => item.product_uuid && item.quantity && item.quantity > 0
+    );
+
+    try {
+      // Get current date and time in ISO format
+      const currentDateTime = new Date().toISOString();
+
+      const salesData = {
+        // Use current date/time instead of just the date
+        orderDateTime: currentDateTime,
+        expectedShipmentDate: requiresShipping
+          ? formState.shipmentDate
+            ? new Date(formState.shipmentDate).toISOString()
+            : null
+          : null,
+        paymentTerms: formState.paymentTerms,
+        deliveryMethod: requiresShipping ? formState.deliveryMethod : "N/A",
+        shippingAddress: requiresShipping ? formState.shippingAddress : "N/A",
+        customerUUID: formState.selectedCustomer.customer_uuid,
+        itemsList: validItems.map((item) => ({
+          uuid: item.product_uuid,
+          quantity: parseInt(item.quantity),
+          price: parseFloat(item.price),
+        })),
+        discounts:
+          selectedDiscount.length > 0
+            ? selectedDiscount.map((discount) => ({
+                discount_id: discount.discount_id,
+                discount_rate: discount.discount_rate,
+                discount_amount: tempPaymentInfo.discounts.discount_amount,
+              }))
+            : null,
+        taxes:
+          selectedTaxes.length > 0
+            ? selectedTaxes.map((tax) => ({
+                tax_id: tax.tax_id,
+                tax_rate: tax.tax_rate,
+                tax_amount: tempPaymentInfo.taxes.tax_amount,
+              }))
+            : null,
+      };
+
+      console.log("Submitting sales data:", salesData); // Debug log
+
+      const response = await instance.post(
+        `http://localhost:3002/api/user/${username}/salesOrder`,
+        salesData
       );
 
-      try {
-          // Get current date and time in ISO format
-          const currentDateTime = new Date().toISOString();
-
-          const salesData = {
-              // Use current date/time instead of just the date
-              orderDateTime: currentDateTime,
-              expectedShipmentDate: requiresShipping ? 
-                  (formState.shipmentDate ? new Date(formState.shipmentDate).toISOString() : null) : 
-                  null,
-              paymentTerms: formState.paymentTerms,
-              deliveryMethod: requiresShipping ? formState.deliveryMethod : 'N/A',
-              shippingAddress: requiresShipping ? formState.shippingAddress : 'N/A',
-              customerUUID: formState.selectedCustomer.customer_uuid,
-              itemsList: validItems.map(item => ({
-                  uuid: item.product_uuid,
-                  quantity: parseInt(item.quantity),
-                  price: parseFloat(item.price)
-              }))
-          };
-
-          console.log('Submitting sales data:', salesData); // Debug log
-
-          const response = await instance.post(
-              `http://localhost:3002/api/user/${username}/salesOrder`, 
-              salesData
-          );
-
-          if (response.data) {
-              window.alert('Sales order created successfully!');
-              navigate(-1);
-          }
-      } catch (error) {
-          console.error('Error details:', error.response?.data);
-          setApiError(error.response?.data?.message || "Failed to create sales order");
+      if (response.data) {
+        window.alert("Sales order created successfully!");
+        navigate(-1);
       }
+    } catch (error) {
+      console.error("Error details:", error.response?.data);
+      setApiError(
+        error.response?.data?.message || "Failed to create sales order"
+      );
+    }
   };
 
   const handleCancel = () => {
@@ -230,16 +342,22 @@ const MainContent = () => {
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="space-y-2">
-                  <label className="text-sm font-medium text-gray-700">Customer Name</label>
+                  <label className="text-sm font-medium text-gray-700">
+                    Customer Name
+                  </label>
                   <div className="relative">
                     <input
                       type="text"
                       readOnly
                       className={`w-full p-2 border rounded-md ${
-                        errors.customer ? 'border-red-500' : 'border-gray-300'
+                        errors.customer ? "border-red-500" : "border-gray-300"
                       }`}
                       placeholder="Select Customer"
-                      value={formState.selectedCustomer ? formState.selectedCustomer.customer_name : ""}
+                      value={
+                        formState.selectedCustomer
+                          ? formState.selectedCustomer.customer_name
+                          : ""
+                      }
                       onClick={handleCustomerSearch}
                     />
                     {errors.customer && (
@@ -249,15 +367,17 @@ const MainContent = () => {
                       <div className="absolute w-full z-10" ref={dropdownRef}>
                         <div className="mt-1 w-full bg-white border rounded-lg shadow-lg">
                           <ul className="py-1 max-h-60 overflow-auto">
-                            {formState.customerData?.customers.map((customer) => (
-                              <li
-                                key={customer.customer_uuid}
-                                className="px-4 py-2 hover:bg-gray-100 cursor-pointer"
-                                onClick={() => handleCustomerSelect(customer)}
-                              >
-                                {customer.customer_name}
-                              </li>
-                            ))}
+                            {formState.customerData?.customers.map(
+                              (customer) => (
+                                <li
+                                  key={customer.customer_uuid}
+                                  className="px-4 py-2 hover:bg-gray-100 cursor-pointer"
+                                  onClick={() => handleCustomerSelect(customer)}
+                                >
+                                  {customer.customer_name}
+                                </li>
+                              )
+                            )}
                           </ul>
                         </div>
                       </div>
@@ -266,7 +386,9 @@ const MainContent = () => {
                 </div>
 
                 <div className="space-y-2">
-                  <label className="text-sm font-medium text-gray-700">Sales Order Reference</label>
+                  <label className="text-sm font-medium text-gray-700">
+                    Sales Order Reference
+                  </label>
                   <input
                     type="text"
                     name="salesOrderRef"
@@ -277,14 +399,16 @@ const MainContent = () => {
                 </div>
 
                 <div className="space-y-2">
-                  <label className="text-sm font-medium text-gray-700">Order Date</label>
+                  <label className="text-sm font-medium text-gray-700">
+                    Order Date
+                  </label>
                   <input
                     type="date"
                     name="orderDate"
                     value={formState.orderDate}
                     onChange={handleInputChange}
                     className={`w-full p-2 border rounded-md ${
-                      errors.orderDate ? 'border-red-500' : 'border-gray-300'
+                      errors.orderDate ? "border-red-500" : "border-gray-300"
                     }`}
                   />
                   {errors.orderDate && (
@@ -293,18 +417,22 @@ const MainContent = () => {
                 </div>
 
                 <div className="space-y-2">
-                  <label className="text-sm font-medium text-gray-700">Payment Terms</label>
+                  <label className="text-sm font-medium text-gray-700">
+                    Payment Terms
+                  </label>
                   <input
                     type="text"
                     name="paymentTerms"
                     value={formState.paymentTerms}
                     onChange={handleInputChange}
                     className={`w-full p-2 border rounded-md ${
-                      errors.paymentTerms ? 'border-red-500' : 'border-gray-300'
+                      errors.paymentTerms ? "border-red-500" : "border-gray-300"
                     }`}
                   />
                   {errors.paymentTerms && (
-                    <p className="text-red-500 text-sm">{errors.paymentTerms}</p>
+                    <p className="text-red-500 text-sm">
+                      {errors.paymentTerms}
+                    </p>
                   )}
                 </div>
               </CardContent>
@@ -324,7 +452,10 @@ const MainContent = () => {
                     onChange={(e) => setRequiresShipping(e.target.checked)}
                     className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
                   />
-                  <label htmlFor="requiresShipping" className="text-sm font-medium text-gray-700">
+                  <label
+                    htmlFor="requiresShipping"
+                    className="text-sm font-medium text-gray-700"
+                  >
                     This order requires shipping
                   </label>
                 </div>
@@ -332,23 +463,31 @@ const MainContent = () => {
                 {requiresShipping ? (
                   <>
                     <div className="space-y-2">
-                      <label className="text-sm font-medium text-gray-700">Expected Shipment Date</label>
+                      <label className="text-sm font-medium text-gray-700">
+                        Expected Shipment Date
+                      </label>
                       <input
                         type="date"
                         name="shipmentDate"
                         value={formState.shipmentDate}
                         onChange={handleInputChange}
                         className={`w-full p-2 border rounded-md ${
-                          errors.shipmentDate ? 'border-red-500' : 'border-gray-300'
+                          errors.shipmentDate
+                            ? "border-red-500"
+                            : "border-gray-300"
                         }`}
                       />
                       {errors.shipmentDate && (
-                        <p className="text-red-500 text-sm">{errors.shipmentDate}</p>
+                        <p className="text-red-500 text-sm">
+                          {errors.shipmentDate}
+                        </p>
                       )}
                     </div>
 
                     <div className="space-y-2">
-                      <label className="text-sm font-medium text-gray-700">Delivery Date</label>
+                      <label className="text-sm font-medium text-gray-700">
+                        Delivery Date
+                      </label>
                       <input
                         type="date"
                         name="deliveryDate"
@@ -359,7 +498,9 @@ const MainContent = () => {
                     </div>
 
                     <div className="space-y-2">
-                      <label className="text-sm font-medium text-gray-700">Delivery Method</label>
+                      <label className="text-sm font-medium text-gray-700">
+                        Delivery Method
+                      </label>
                       <input
                         type="text"
                         name="deliveryMethod"
@@ -370,10 +511,17 @@ const MainContent = () => {
                     </div>
 
                     <div className="space-y-2">
-                      <label className="text-sm font-medium text-gray-700">Shipping Address</label>
+                      <label className="text-sm font-medium text-gray-700">
+                        Shipping Address
+                      </label>
                       <textarea
                         name="shippingAddress"
-                        value={formState.shippingAddress || (formState.selectedCustomer ? formState.selectedCustomer.shipping_address : '')}
+                        value={
+                          formState.shippingAddress ||
+                          (formState.selectedCustomer
+                            ? formState.selectedCustomer.shipping_address
+                            : "")
+                        }
                         onChange={handleInputChange}
                         className="w-full p-2 border rounded-md h-24"
                         placeholder="Enter shipping address"
@@ -391,13 +539,51 @@ const MainContent = () => {
               <CardTitle>Order Items</CardTitle>
             </CardHeader>
             <CardContent>
-              <ItemTable 
-                items={formState.items} 
-                setItems={(items) => setFormState(prev => ({ ...prev, items }))}
+              <ItemTable
+                items={formState.items}
+                setItems={(items) =>
+                  setFormState((prev) => ({ ...prev, items }))
+                }
               />
             </CardContent>
           </Card>
+          {/* Tax and Discount section */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Tax and Discount</CardTitle>
+            </CardHeader>
+            <CardContent>
+              {!isTaxLoading && (
+                <MultiTaxSelection
+                  selectedTaxes={selectedTaxes}
+                  taxes={taxes}
+                  isLoading={isTaxLoading}
+                  handleTaxChange={handleTaxChange}
+                  error={taxError}
+                  removeTax={removeTax}
+                />
+              )}
+              {!isDiscountLoading && (
+                <MultiDiscountSelection
+                  selectedDiscounts={selectedDiscount}
+                  discounts={discounts}
+                  handleDiscountChange={handleDiscountChange}
+                  isLoading={isDiscountLoading}
+                  error={discountError}
+                />
+              )}
+            </CardContent>
+          </Card>
 
+          {/* Sales Summary */}
+          <SalesSummary
+            subTotal={tempPaymentInfo?.subtotal ?? 0}
+            grandTotal={tempPaymentInfo?.grandtotal ?? 0}
+            discountAmount={tempPaymentInfo?.totalDiscountAmount ?? 0}
+            taxAmount={tempPaymentInfo?.totalTaxAmount ?? 0}
+            discounts={tempPaymentInfo?.discounts ?? []}
+            taxes={tempPaymentInfo?.taxes ?? []}
+          />
           {/* Action Buttons */}
           <div className="fixed bottom-0 left-52 right-0 bg-white border-t p-4 flex justify-end space-x-4">
             <div className="max-w-[1400px] mx-auto w-full flex justify-end space-x-4">
@@ -411,7 +597,7 @@ const MainContent = () => {
               </button>
               <button
                 type="submit"
-                className="px-4 py-2 text-white bg-blue-500 rounded-md hover:bg-blue-600 disabled:opacity-50 relative"
+                className="px-4 py-2 text-white bg-blue-500 rounded-md hover:bg-blue-600 disabled:opacity-50 relative cursor-pointer"
                 disabled={isSubmitting}
               >
                 {isSubmitting ? (
@@ -421,7 +607,9 @@ const MainContent = () => {
                       <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
                     </div>
                   </>
-                ) : 'Save'}
+                ) : (
+                  "Save"
+                )}
               </button>
             </div>
           </div>
