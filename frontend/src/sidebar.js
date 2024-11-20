@@ -69,7 +69,7 @@ function Sidebar({ scrollDirection, isAtTop }) {
       >
         <ul className="list-none p-0 m-0 flex-grow flex flex-col mt-4">
           {menuItems.map(({ path, icon: Icon, label }) => (
-            <li key={path} className="flex items-center relative my-3">
+            <li key={path} className="flex items-center relative my-2">
               <Link
                 to={path}
                 className={`

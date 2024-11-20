@@ -24,7 +24,11 @@ module.exports = (req, res, next) => {
         return res.status(500).json({ message: 'Failed to authenticate token' });
       }
 
-      req.user = { id: decoded.id, username: decoded.username };
+        req.user = { 
+        id: decoded.id, 
+        username: decoded.username,
+        role: decoded.role 
+        };
       next();
     });
   } catch (error) {
