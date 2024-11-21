@@ -19,10 +19,10 @@ function LoginWrapper() {
                     setIsAuthenticated(true);
                     navigate('/dashboard');
                 } else {
-                    localStorage.clear();
+                    handleLogout();
                 }
             } catch (error) {
-                localStorage.clear();
+                handleLogout();
             }
         }
 
@@ -31,6 +31,13 @@ function LoginWrapper() {
             window.history.replaceState({}, document.title);
         }
     }, [location, navigate]);
+
+    const handleLogout = () => {
+        localStorage.clear();
+        sessionStorage.clear();
+        setIsAuthenticated(false);
+        navigate('/login');
+    };
 
     const handleLoginSuccess = () => {
         setIsAuthenticated(true);
@@ -46,7 +53,11 @@ function LoginWrapper() {
                     </AlertDescription>
                 </Alert>
             )}
-            {isAuthenticated ? <Dashboard /> : <Login onLoginSuccess={handleLoginSuccess} />}
+            {isAuthenticated ? (
+                <Dashboard onLogout={handleLogout} />
+            ) : (
+                <Login onLoginSuccess={handleLoginSuccess} />
+            )}
         </>
     );
 }

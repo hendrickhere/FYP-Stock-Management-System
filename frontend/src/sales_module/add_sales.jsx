@@ -1,18 +1,18 @@
 import React, { useState, useContext, useEffect, useRef } from "react";
 import { useNavigate } from 'react-router-dom';
-import { GlobalContext } from "./globalContext";
-import instance from "./axiosConfig";
+import { GlobalContext } from "../globalContext";
+import instance from "../axiosConfig";
 import MultiTaxSelection from './tax_section';
 import { 
   Card,
   CardContent,
   CardHeader,
   CardTitle
-} from "./ui/card";
-import { Alert, AlertDescription } from "./ui/alert";
+} from "../ui/card";
+import { Alert, AlertDescription } from "../ui/alert";
 import { AlertCircle } from "lucide-react";
-import Header from "./header";
-import Sidebar from "./sidebar";
+import Header from "../header";
+import Sidebar from "../sidebar";
 import ItemTable from "./addSalesInventoryTable";
 import SalesSummary from "./sales_summary";
 import MultiDiscountSelection from "./discount_section";
@@ -26,7 +26,7 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-} from "./ui/alert-dialog";
+} from "../ui/alert-dialog";
 
 const AddSales = () => {
   const [isMobile, setIsMobile] = useState(window.innerWidth < 1024);

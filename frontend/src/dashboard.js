@@ -18,7 +18,7 @@ import {
   Area,
 } from 'recharts';
 
-const Dashboard = ({ userRole = 'manager' }) => {
+const Dashboard = ({ userRole = 'manager', onLogout}) => {
   const [isMobile, setIsMobile] = useState(window.innerWidth < 1024);
 
   useEffect(() => {
@@ -32,9 +32,9 @@ const Dashboard = ({ userRole = 'manager' }) => {
 
   return (
     <div className="flex flex-col h-screen w-full">
-      <Header/>
+      <Header onLogout={onLogout}/>
       <div className="flex flex-row flex-grow">
-        <Sidebar />
+        <Sidebar onLogout={onLogout} />
         <MainContent userRole={userRole} isMobile={isMobile} />
       </div>
     </div>

@@ -1,7 +1,7 @@
 import React, { useState, useContext } from 'react';
-import instance from "./axiosConfig";
-import { GlobalContext } from "./globalContext";
-import { Card, CardContent } from "./ui/card";
+import instance from "../axiosConfig";
+import { GlobalContext } from "../globalContext";
+import { Card, CardContent } from "../ui/card";
 import { AlertCircle, Plus, X, Search, Minus, Info } from "lucide-react";
 
 const ItemTable = ({ items, setItems }) => {

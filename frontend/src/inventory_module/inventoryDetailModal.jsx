@@ -2,11 +2,11 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Dialog } from '@headlessui/react';
 import { FaTimes, FaTrash } from 'react-icons/fa';
-import { Alert } from '../src/ui/alert';
+import { Alert } from '../ui/alert';
 import { Tab } from '@headlessui/react';
 import toast, { Toaster } from 'react-hot-toast';
-import axiosInstance from './axiosConfig';
-import DragDropImageUploader from './dragDropImageUploader';
+import axiosInstance from '../axiosConfig';
+import DragDropImageUploader from '../dragDropImageUploader';
 import { Box } from 'lucide-react';
 
 const ProductDetailModal = ({ 

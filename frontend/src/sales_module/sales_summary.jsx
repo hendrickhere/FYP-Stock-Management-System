@@ -1,5 +1,5 @@
 import { BsDatabaseFillAdd } from "react-icons/bs";
-import { Card, CardContent } from "./ui/card";
+import { Card, CardContent } from "../ui/card";
 
 function SalesSummary({taxAmount, discountAmount, subTotal, grandTotal, discounts, taxes}) {
   return (
