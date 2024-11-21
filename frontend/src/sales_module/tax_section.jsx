@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useContext} from 'react';
 import { X, Loader2 } from 'lucide-react';
-import axiosInstance from './axiosConfig';
-import { GlobalContext } from "./globalContext";
+import axiosInstance from '../axiosConfig';
+import { GlobalContext } from "../globalContext";
 
 const MultiTaxSelection = ({taxes, selectedTaxes, handleTaxChange, isLoading, error, removeTax}) => {
 

@@ -1,14 +1,16 @@
 import React, {useState, useEffect, useContext, useRef} from "react";
-import Header from './header';
-import Sidebar from './sidebar';
+import Header from '../header';
+import Sidebar from '../sidebar';
 import { useNavigate } from 'react-router-dom';
-import axiosInstance from './axiosConfig';
-import { GlobalContext } from "./globalContext";
+import axiosInstance from '../axiosConfig';
+import { GlobalContext } from "../globalContext";
 import InventoryLayout from "./inventoryCardLayout";
 import { CiExport } from "react-icons/ci";
 import ProductDetailModal from './inventoryDetailModal';
-import { useScrollDirection } from './useScrollDirection';
+import { useScrollDirection } from '../useScrollDirection';
 import { motion, AnimatePresence } from 'framer-motion';
+import { Button } from "../ui/button";
+import { Plus } from 'lucide-react';
 
 const springTransition = {
   type: "spring",
@@ -46,7 +48,7 @@ function MainContent({ isMobile }) {
   const { username } = useContext(GlobalContext);
   const [loading, setLoading] = useState(false);
   const [data, setData] = useState();
-  const navigation = useNavigate();
+  const navigate = useNavigate();
   const [filter, setFilter] = useState("");
   const [render, setRender] = useState("false");
   const { scrollDirection, isAtTop } = useScrollDirection();
@@ -126,7 +128,7 @@ function MainContent({ isMobile }) {
   }, []);
 
   function handleEditData(index){
-    navigation('/inventory/add_inventory', {state: {inventoryuuid: data.inventories[index].product_uuid, isAdd: false}});
+    navigate('/inventory/add_inventory', {state: {inventoryuuid: data.inventories[index].product_uuid, isAdd: false}});
   }
 
   function handleDeleteData(index){
@@ -138,7 +140,7 @@ function MainContent({ isMobile }) {
   }
 
   function navigateToAddProductPage(){
-    navigation('/inventory/add_inventory', {state: {uuid: "", isAdd: true}});
+    navigate('/inventory/add_inventory', {state: {uuid: "", isAdd: true}});
   }
 
   return (
@@ -185,21 +187,14 @@ function MainContent({ isMobile }) {
             }}
             transition={springTransition}
           >
-            <button
-              className="inline-flex items-center justify-center px-4 py-2 bg-white text-green-700 font-medium rounded-lg shadow hover:bg-green-600 hover:text-white"
-              onClick={navigateToAddProductPage}
-            >
-              <svg
-                className="w-5 h-5 mr-2"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-                xmlns="http://www.w3.org/2000/svg"
-              >
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4v16m8-8H4" />
-              </svg>
-              Add Product
-            </button>
+          <Button
+            variant="default"
+            className="flex items-center space-x-2 px-4 py-2 bg-white text-green-700 font-medium rounded-lg shadow hover:bg-green-600 hover:text-white focus:outline-none focus:ring-2 focus:ring-green-400 focus:ring-opacity-75"
+            onClick={() => navigate('/inventory/add_inventory')}
+          >
+              <Plus className="w-4 h-4 mr-2" />
+            Add Product
+          </Button>
             
             <button className="inline-flex items-center justify-center px-4 py-2 bg-white font-medium rounded-lg shadow">
               <CiExport className="w-5 h-5 mr-2" />

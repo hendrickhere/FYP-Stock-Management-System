@@ -1,18 +1,28 @@
 import React, { useState, useContext, useEffect } from "react";
 import { useLocation, useNavigate } from 'react-router-dom';
-import { GlobalContext } from "./globalContext";
-import instance from "./axiosConfig";
+import { GlobalContext } from "../globalContext";
+import instance from "../axiosConfig";
 import { 
   Card,
   CardContent,
   CardHeader,
   CardTitle
-} from "./ui/card";
-import { Alert, AlertDescription } from "./ui/alert";
+} from "../ui/card";
+import { 
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "../ui/alert-dialog";
+import { Alert, AlertDescription } from "../ui/alert";
 import { AlertCircle } from "lucide-react";
-import DragDropImageUploader from "./dragDropImageUploader";
-import Header from "./header";
-import Sidebar from "./sidebar";
+import DragDropImageUploader from "../dragDropImageUploader";
+import Header from "../header";
+import Sidebar from "../sidebar";
 
 const AddInventory = () => {
   const location = useLocation();
@@ -81,6 +91,8 @@ const AddInventory = () => {
 const MainContent = ({ data, isAdd, isMobile }) => {
   const navigate = useNavigate();
   const { username } = useContext(GlobalContext);
+  const [showCancelDialog, setShowCancelDialog] = useState(false);
+
   const [formState, setFormState] = useState({
     inventoryName: isAdd ? "" : data.product_name || "",
     skuNumber: isAdd ? "" : data.sku_number || "",
@@ -325,14 +337,35 @@ const MainContent = ({ data, isAdd, isMobile }) => {
   };
 
   const handleCancel = () => {
-    const shouldExit = window.confirm("Are you sure you want to discard changes?");
-    if (shouldExit) {
-      navigate(-1);
-    }
+    setShowCancelDialog(true); 
+  };
+
+  const handleConfirmCancel = () => {
+    setShowCancelDialog(false);
+    navigate(-1);
   };
 
   return (
+  <main className="flex-1">
     <div className={`h-[calc(100vh-4rem)] pb-8 overflow-y-auto ${isMobile ? 'w-full' : 'ml-[13rem]'}`}>
+
+        <AlertDialog open={showCancelDialog} onOpenChange={setShowCancelDialog}>
+          <AlertDialogContent className="bg-white">
+            <AlertDialogHeader>
+              <AlertDialogTitle>Discard Changes</AlertDialogTitle>
+              <AlertDialogDescription>
+                Are you sure you want to discard your changes? This action cannot be undone.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancel</AlertDialogCancel>
+              <AlertDialogAction onClick={handleConfirmCancel}>
+                Discard Changes
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+
       <div className="p-6">
         <div className="flex items-center justify-between mb-6">
           <h1 className="text-2xl font-bold pl-6">{isAdd ? "Add New Inventory" : "Edit Inventory"}</h1>
@@ -663,6 +696,7 @@ const MainContent = ({ data, isAdd, isMobile }) => {
         </form>
       </div>
     </div>
+  </main>
   );
 };
 

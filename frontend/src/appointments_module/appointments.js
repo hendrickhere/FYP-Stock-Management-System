@@ -9,6 +9,7 @@ import { GlobalContext } from "../globalContext";
 import { useScrollDirection } from '../useScrollDirection';
 import { motion } from 'framer-motion';
 import AppointmentSearch from './appointment_search';
+import { Button } from "../ui/button";
 
 const springTransition = {
   type: "spring",
@@ -128,13 +129,14 @@ function MainContent({ isMobile, scrollDirection, isAtTop }) {
 
           {/* Buttons Section */}
           <div ref={topButtonsRef} className="flex flex-row gap-4 mb-6">
-            <button
-              className="inline-flex items-center justify-center px-4 py-2 bg-white text-green-700 font-medium rounded-lg shadow hover:bg-green-600 hover:text-white transition-colors"
-              onClick={() => navigate('/appointments/add_appointment')}
-            >
-              <Plus className="w-5 h-5 mr-2" />
-              Add Appointment
-            </button>
+          <Button
+            variant="default"
+            className="flex items-center space-x-2 px-4 py-2 bg-white text-green-700 font-medium rounded-lg shadow hover:bg-green-600 hover:text-white focus:outline-none focus:ring-2 focus:ring-green-400 focus:ring-opacity-75"
+            onClick={() => navigate('/appointments/add_appointment')}
+          >
+              <Plus className="w-4 h-4 mr-2" />
+            Add Appointment
+          </Button>
           </div>
 
           {/* Content Area */}

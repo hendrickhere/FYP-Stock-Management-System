@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
-import { Card, CardContent } from '../src/ui/card';
+import { Card, CardContent } from '../ui/card';
 import { 
   Select,
   SelectContent,
@@ -9,7 +9,7 @@ import {
   SelectLabel,
   SelectTrigger,
   SelectValue,
-} from "../src/ui/select";
+} from "../ui/select";
 import {
   Pencil, 
   Trash2,

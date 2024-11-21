@@ -1,12 +1,11 @@
 import React, {useState, useEffect, useContext} from "react";
-import './styles/purchases.css';
-import Header from './header';
-import Sidebar from './sidebar';
+import '../styles/purchases.css';
+import Header from '../header';
+import Sidebar from '../sidebar';
 import { useNavigate } from 'react-router-dom';
-import axiosInstance from './axiosConfig';
-import { GlobalContext } from "./globalContext";
+import { GlobalContext } from "../globalContext";
 import PurchaseTable from "./purchaseTable";
-import instance from "./axiosConfig";
+import instance from "../axiosConfig";
 import { 
   Receipt, BadgeDollarSign, ClipboardList, 
 } from 'lucide-react';
@@ -77,7 +76,7 @@ function MainContent() {
       "Are you dure you want to delete this purchase order?"
     );
     if (confirm) {
-      await axiosInstance.put(
+      await instance.put(
         `http://localhost:3002/api/user/${username}/${data.purchases[index].purchases_order_id}/delete`
       )
       .then(() => {

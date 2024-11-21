@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useContext } from 'react';
 import { X, Loader2, Percent } from 'lucide-react';
-import { GlobalContext } from './globalContext';
-import instance from './axiosConfig';
+import { GlobalContext } from '../globalContext';
+import instance from '../axiosConfig';
+
 const MultiDiscountSelection = ({selectedDiscounts, discounts, handleDiscountChange, isLoading, error}) => {
   
 
