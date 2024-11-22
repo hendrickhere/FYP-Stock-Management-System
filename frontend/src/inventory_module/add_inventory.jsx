@@ -26,7 +26,7 @@ import Sidebar from "../sidebar";
 
 const AddInventory = () => {
   const location = useLocation();
-  const { inventoryuuid, isAdd } = location.state;
+  const { inventoryuuid = "", isAdd = true } = location?.state || {};
   const { username } = useContext(GlobalContext);
   const [data, setData] = useState({});
   const [loading, setLoading] = useState(true);
@@ -45,7 +45,7 @@ const AddInventory = () => {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        if (!isAdd) {
+        if (!isAdd && inventoryuuid) {
           const response = await instance.get(`http://localhost:3002/api/user/${username}/${inventoryuuid}`);
           setData(response.data.status);
         }

@@ -127,8 +127,13 @@ function MainContent({ isMobile }) {
     };
   }, []);
 
-  function handleEditData(index){
-    navigate('/inventory/add_inventory', {state: {inventoryuuid: data.inventories[index].product_uuid, isAdd: false}});
+  function handleEditData(index) {
+    navigate('/inventory/add_inventory', {
+      state: {
+        inventoryuuid: data.inventories[index].product_uuid,
+        isAdd: false
+      }
+    });
   }
 
   function handleDeleteData(index){
@@ -139,8 +144,13 @@ function MainContent({ isMobile }) {
     setFilter(() => event.target.value);
   }
 
-  function navigateToAddProductPage(){
-    navigate('/inventory/add_inventory', {state: {uuid: "", isAdd: true}});
+  function navigateToAddProductPage() {
+    navigate('/inventory/add_inventory', {
+      state: {
+        inventoryuuid: "",
+        isAdd: true
+      }
+    });
   }
 
   return (
@@ -190,9 +200,9 @@ function MainContent({ isMobile }) {
           <Button
             variant="default"
             className="flex items-center space-x-2 px-4 py-2 bg-white text-green-700 font-medium rounded-lg shadow hover:bg-green-600 hover:text-white focus:outline-none focus:ring-2 focus:ring-green-400 focus:ring-opacity-75"
-            onClick={() => navigate('/inventory/add_inventory')}
+            onClick={navigateToAddProductPage}
           >
-              <Plus className="w-4 h-4 mr-2" />
+            <Plus className="w-4 h-4 mr-2" />
             Add Product
           </Button>
             

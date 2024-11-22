@@ -111,8 +111,10 @@ exports.login = async (req, res) => {
     }
 
     const user = await UserService.verifyUser(email, password);
+    
+    // Changed this part to be more specific with error messages
     if (!user) {
-      return res.status(401).json({ message: 'Invalid credentials' });
+      return res.status(401).json({ message: 'Invalid email or password' });
     }
 
     console.log("Verified user data:", user); 
@@ -122,7 +124,6 @@ exports.login = async (req, res) => {
 
     await UserService.storeRefreshToken(user.user_id, refreshToken);
 
-    // Include role in the response
     res.status(200).json({ 
       message: 'Login successful', 
       accessToken, 
@@ -136,7 +137,11 @@ exports.login = async (req, res) => {
 
   } catch (error) {
     console.error("Error during login:", error);
-    res.status(500).json({ message: 'Server error', error: error.message });
+    // More specific error handling
+    if (error.message === "Error during user verification") {
+      return res.status(401).json({ message: 'Invalid email or password' });
+    }
+    res.status(500).json({ message: 'An error occurred during login. Please try again.' });
   }
 };
 
