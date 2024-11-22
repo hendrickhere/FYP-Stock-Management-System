@@ -91,18 +91,38 @@ async function getUserByRefreshToken(refreshToken) {
 exports.signup = async (userData) => {
   const { username, email, password, role, created_at } = userData;
 
+  // Validate email format
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  if (!emailRegex.test(email)) {
+    throw new Error("Invalid email format");
+  }
+
+  // Validate password length
+  if (!password || password.length < 6) {
+    throw new Error("Password must be at least 6 characters long");
+  }
+
+  // Check for existing user
   const userExists = await User.findOne({
     where: {
-      email: email,
+      [Op.or]: [
+        { email: email },
+        { username: username }
+      ]
     },
   });
+
   if (userExists) {
-    throw new Error("User already exists");
-  } else {
-    if (!password) {
-      throw new Error("Password is required");
+    if (userExists.email === email) {
+      throw new Error("Email already registered");
     }
-    const password_hash = await bcrypt.hash(password, 10);
+    if (userExists.username === username) {
+      throw new Error("Username already taken");
+    }
+  }
+
+  const password_hash = await bcrypt.hash(password, 10);
+  try {
     const newUser = await User.create({
       username,
       email,
@@ -111,16 +131,24 @@ exports.signup = async (userData) => {
       created_at,
       organization_id: 1,
     });
-    console.log(newUser);
+
     if (!newUser) {
-      throw new Error("Failed to create user, please try again later");
+      throw new Error("Failed to create user");
     }
+    
     return newUser.dataValues;
+  } catch (error) {
+    console.error("Error creating user:", error);
+    throw new Error(error.message || "Failed to create user, please try again later");
   }
 };
 
 exports.login = async (loginData) => {
   const { email, password } = loginData;
+
+  if (!email || !password) {
+    throw new Error("Email and password are required");
+  }
 
   const result = await User.findOne({
     attributes: ['user_id', 'username', 'email', 'password_hash', 'role', 'created_at', 'refreshToken'],
@@ -129,39 +157,47 @@ exports.login = async (loginData) => {
     },
   });
   
-  if (result) {
-    console.log("Found user data:", result.dataValues); 
-    const user = result.dataValues;
-    const isValid = await bcrypt.compare(password, user.password_hash);
-    if (isValid) {
-      const accessToken = jwt.sign(
-        { id: user.user_id, username: user.username },
-        JWT_CONFIG.ACCESS_TOKEN_SECRET,
-        { expiresIn: JWT_CONFIG.ACCESS_TOKEN_EXPIRY }
-      );
+  if (!result) {
+    // Use a generic error message for security
+    throw new Error("Invalid email or password");
+  }
 
-      const refreshToken = jwt.sign(
-        { id: user.user_id, username: user.username },
-        JWT_CONFIG.REFRESH_TOKEN_SECRET,
-        { expiresIn: JWT_CONFIG.REFRESH_TOKEN_EXPIRY }
-      );
+  const user = result.dataValues;
+  const isValid = await bcrypt.compare(password, user.password_hash);
+  
+  if (!isValid) {
+    // Use the same generic error message
+    throw new Error("Invalid email or password");
+  }
 
-      await storeRefreshToken(user.user_id, refreshToken);
+  try {
+    const accessToken = jwt.sign(
+      { id: user.user_id, username: user.username },
+      JWT_CONFIG.ACCESS_TOKEN_SECRET,
+      { expiresIn: JWT_CONFIG.ACCESS_TOKEN_EXPIRY }
+    );
 
-      return { 
-        message: 'Login successful', 
-        accessToken, 
-        refreshToken, 
-        user: { 
-          username: user.username,
-          role: user.role  
-        }
-      };
-    } else {
-      throw new Error("Invalid Credentials");
-    }
-  } else {
-    throw new Error("User not found");
+    const refreshToken = jwt.sign(
+      { id: user.user_id, username: user.username },
+      JWT_CONFIG.REFRESH_TOKEN_SECRET,
+      { expiresIn: JWT_CONFIG.REFRESH_TOKEN_EXPIRY }
+    );
+
+    await storeRefreshToken(user.user_id, refreshToken);
+
+    return { 
+      message: 'Login successful', 
+      accessToken, 
+      refreshToken, 
+      user: { 
+        username: user.username,
+        role: user.role,
+        organization_id: user.organization_id
+      }
+    };
+  } catch (error) {
+    console.error("Error during login:", error);
+    throw new Error("Authentication failed");
   }
 };
 

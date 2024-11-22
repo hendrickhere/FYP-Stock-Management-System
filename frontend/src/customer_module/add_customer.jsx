@@ -198,6 +198,7 @@ const MainContent = ({ isMobile }) => {
             </AlertDialogFooter>
           </AlertDialogContent>
         </AlertDialog>
+        
         <div className="p-6">
           <div className="max-w-[1400px] mx-auto">
             <div className="mb-8">
