@@ -94,12 +94,12 @@ exports.signup = async (userData) => {
   // Validate email format
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
   if (!emailRegex.test(email)) {
-    throw new Error("Invalid email format");
+    throw new Error("INVALID_EMAIL_FORMAT");
   }
 
   // Validate password length
   if (!password || password.length < 6) {
-    throw new Error("Password must be at least 6 characters long");
+    throw new Error("INVALID_PASSWORD_LENGTH");
   }
 
   // Check for existing user
@@ -114,10 +114,10 @@ exports.signup = async (userData) => {
 
   if (userExists) {
     if (userExists.email === email) {
-      throw new Error("Email already registered");
+      throw new Error("EMAIL_EXISTS");
     }
     if (userExists.username === username) {
-      throw new Error("Username already taken");
+      throw new Error("USERNAME_EXISTS");
     }
   }
 

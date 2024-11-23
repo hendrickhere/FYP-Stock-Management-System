@@ -63,54 +63,108 @@ exports.createSalesOrder = async (req, res) => {
     }
 };
 
+exports.getAvailableProducts = async (req, res) => {
+  try {
+    const username = req.query.username;
+    
+    if (!username) {
+      return res.status(400).json({
+        success: false,
+        message: 'Username is required'
+      });
+    }
+
+    const result = await SalesService.getAvailableProducts(username);
+    
+    res.status(200).json(result);
+  } catch (error) {
+    console.error('Error fetching products:', error);
+    res.status(500).json({
+      success: false,
+      message: error.message || 'Failed to fetch available products'
+    });
+  }
+};
+
 exports.updateSalesOrder = async (req, res) => {
-    try {
-        const { username, salesOrderUUID } = req.params;
-        const { updatedData, managerPassword } = req.body;
-        
-        if (!username || !salesOrderUUID) {
-            return res.status(400).json({ message: 'Username and salesOrderUUID are required' });
-        }
+  try {
+    const { username, salesOrderUUID } = req.params;
+    const { updatedData, managerPassword } = req.body;
 
-        const result = await SalesService.updateSalesOrder(username, salesOrderUUID, updatedData, managerPassword);
-        
-        res.status(200).json({
-            success: true,
-            message: 'Sales order updated successfully',
-            data: result
-        });
-    } catch (error) {
-        console.error('Error updating sales order:', error);
-        res.status(500).json({
-            success: false,
-            message: error.message || 'Failed to update sales order'
-
-        })
+    if (!username || !salesOrderUUID) {
+      return res.status(400).json({
+        success: false,
+        message: 'Username and salesOrderUUID are required'
+      });
     }
-}
+
+    if (!updatedData) {
+      return res.status(400).json({
+        success: false,
+        message: 'Updated data is required'
+      });
+    }
+
+    const result = await SalesService.updateSalesOrder(
+      username,
+      salesOrderUUID,
+      updatedData,
+      managerPassword
+    );
+
+    res.status(200).json({
+      success: true,
+      message: 'Sales order updated successfully',
+      data: result
+    });
+  } catch (error) {
+    console.error('Error updating sales order:', error);
+    res.status(error.statusCode || 500).json({
+      success: false,
+      message: error.message || 'Failed to update sales order'
+    });
+  }
+};
+
 exports.deleteSalesOrder = async (req, res) => {
-    try {
-        const { username, salesOrderUUID } = req.params;
-        const { managerPassword } = req.body;
-        
-        if (!username || !salesOrderUUID) {
-            return res.status(400).json({ message: 'Username and salesOrderUUID are required' });
-        }
+  try {
+    const { username, salesOrderUUID } = req.params;
+    const { managerPassword } = req.body;
+    
+    console.log('Delete request received:', {
+      username,
+      salesOrderUUID,
+      hasPassword: !!managerPassword
+    });
 
-        await SalesService.deleteSalesOrder(username, salesOrderUUID, managerPassword);
-        
-        res.status(200).json({
-            success: true,
-            message: 'Sales order deleted successfully'
-        });
-    } catch (error) {
-        console.error('Error deleting sales order:', error);
-        res.status(500).json({
-            success: false,
-            message: error.message || 'Failed to delete sales order'
-        })
+    if (!username || !salesOrderUUID) {
+      return res.status(400).json({
+        success: false,
+        message: 'Username and salesOrderUUID are required'
+      });
     }
-}
+
+    if (!managerPassword) {
+      return res.status(400).json({
+        success: false,
+        message: 'Manager password is required'
+      });
+    }
+
+    const result = await SalesService.deleteSalesOrder(username, salesOrderUUID, managerPassword);
+    
+    res.status(200).json({
+      success: true,
+      message: 'Sales order deleted successfully'
+    });
+  } catch (error) {
+    console.error('Error in deleteSalesOrder controller:', error);
+    res.status(error.statusCode || 500).json({
+      success: false,
+      message: error.message || 'Failed to delete sales order'
+    });
+  }
+};
 
 exports.validateSalesOrderRequest = (req, res, next) => {
     const { itemLists, taxIds, discountIds } = req.body;

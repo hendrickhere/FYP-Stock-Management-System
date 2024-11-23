@@ -9,6 +9,7 @@ import SalesActionBar from "./salesActionBar";
 import { FileText, FileSpreadsheet, Receipt, RotateCcw, Plus } from 'lucide-react';
 import { useScrollDirection } from '../useScrollDirection';
 import { motion } from 'framer-motion';
+import SalesOrderSearch from './salesOrderSearch';
 
 const springTransition = {
   type: "spring",
@@ -51,6 +52,51 @@ const MainContent = ({ isMobile, scrollDirection, isAtTop }) => {
   const navigation = useNavigate();
   const topButtonsRef = useRef(null);
   const [selectedOrders, setSelectedOrders] = useState([]);
+  const [searchConfig, setSearchConfig] = useState({ term: '', activeFilters: [] });
+
+  const filterSalesOrders = (orders, searchConfig) => {
+    if (!searchConfig?.term || !orders) return orders;
+    
+    const searchTerm = searchConfig.term.toLowerCase().trim();
+    const activeFilters = searchConfig.activeFilters || [];
+    
+    return orders.filter(order => {
+      // Helper function to safely check nested properties
+      const safeCheck = (value) => {
+        if (value === null || value === undefined) return false;
+        return value.toString().toLowerCase().includes(searchTerm);
+      };
+
+      // Check each applicable filter
+      return activeFilters.some(filter => {
+        switch (filter) {
+          case 'orderId':
+            return safeCheck(order.sales_order_uuid);
+          case 'customerName':
+            return safeCheck(order.Customer?.customer_name);
+          case 'orderDate':
+            return safeCheck(order.order_date_time);
+          case 'shipmentDate':
+            return safeCheck(order.expected_shipment_date);
+          case 'totalPrice':
+            return safeCheck(order.total_price);
+          case 'deliveryMethod':
+            return safeCheck(order.delivery_method);
+          case 'paymentTerms':
+            return safeCheck(order.payment_terms);
+          case 'status':
+            return safeCheck(order.status_id);
+          default:
+            return false;
+        }
+      });
+    });
+  };
+
+  const filteredData = React.useMemo(() => ({
+    ...data,
+    salesOrders: data?.salesOrders ? filterSalesOrders(data.salesOrders, searchConfig) : []
+  }), [data, searchConfig]);
 
   // Document generation handlers
   const handleGenerateInvoice = async () => {
@@ -139,15 +185,18 @@ const MainContent = ({ isMobile, scrollDirection, isAtTop }) => {
           <div className="mb-6">
             <div className="flex flex-col lg:flex-row lg:items-center gap-4">
               <h1 className="text-2xl font-bold">Sales Order</h1>
-              <div className="lg:ml-20 flex-1">
-                <input
-                  className="w-full lg:w-80 h-10 border-2 border-gray-300 rounded-lg px-4"
-                  type="text"
-                  value={filter}
-                  onChange={handleFilterChange}
-                  placeholder="Search"
-                />
-              </div>
+                <div className="lg:ml-20 flex-1">
+                  <SalesOrderSearch
+                    onFilterChange={setSearchConfig}
+                    initialFilters={{
+                      orderId: true,
+                      customerName: true,
+                      orderDate: true,
+                      shipmentDate: true,
+                      totalPrice: true
+                    }}
+                  />
+                </div>
             </div>
           </div>
 
@@ -169,15 +218,15 @@ const MainContent = ({ isMobile, scrollDirection, isAtTop }) => {
               </div>
             ) : (
             data && (
-                <SalesTable 
-                  salesOrders={data} 
-                  selectedOrders={selectedOrders}
-                  onSelectionChange={setSelectedOrders}
-                  handleDeleteData={handleDeleteData}
-                  handleEditData={handleEditData}
-                  userRole="Manager"
-                  username={username}
-                />
+              <SalesTable 
+                salesOrders={filteredData} 
+                selectedOrders={selectedOrders}
+                onSelectionChange={setSelectedOrders}
+                handleDeleteData={handleDeleteData}
+                handleEditData={handleEditData}
+                userRole="Manager"
+                username={username}
+              />
               )
             )}
           </div>
