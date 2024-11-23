@@ -1,3 +1,4 @@
+const bcrypt = require('bcrypt');
 const {
   User,
   SalesOrder,
@@ -8,6 +9,7 @@ const {
   Tax,
   SalesOrderTax,
   SalesOrderDiscount,
+  Organization,
   sequelize
 } = require("../models");
 const SalesError = require("../errors/salesError");
@@ -493,34 +495,65 @@ exports.createSalesOrder = async (username, salesData) => {
   }
 };
 
-exports.updateSalesOrder = async (
-  username,
-  salesOrderUUID,
-  updatedData,
-  managerPassword
-) => {
+exports.getAvailableProducts = async (username) => {
   try {
     const user = await User.findOne({
-      where: { username },
+      where: { username }
     });
 
     if (!user) {
       throw new Error("User not found");
     }
 
-    // Verify manager password if trying to update sensitive fields
-    if (updatedData.payment_terms) {
-      const manager = await User.findOne({
-        where: {
-          username,
-          role: "Manager",
-          password_hash: managerPassword, // You should use proper password hashing
-        },
-      });
+    const products = await Product.findAll({
+      where: {
+        organization_id: user.organization_id,
+        status_id: 1 // Assuming 1 is active status
+      },
+      attributes: [
+        'product_id',
+        'product_uuid',
+        'product_name',
+        'sku_number',
+        'product_stock',
+        'unit',
+        'price',
+        'description'
+      ],
+      raw: true 
+    });
 
-      if (!manager) {
-        throw new Error("Manager verification failed");
-      }
+    return {
+      success: true,
+      products: products
+    };
+  } catch (error) {
+    console.error('Error fetching available products:', error);
+    throw error;
+  }
+};
+
+exports.updateSalesOrder = async (username, salesOrderUUID, updatedData, managerPassword) => {
+  const transaction = await sequelize.transaction();
+  
+  try {
+    const user = await User.findOne({
+      where: { username },
+      transaction
+    });
+
+    if (!user) {
+      throw new SalesError("User not found", "AUTH_ERROR", 401);
+    }
+
+    // Verify manager password
+    if (!managerPassword) {
+      throw new SalesError("Manager password is required", "AUTH_ERROR", 401);
+    }
+
+    const isValid = await bcrypt.compare(managerPassword, user.password_hash);
+    if (!isValid) {
+      throw new SalesError("Invalid manager password", "INVALID_MANAGER_PASSWORD", 401);  // Changed error code
     }
 
     const salesOrder = await SalesOrder.findOne({
@@ -528,39 +561,94 @@ exports.updateSalesOrder = async (
         sales_order_uuid: salesOrderUUID,
         organization_id: user.organization_id,
       },
+      include: [{
+        model: SalesOrderInventory,
+        as: 'items'
+      }],
+      transaction
     });
 
     if (!salesOrder) {
       throw new Error("Sales order not found");
     }
 
-    // Update the sales order
-    await salesOrder.update(updatedData);
+    // Get current order items for comparison
+    const currentItems = await SalesOrderInventory.findAll({
+      where: { sales_order_id: salesOrder.sales_order_id },
+      transaction
+    });
+
+    // Update basic sales order information
+    await salesOrder.update({
+      expected_shipment_date: updatedData.expected_shipment_date,
+      payment_terms: updatedData.payment_terms,
+      delivery_method: updatedData.delivery_method,
+      customer_id: updatedData.customer_id,
+    }, { transaction });
+
+    // Create a map of current quantities
+    const currentQuantities = new Map(
+      currentItems.map(item => [item.product_id, item.quantity])
+    );
 
     // If there are updated products, handle them
-    if (updatedData.products) {
+    if (updatedData.products && updatedData.products.length > 0) {
+      // First, delete existing inventory items
+      await SalesOrderInventory.destroy({
+        where: {
+          sales_order_id: salesOrder.sales_order_id
+        },
+        transaction
+      });
+
+      // Process each product
       for (const product of updatedData.products) {
-        await SalesOrderInventory.update(
-          {
-            quantity: product.sales_order_items.quantity,
-            price: product.sales_order_items.price,
-          },
-          {
-            where: {
-              sales_order_id: salesOrder.sales_order_id,
-              product_id: product.product_id,
-            },
+        const currentQty = currentQuantities.get(product.product_id) || 0;
+        const newQty = product.sales_order_items.quantity;
+        const quantityDiff = newQty - currentQty;
+
+        // Update product stock
+        const productRecord = await Product.findByPk(product.product_id, { transaction });
+        if (productRecord) {
+          if (quantityDiff > 0) {
+            // Deduct additional stock
+            await productRecord.decrement('product_stock', { 
+              by: quantityDiff,
+              transaction 
+            });
+          } else if (quantityDiff < 0) {
+            // Return stock
+            await productRecord.increment('product_stock', { 
+              by: Math.abs(quantityDiff),
+              transaction 
+            });
           }
-        );
+        }
       }
+
+      // Create new sales order items
+      const inventoryItems = updatedData.products.map(product => ({
+        sales_order_id: salesOrder.sales_order_id,
+        product_id: product.product_id,
+        quantity: product.sales_order_items.quantity,
+        price: product.sales_order_items.price,
+        status_id: 1
+      }));
+
+      await SalesOrderInventory.bulkCreate(inventoryItems, { transaction });
     }
 
-    return await SalesOrder.findOne({
+    await transaction.commit();
+
+    // Fetch updated order with all associations
+    const updatedOrder = await SalesOrder.findOne({
       where: { sales_order_uuid: salesOrderUUID },
       include: [
         {
           model: Customer,
           attributes: [
+            "customer_id",
+            "customer_uuid",
             "customer_name",
             "customer_designation",
             "customer_email",
@@ -578,52 +666,102 @@ exports.updateSalesOrder = async (
         },
       ],
     });
+
+    return updatedOrder;
   } catch (error) {
+    await transaction.rollback();
     console.error("Error in updateSalesOrder:", error);
     throw error;
   }
 };
 
-exports.deleteSalesOrder = async (
-  username,
-  salesOrderUUID,
-  managerPassword
-) => {
+exports.deleteSalesOrder = async (username, salesOrderUUID, managerPassword) => {
+  const transaction = await sequelize.transaction();
+  
   try {
     const user = await User.findOne({
       where: {
         username,
-        role: "Manager",
-        password_hash: managerPassword, // You should use proper password hashing
+        role: 'Manager'
       },
+      transaction
     });
 
     if (!user) {
-      throw new Error("Manager verification failed");
+      throw new SalesError('User not found or not authorized', 'AUTH_ERROR', 401);
+    }
+
+    const isPasswordValid = await bcrypt.compare(managerPassword, user.password_hash);
+    if (!isPasswordValid) {
+      throw new SalesError('Invalid manager password', "INVALID_MANAGER_PASSWORD", 401);  
     }
 
     const salesOrder = await SalesOrder.findOne({
       where: {
         sales_order_uuid: salesOrderUUID,
-        organization_id: user.organization_id,
+        organization_id: user.organization_id
       },
+      include: [{
+        model: SalesOrderInventory,
+        as: 'items'
+      }],
+      transaction
     });
 
     if (!salesOrder) {
-      throw new Error("Sales order not found");
+      throw new SalesError('Sales order not found', 'NOT_FOUND', 404);
     }
 
-    // Delete associated inventory records first
-    await SalesOrderInventory.destroy({
-      where: { sales_order_id: salesOrder.sales_order_id },
-    });
+    // Stock restoration
+    if (salesOrder?.items?.length > 0) {
+      for (const item of salesOrder.items) {
+        const product = await Product.findByPk(item.product_id, { transaction });
+        if (product) {
+          await product.increment('product_stock', { 
+            by: item.quantity,
+            transaction 
+          });
+        }
+      }
+    }
 
-    // Delete the sales order
-    await salesOrder.destroy();
+    // Delete related records
+    await Promise.all([
+      SalesOrderInventory.destroy({
+        where: { sales_order_id: salesOrder.sales_order_id },
+        transaction
+      }),
+      SalesOrderTax.destroy({
+        where: { sales_order_id: salesOrder.sales_order_id },
+        transaction
+      }),
+      SalesOrderDiscount.destroy({
+        where: { sales_order_id: salesOrder.sales_order_id },
+        transaction
+      })
+    ]);
 
-    return true;
+    await salesOrder.destroy({ transaction });
+    await transaction.commit();
+    
+    return {
+      success: true,
+      message: 'Sales order deleted successfully',
+      deletedOrderId: salesOrder.sales_order_uuid
+    };
+
   } catch (error) {
-    console.error("Error in deleteSalesOrder:", error);
-    throw error;
+    await transaction.rollback();
+    console.error('Error in deleteSalesOrder service:', error);
+    
+    if (error instanceof SalesError) {
+      throw error;
+    }
+    
+    throw new SalesError(
+      'Failed to delete sales order',
+      'INTERNAL_SERVER_ERROR',
+      500
+    );
   }
 };

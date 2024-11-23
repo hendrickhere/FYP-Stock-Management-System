@@ -26,6 +26,12 @@ instance.interceptors.response.use(
   async (error) => {
     const originalRequest = error.config;
     
+    // Check if this is an invalid manager password error
+    if (error.response?.status === 401 && error.response?.data?.code === 'INVALID_MANAGER_PASSWORD') {
+      // Don't redirect to login, just reject with the error
+      return Promise.reject(error);
+    }
+    
     if (error.response?.status === 401 && !originalRequest._retry) {
       originalRequest._retry = true;
 
@@ -43,8 +49,11 @@ instance.interceptors.response.use(
         
         return instance(originalRequest);
       } catch (error) {
-        localStorage.clear();
-        window.location.href = '/login';
+        // Only clear storage and redirect for actual auth failures
+        if (!error.response?.data?.code === 'INVALID_MANAGER_PASSWORD') {
+          localStorage.clear();
+          window.location.href = '/login';
+        }
         return Promise.reject(error);
       }
     }

@@ -89,14 +89,30 @@ exports.signup = async (req, res) => {
     const user = await UserService.signup(signupData);
     res.status(201).send({ message: "User created", user: user });
   } catch (err) {
-    console.error("Error during signup:", err.message, err.stack);
-    if (err instanceof TypeError) {
-      res.status(400).send({ message: "Bad input format", error: err.message });
-    } else if (err.message == "Password is required") {
-      res.status(400).send({ message: "Password is required" });
-    } else if (err.message == "User already exists") {
-      res.status(409).send({ message: "User already exists" });
-    } else res.status(500).send({ message: "Server error", err: err.message });
+    console.error("Error during signup:", err.message);
+    
+    switch (err.message) {
+      case "INVALID_EMAIL_FORMAT":
+        return res.status(400).send({ 
+          message: "Please enter a valid email address" 
+        });
+      case "INVALID_PASSWORD_LENGTH":
+        return res.status(400).send({ 
+          message: "Password must be at least 6 characters long" 
+        });
+      case "EMAIL_EXISTS":
+        return res.status(409).send({ 
+          message: "This email is already registered" 
+        });
+      case "USERNAME_EXISTS":
+        return res.status(409).send({ 
+          message: "This username is already taken" 
+        });
+      default:
+        return res.status(500).send({ 
+          message: "An error occurred during signup. Please try again." 
+        });
+    }
   }
 };
 

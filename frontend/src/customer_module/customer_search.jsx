@@ -74,13 +74,15 @@ const CustomerSearch = ({ onFilterChange, initialFilters = {} }) => {
         <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
           <Search className="h-4 w-4 text-gray-400" />
         </div>
-        <input
-          type="text"
-          value={searchTerm}
-          onChange={handleSearchChange}
-          className="w-full pl-10 pr-20 py-2 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-blue-500 transition-colors"
-          placeholder="Search customers..."
-        />
+          <input
+            type="text"
+            value={searchTerm}
+            onChange={handleSearchChange}
+            className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background pl-10 pr-20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+            placeholder="Search customers..."
+            name={`search-${Math.random()}`}
+            autoComplete="off"
+          />
         <div className="absolute inset-y-0 right-0 pr-2 flex items-center gap-2">
           {searchTerm && (
             <button

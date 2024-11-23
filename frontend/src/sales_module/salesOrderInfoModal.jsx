@@ -1,37 +1,88 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useContext, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from 'framer-motion';
 import { Dialog } from '@headlessui/react';
-import { X, Edit, Save, Trash } from 'lucide-react';
+import { X, Edit, Save, Trash, Plus, Minus } from 'lucide-react';
+import { GlobalContext } from "../globalContext";
 import { Tab } from '@headlessui/react';
 import { toast } from '../ui/use-toast';
+import instance from '../axiosConfig';
 import {
   AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
   AlertDialogContent,
-  AlertDialogHeader,
-  AlertDialogTitle,
   AlertDialogDescription,
   AlertDialogFooter,
-  AlertDialogCancel,
-  AlertDialogAction
+  AlertDialogHeader,
+  AlertDialogTitle,
 } from '../ui/alert-dialog';
 
 const SalesOrderModal = ({ isOpen, onClose, order, onUpdate, onDelete, userRole }) => {
-  const [isEditing, setIsEditing] = useState(false);
   const [editedOrder, setEditedOrder] = useState(order);
+  const [isEditing, setIsEditing] = useState(false);
+  const [hasChanges, setHasChanges] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const [requiresShipping, setRequiresShipping] = useState(false);
   const [showPasswordDialog, setShowPasswordDialog] = useState(false);
   const [adminPassword, setAdminPassword] = useState('');
   const [pendingAction, setPendingAction] = useState(null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
-  const [hasChanges, setHasChanges] = useState(false);
-  const [isSaving, setIsSaving] = useState(false);
+  const [errors, setErrors] = useState({});
+  const [availableProducts, setAvailableProducts] = useState([]);
+  const [showProductSearch, setShowProductSearch] = useState(false);
+  const [productSearchTerm, setProductSearchTerm] = useState('');
+  const [customerData, setCustomerData] = useState(null);
+  const [showCustomerSearch, setShowCustomerSearch] = useState(false);
+  const { username } = useContext(GlobalContext);
 
   const isManager = userRole === 'Manager';
 
   useEffect(() => {
     if (order) {
       setEditedOrder(order);
+      setRequiresShipping(!!order.expected_shipment_date);
     }
-  }, [order]);
+    if (isEditing) {
+      fetchAvailableProducts();
+    }
+  }, [order, isEditing]);
+
+  const fetchAvailableProducts = async () => {
+    try {
+      const response = await instance.get(`/sales/products?username=${username}`);
+      if (response.data && response.data.products) {
+        setAvailableProducts(response.data.products);
+      } else {
+        throw new Error('Invalid response format');
+      }
+    } catch (error) {
+      console.error('Error fetching products:', error);
+      toast({
+        title: "Error",
+        description: "Failed to load available products",
+        variant: "destructive"
+      });
+    }
+  };
+
+  const handleCustomerSearch = async () => {
+    if (showCustomerSearch) {
+      setShowCustomerSearch(false);
+      return;
+    }
+
+    try {
+      const response = await instance.get(`/stakeholders/customers?username=${username}`);
+      setCustomerData(response.data);
+      setShowCustomerSearch(true);
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to fetch customers",
+        variant: "destructive"
+      });
+    }
+  };
 
   const formatDate = (dateString) => {
     if (!dateString) return 'N/A';
@@ -57,6 +108,43 @@ const SalesOrderModal = ({ isOpen, onClose, order, onUpdate, onDelete, userRole 
     });
   };
 
+  const handleUpdateOrder = async (updatedOrder) => {
+    try {
+      const response = await instance.put(
+        `/sales/user/${username}/salesOrder/${updatedOrder.sales_order_uuid}`,
+        {
+          updatedData: {
+            customer_id: updatedOrder.Customer?.customer_id,
+            expected_shipment_date: updatedOrder.expected_shipment_date,
+            payment_terms: updatedOrder.payment_terms,
+            delivery_method: updatedOrder.delivery_method,
+            shipping_address: updatedOrder.shipping_address,
+            products: updatedOrder.Products?.map(product => ({
+              product_id: product.product_id,
+              sales_order_items: {
+                quantity: product.SalesOrderInventory?.quantity || 0,
+                price: product.SalesOrderInventory?.price || product.price || 0
+              }
+            })) || []
+          },
+          managerPassword: adminPassword
+        }
+      );
+
+      if (!response.data.success) {
+        throw new Error(response.data.message || "Failed to update order");
+      }
+      
+      return response.data;
+    } catch (error) {
+      console.error('Error updating order:', error);
+      if (error.response?.status === 401) {
+        throw new Error("Invalid manager password");
+      }
+      throw new Error(error.response?.data?.message || 'Failed to update order');
+    }
+  };
+
   const handleEdit = (field, value) => {
     setEditedOrder(prev => ({
       ...prev,
@@ -65,20 +153,99 @@ const SalesOrderModal = ({ isOpen, onClose, order, onUpdate, onDelete, userRole 
     setHasChanges(true);
   };
 
+  const handleCustomerChange = (customer) => {
+    setEditedOrder(prev => ({
+      ...prev,
+      Customer: customer,
+      customer_id: customer.customer_id
+    }));
+    setHasChanges(true);
+  };
+
+  const handleProductQuantityChange = (productId, newQuantity) => {
+    setEditedOrder(prev => ({
+      ...prev,
+      Products: prev.Products.map(product => 
+        product.product_uuid === productId 
+          ? { 
+              ...product, 
+              SalesOrderInventory: {
+                ...product.SalesOrderInventory,
+                quantity: parseInt(newQuantity) || 0
+              }
+            }
+          : product
+      )
+    }));
+    setHasChanges(true);
+  };
+
+  const handleAddProduct = (product) => {
+    setEditedOrder(prev => ({
+      ...prev,
+      Products: [
+        ...prev.Products,
+        {
+          ...product,
+          SalesOrderInventory: {
+            quantity: 1,
+            price: product.price
+          }
+        }
+      ]
+    }));
+    setShowProductSearch(false);
+    setHasChanges(true);
+  };
+
+  const handleRemoveProduct = (productId) => {
+    setEditedOrder(prev => ({
+      ...prev,
+      Products: prev.Products.filter(p => p.product_uuid !== productId)
+    }));
+    setHasChanges(true);
+  };
+
+  const validateChanges = () => {
+    const newErrors = {};
+    
+    if (!editedOrder.Customer) {
+      newErrors.customer = 'Customer is required';
+    }
+
+    if (requiresShipping) {
+      if (!editedOrder.expected_shipment_date) {
+        newErrors.shipmentDate = 'Shipment date is required';
+      }
+      if (!editedOrder.shipping_address) {
+        newErrors.shippingAddress = 'Shipping address is required';
+      }
+    }
+
+    if (!editedOrder.Products?.length) {
+      newErrors.products = 'At least one product is required';
+    }
+
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
+
   const handleSave = async () => {
+    if (!validateChanges()) {
+      return;
+    }
+
     setIsSaving(true);
     try {
+      // Add manager password verification
       if (isManager) {
         setShowPasswordDialog(true);
         setPendingAction('edit');
       } else {
-        await onUpdate(editedOrder);
+        await handleUpdateOrder(editedOrder);
         setIsEditing(false);
         setHasChanges(false);
-        toast({
-          title: "Success",
-          description: "Sales order updated successfully"
-        });
+        onClose();
       }
     } catch (error) {
       toast({
@@ -106,30 +273,43 @@ const SalesOrderModal = ({ isOpen, onClose, order, onUpdate, onDelete, userRole 
   const handlePasswordVerification = async () => {
     try {
       if (pendingAction === 'edit') {
-        await onUpdate(editedOrder);
-        setIsEditing(false);
+        const result = await handleUpdateOrder(editedOrder);
+        if (result.success) {
+          setIsEditing(false);
+          setShowPasswordDialog(false);
+          setAdminPassword('');
+          setPendingAction(null);
+          setHasChanges(false);
+          toast({
+            title: "Success",
+            description: "Sales order updated successfully"
+          });
+          onClose();
+          window.location.reload();
+        }
       } else if (pendingAction === 'delete') {
-        await onDelete(order.sales_order_uuid);
+        await onDelete(order.sales_order_uuid, adminPassword);
+        setShowPasswordDialog(false);
+        setAdminPassword('');
+        setPendingAction(null);
         onClose();
       }
-      
-      setShowPasswordDialog(false);
-      setAdminPassword('');
-      setPendingAction(null);
-      setHasChanges(false);
-      
-      toast({
-        title: "Success",
-        description: `Sales order ${pendingAction === 'edit' ? 'updated' : 'deleted'} successfully`
-      });
     } catch (error) {
+      console.error('Error:', error);
       toast({
         title: "Error",
-        description: error.message,
+        description: error.response?.data?.message || "Invalid manager password",
         variant: "destructive"
       });
+      // Clear password but keep dialog open
+      setAdminPassword('');
     }
   };
+
+  const filteredProducts = availableProducts.filter(product =>
+    product.product_name.toLowerCase().includes(productSearchTerm.toLowerCase()) ||
+    product.sku_number.toString().includes(productSearchTerm)
+  );
 
   return (
     <AnimatePresence>
@@ -169,20 +349,12 @@ const SalesOrderModal = ({ isOpen, onClose, order, onUpdate, onDelete, userRole 
               </h2>
               <div className="flex gap-2">
                 {!isEditing && isManager && (
-                  <>
-                    <button
-                      onClick={() => setIsEditing(true)}
-                      className="p-2 hover:bg-gray-100 rounded-full"
-                    >
-                      <Edit className="w-5 h-5" />
-                    </button>
-                    <button
-                      onClick={handleDelete}
-                      className="p-2 hover:bg-gray-100 rounded-full text-red-500"
-                    >
-                      <Trash className="w-5 h-5" />
-                    </button>
-                  </>
+                  <button
+                    onClick={() => setIsEditing(true)}
+                    className="p-2 hover:bg-gray-100 rounded-full"
+                  >
+                    <Edit className="w-5 h-5" />
+                  </button>
                 )}
                 <button
                   onClick={onClose}
@@ -219,96 +391,280 @@ const SalesOrderModal = ({ isOpen, onClose, order, onUpdate, onDelete, userRole 
                     <div className="space-y-6">
                       <div className="bg-gray-50 p-4 rounded-lg">
                         <h3 className="text-lg font-semibold mb-4">Customer Information</h3>
-                        <div className="grid grid-cols-2 gap-4">
-                          <div>
-                            <p className="text-sm text-gray-500">Name</p>
-                            <p className="font-medium">
-                              {editedOrder?.Customer?.customer_name || 'N/A'}
-                            </p>
+                        {isEditing ? (
+                          <div className="relative">
+                            <input
+                              type="text"
+                              readOnly
+                              className="w-full p-2 border rounded-md"
+                              placeholder="Select Customer"
+                              value={editedOrder?.Customer?.customer_name || ''}
+                              onClick={handleCustomerSearch}
+                            />
+                            {showCustomerSearch && (
+                              <div className="absolute w-full z-10">
+                                <div className="mt-1 w-full bg-white border rounded-lg shadow-lg">
+                                  <ul className="py-1 max-h-60 overflow-auto">
+                                    {customerData?.customers.map(customer => (
+                                      <li
+                                        key={customer.customer_uuid}
+                                        className="px-4 py-2 hover:bg-gray-100 cursor-pointer"
+                                        onClick={() => {
+                                          handleCustomerChange(customer);
+                                          setShowCustomerSearch(false);
+                                        }}
+                                      >
+                                        {customer.customer_name}
+                                      </li>
+                                    ))}
+                                  </ul>
+                                </div>
+                              </div>
+                            )}
                           </div>
-                          <div>
-                            <p className="text-sm text-gray-500">Contact</p>
-                            <p className="font-medium">
-                              {editedOrder?.Customer?.customer_contact || 'N/A'}
-                            </p>
+                        ) : (
+                          <div className="grid grid-cols-2 gap-4">
+                            <div>
+                              <p className="text-sm text-gray-500">Name</p>
+                              <p className="font-medium">
+                                {editedOrder?.Customer?.customer_name || 'N/A'}
+                              </p>
+                            </div>
+                            <div>
+                              <p className="text-sm text-gray-500">Contact</p>
+                              <p className="font-medium">
+                                {editedOrder?.Customer?.customer_contact || 'N/A'}
+                              </p>
+                            </div>
                           </div>
-                          <div className="col-span-2">
-                            <p className="text-sm text-gray-500">Shipping Address</p>
-                            <p className="font-medium">
-                              {editedOrder?.Customer?.shipping_address || 'N/A'}
-                            </p>
-                          </div>
-                        </div>
+                        )}
                       </div>
 
-                      <div className="bg-gray-50 p-4 rounded-lg">
-                        <h3 className="text-lg font-semibold mb-4">Order Dates</h3>
-                        <div className="grid grid-cols-2 gap-4">
-                          <div>
-                            <p className="text-sm text-gray-500">Order Date</p>
-                            <p className="font-medium">
-                              {formatDate(editedOrder?.order_date_time)}
-                            </p>
-                          </div>
-                          <div>
-                            <p className="text-sm text-gray-500">Expected Shipment</p>
-                            <p className="font-medium">
-                              {formatDate(editedOrder?.expected_shipment_date)}
-                            </p>
+                      {isEditing && (
+                        <div className="mb-4">
+                          <label className="flex items-center space-x-2">
+                            <input
+                              type="checkbox"
+                              checked={requiresShipping}
+                              onChange={(e) => setRequiresShipping(e.target.checked)}
+                              className="rounded border-gray-300"
+                            />
+                            <span>This order requires shipping</span>
+                          </label>
+                        </div>
+                      )}
+
+                      {(requiresShipping || (!isEditing && order?.expected_shipment_date)) && (
+                        <div className="bg-gray-50 p-4 rounded-lg">
+                          <h3 className="text-lg font-semibold mb-4">Shipping Information</h3>
+                          <div className="grid grid-cols-2 gap-4">
+                            {isEditing ? (
+                              <>
+                                <div>
+                                  <label className="block text-sm text-gray-500">Expected Shipment</label>
+                                  <input
+                                    type="date"
+                                    value={editedOrder.expected_shipment_date?.split('T')[0] || ''}
+                                    onChange={(e) => handleEdit('expected_shipment_date', e.target.value)}
+                                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm"
+                                  />
+                                </div>
+                                <div>
+                                  <label className="block text-sm text-gray-500">Delivery Method</label>
+                                  <input
+                                    type="text"
+                                    value={editedOrder.delivery_method || ''}
+                                    onChange={(e) => handleEdit('delivery_method', e.target.value)}
+                                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm"
+                                  />
+                                </div>
+                                <div className="col-span-2">
+                                  <label className="block text-sm text-gray-500">Shipping Address</label>
+                                  <textarea
+                                    value={editedOrder.shipping_address || ''}
+                                    onChange={(e) => handleEdit('shipping_address', e.target.value)}
+                                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm"
+                                    rows={3}
+                                  />
+                                </div>
+                              </>
+                            ) : (
+                              <>
+                                <div>
+                                  <p className="text-sm text-gray-500">Expected Shipment</p>
+                                  <p className="font-medium">
+                                    {formatDate(editedOrder?.expected_shipment_date)}
+                                  </p>
+                                </div>
+                                <div>
+                                  <p className="text-sm text-gray-500">Delivery Method</p>
+                                  <p className="font-medium">
+                                    {editedOrder?.delivery_method || 'N/A'}
+                                  </p>
+                                </div>
+                                <div className="col-span-2">
+                                  <p className="text-sm text-gray-500">Shipping Address</p>
+                                  <p className="font-medium">
+                                    {editedOrder?.shipping_address || 'N/A'}
+                                  </p>
+                                </div>
+                              </>
+                            )}
                           </div>
                         </div>
-                      </div>
+                      )}
                     </div>
                   </Tab.Panel>
 
                   {/* Products Panel */}
                   <Tab.Panel>
                     <div className="bg-gray-50 p-4 rounded-lg">
-                      <h3 className="text-lg font-semibold mb-4">Order Products</h3>
-                      <table className="min-w-full divide-y divide-gray-200">
-                        <thead>
-                          <tr>
-                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                              Product
-                            </th>
-                            <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">
-                              Quantity
-                            </th>
-                            <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">
-                              Price
-                            </th>
-                            <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">
-                              Total
-                            </th>
-                          </tr>
-                        </thead>
-                        <tbody className="divide-y divide-gray-200">
-                          {editedOrder?.Products?.map((product) => (
-                            <tr key={product.product_uuid}>
-                              <td className="px-6 py-4">
-                                <div>
-                                  <p className="font-medium">{product.product_name}</p>
-                                  <p className="text-sm text-gray-500">
-                                    SKU: {product.sku_number}
-                                  </p>
+                      <div className="flex justify-between items-center mb-4">
+                        <h3 className="text-lg font-semibold">Order Products</h3>
+                        {isEditing && (
+                          <button
+                            onClick={() => setShowProductSearch(true)}
+                            className="px-3 py-1 text-sm bg-blue-500 text-white rounded-md hover:bg-blue-600"
+                          >
+                            Add Product
+                          </button>
+                        )}
+                                              </div>
+                      <div className="space-y-4">
+                        {showProductSearch && (
+                          <div className="mb-4 border p-4 rounded-lg">
+                            <div className="flex justify-between items-center mb-2">
+                              <h4 className="font-medium">Add Products</h4>
+                              <button
+                                onClick={() => setShowProductSearch(false)}
+                                className="text-gray-500 hover:text-gray-700"
+                              >
+                                <X className="w-4 h-4" />
+                              </button>
+                            </div>
+                            <input
+                              type="text"
+                              placeholder="Search products..."
+                              value={productSearchTerm}
+                              onChange={(e) => setProductSearchTerm(e.target.value)}
+                              className="w-full px-3 py-2 border rounded-md mb-2"
+                            />
+                            <div className="max-h-60 overflow-y-auto">
+                              {filteredProducts.map(product => (
+                                <div
+                                  key={product.product_uuid}
+                                  className="flex justify-between items-center p-2 hover:bg-gray-100 rounded-md cursor-pointer"
+                                  onClick={() => handleAddProduct(product)}
+                                >
+                                  <div>
+                                    <div>{product.product_name}</div>
+                                    <div className="text-sm text-gray-500">
+                                      SKU: {product.sku_number}
+                                    </div>
+                                  </div>
+                                  <div className="text-gray-600">
+                                    {formatCurrency(product.price)}
+                                  </div>
                                 </div>
-                              </td>
-                              <td className="px-6 py-4 text-right">
-                                {product.SalesOrderInventory?.quantity || 0}
-                              </td>
-                              <td className="px-6 py-4 text-right">
-                                {formatCurrency(product.SalesOrderInventory?.price || 0)}
-                              </td>
-                              <td className="px-6 py-4 text-right">
-                                {formatCurrency(
-                                  (product.SalesOrderInventory?.price || 0) *
-                                  (product.SalesOrderInventory?.quantity || 0)
-                                )}
-                              </td>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                        
+                        <table className="min-w-full divide-y divide-gray-200">
+                          <thead>
+                            <tr>
+                              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                                Product
+                              </th>
+                              <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">
+                                Quantity
+                              </th>
+                              <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">
+                                Price
+                              </th>
+                              <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">
+                                Total
+                              </th>
+                              {isEditing && (
+                                <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">
+                                  Actions
+                                </th>
+                              )}
                             </tr>
-                          ))}
-                        </tbody>
-                      </table>
+                          </thead>
+                          <tbody className="divide-y divide-gray-200">
+                            {editedOrder?.Products?.map((product) => (
+                              <tr key={product.product_uuid}>
+                                <td className="px-6 py-4">
+                                  <div>
+                                    <p className="font-medium">{product.product_name}</p>
+                                    <p className="text-sm text-gray-500">
+                                      SKU: {product.sku_number}
+                                    </p>
+                                  </div>
+                                </td>
+                                <td className="px-6 py-4 text-right">
+                                  {isEditing ? (
+                                    <div className="flex items-center justify-end space-x-2">
+                                      <button
+                                        onClick={() => handleProductQuantityChange(
+                                          product.product_uuid,
+                                          (product.SalesOrderInventory?.quantity || 0) - 1
+                                        )}
+                                        disabled={(product.SalesOrderInventory?.quantity || 0) <= 1}
+                                        className="p-1 hover:bg-gray-100 rounded disabled:opacity-50"
+                                      >
+                                        <Minus className="w-4 h-4" />
+                                      </button>
+                                      <input
+                                        type="number"
+                                        min="1"
+                                        value={product.SalesOrderInventory?.quantity || 0}
+                                        onChange={(e) => handleProductQuantityChange(
+                                          product.product_uuid,
+                                          e.target.value
+                                        )}
+                                        className="w-16 text-right px-2 py-1 border rounded"
+                                      />
+                                      <button
+                                        onClick={() => handleProductQuantityChange(
+                                          product.product_uuid,
+                                          (product.SalesOrderInventory?.quantity || 0) + 1
+                                        )}
+                                        className="p-1 hover:bg-gray-100 rounded"
+                                      >
+                                        <Plus className="w-4 h-4" />
+                                      </button>
+                                    </div>
+                                  ) : (
+                                    product.SalesOrderInventory?.quantity || 0
+                                  )}
+                                </td>
+                                <td className="px-6 py-4 text-right">
+                                  {formatCurrency(product.SalesOrderInventory?.price || 0)}
+                                </td>
+                                <td className="px-6 py-4 text-right">
+                                  {formatCurrency(
+                                    (product.SalesOrderInventory?.price || 0) *
+                                    (product.SalesOrderInventory?.quantity || 0)
+                                  )}
+                                </td>
+                                {isEditing && (
+                                  <td className="px-6 py-4 text-right">
+                                    <button
+                                      onClick={() => handleRemoveProduct(product.product_uuid)}
+                                      className="text-red-500 hover:text-red-700"
+                                    >
+                                      <Trash className="w-4 h-4" />
+                                    </button>
+                                  </td>
+                                )}
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
                     </div>
                   </Tab.Panel>
 
@@ -317,18 +673,28 @@ const SalesOrderModal = ({ isOpen, onClose, order, onUpdate, onDelete, userRole 
                     <div className="bg-gray-50 p-4 rounded-lg">
                       <h3 className="text-lg font-semibold mb-4">Payment Details</h3>
                       <div className="space-y-4">
-                        <div>
-                          <p className="text-sm text-gray-500">Payment Terms</p>
-                          <p className="font-medium">
-                            {editedOrder?.payment_terms || 'N/A'}
-                          </p>
-                        </div>
-                        <div>
-                          <p className="text-sm text-gray-500">Delivery Method</p>
-                          <p className="font-medium">
-                            {editedOrder?.delivery_method || 'N/A'}
-                          </p>
-                        </div>
+                        {isEditing ? (
+                          <>
+                            <div>
+                              <label className="block text-sm text-gray-500">Payment Terms</label>
+                              <input
+                                type="text"
+                                value={editedOrder?.payment_terms || ''}
+                                onChange={(e) => handleEdit('payment_terms', e.target.value)}
+                                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm"
+                              />
+                            </div>
+                          </>
+                        ) : (
+                          <>
+                            <div>
+                              <p className="text-sm text-gray-500">Payment Terms</p>
+                              <p className="font-medium">
+                                {editedOrder?.payment_terms || 'N/A'}
+                              </p>
+                            </div>
+                          </>
+                        )}
                       </div>
                     </div>
                   </Tab.Panel>
@@ -360,10 +726,10 @@ const SalesOrderModal = ({ isOpen, onClose, order, onUpdate, onDelete, userRole 
               )}
             </div>
           </motion.div>
-
+          
           {/* Password Dialog */}
           <AlertDialog open={showPasswordDialog} onOpenChange={setShowPasswordDialog}>
-            <AlertDialogContent>
+            <AlertDialogContent className="bg-white">
               <AlertDialogHeader>
                 <AlertDialogTitle>Manager Verification Required</AlertDialogTitle>
                 <AlertDialogDescription>
@@ -376,6 +742,8 @@ const SalesOrderModal = ({ isOpen, onClose, order, onUpdate, onDelete, userRole 
                 onChange={(e) => setAdminPassword(e.target.value)}
                 className="w-full px-3 py-2 border rounded-md"
                 placeholder="Enter manager password"
+                autoComplete="new-password"
+                name={`manager-pwd-${Math.random()}`}
               />
               <AlertDialogFooter>
                 <AlertDialogCancel onClick={() => {

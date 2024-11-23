@@ -1,8 +1,6 @@
-import React, { useState, useCallback, useMemo } from 'react';
+import React, { useState, useCallback } from 'react';
 import { Search, X, Filter } from 'lucide-react';
-import { motion } from 'framer-motion';
 import debounce from 'lodash/debounce';
-import { Input } from '../ui/input';
 import {
   Dialog,
   DialogContent,
@@ -11,18 +9,22 @@ import {
   DialogTrigger,
 } from "../ui/dialog";
 
-const AppointmentSearch = ({ onFilterChange, initialFilters = {} }) => {
+const SalesOrderSearch = ({ onFilterChange, initialFilters = {} }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [filters, setFilters] = useState({
-    id: true,
-    customer: true,
-    service: true,
-    date: true,
+    orderId: true,
+    customerName: true,
+    orderDate: true,
+    shipmentDate: true,
+    totalPrice: true,
+    deliveryMethod: true,
+    paymentTerms: true,
     status: true,
     ...initialFilters
   });
   const [showFilterDialog, setShowFilterDialog] = useState(false);
 
+  // Debounced search handler
   const debouncedSearch = useCallback(
     debounce((term) => {
       const activeFilters = Object.entries(filters)
@@ -53,10 +55,20 @@ const AppointmentSearch = ({ onFilterChange, initialFilters = {} }) => {
     debouncedSearch('');
   };
 
-  const activeFilterCount = useMemo(() => 
-    Object.values(filters).filter(Boolean).length,
-    [filters]
-  );
+  // Count active filters for badge
+  const activeFilterCount = Object.values(filters).filter(Boolean).length;
+
+  // Friendly names for filter options
+  const filterNames = {
+    orderId: 'Order ID',
+    customerName: 'Customer Name',
+    orderDate: 'Order Date',
+    shipmentDate: 'Shipment Date',
+    totalPrice: 'Total Price',
+    deliveryMethod: 'Delivery Method',
+    paymentTerms: 'Payment Terms',
+    status: 'Status'
+  };
 
   return (
     <div className="relative w-full max-w-2xl">
@@ -64,14 +76,15 @@ const AppointmentSearch = ({ onFilterChange, initialFilters = {} }) => {
         <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
           <Search className="h-4 w-4 text-gray-400" />
         </div>
-          <Input
-            value={searchTerm}
-            onChange={handleSearchChange}
-            placeholder="Search appointments..."
-            className="pl-10 pr-4"
-            // Prevent browser autofill
-            autoComplete="off"
-            />
+        <input
+          type="text"
+          value={searchTerm}
+          onChange={handleSearchChange}
+          className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background pl-10 pr-20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+          placeholder="Search sales orders..."
+          name={`search-${Math.random()}`}
+          autoComplete="off"
+        />
         <div className="absolute inset-y-0 right-0 pr-2 flex items-center gap-2">
           {searchTerm && (
             <button
@@ -92,7 +105,7 @@ const AppointmentSearch = ({ onFilterChange, initialFilters = {} }) => {
                 )}
               </button>
             </DialogTrigger>
-            <DialogContent className="bg-white sm:max-w-md">
+            <DialogContent className="sm:max-w-md bg-white">
               <DialogHeader>
                 <DialogTitle>Search Filters</DialogTitle>
               </DialogHeader>
@@ -105,7 +118,9 @@ const AppointmentSearch = ({ onFilterChange, initialFilters = {} }) => {
                       onChange={() => handleFilterChange(key)}
                       className="rounded border-gray-300 text-blue-500 shadow-sm focus:border-blue-300 focus:ring focus:ring-blue-200 focus:ring-opacity-50"
                     />
-                    <span className="text-sm capitalize">Search in {key}</span>
+                    <span className="text-sm">
+                      Search in {filterNames[key] || key}
+                    </span>
                   </label>
                 ))}
               </div>
@@ -117,4 +132,4 @@ const AppointmentSearch = ({ onFilterChange, initialFilters = {} }) => {
   );
 };
 
-export default AppointmentSearch;
+export default SalesOrderSearch;

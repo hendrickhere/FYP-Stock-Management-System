@@ -5,7 +5,8 @@ import format from 'date-fns/format';
 import isValid from 'date-fns/isValid';
 import parseISO from 'date-fns/parseISO';
 import { toast } from '../ui/use-toast';
-import instance from '../axiosConfig'
+import instance from '../axiosConfig';
+import ManagerPasswordInput from './managerPasswordInput';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -25,6 +26,7 @@ const SalesTable = ({ salesOrders, selectedOrders,  onSelectionChange, userRole,
   const [selectedOrder, setSelectedOrder] = useState(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [managerPassword, setManagerPassword] = useState('');
+  const [deleteError, setDeleteError] = useState(null);
 
   const handleEditData = (order) => {
   setSelectedOrder(order);
@@ -33,13 +35,45 @@ const SalesTable = ({ salesOrders, selectedOrders,  onSelectionChange, userRole,
 
   const handleUpdateOrder = async (updatedOrder) => {
     try {
-      // Implement your update logic here
-      // Likely need to call an API endpoint
-      console.log('Updating order:', updatedOrder);
-      // After successful update, close modal and refresh data if needed
+      const response = await instance.put(
+        `/sales/user/${username}/salesOrder/${updatedOrder.sales_order_uuid}`,
+        {
+          updatedData: {
+            customer_id: updatedOrder.Customer?.customer_id,
+            expected_shipment_date: updatedOrder.expected_shipment_date,
+            payment_terms: updatedOrder.payment_terms,
+            delivery_method: updatedOrder.delivery_method,
+            shipping_address: updatedOrder.shipping_address,
+            products: updatedOrder.Products?.map(product => ({
+              product_id: product.product_id,
+              sales_order_items: {
+                quantity: product.SalesOrderInventory?.quantity || 0,
+                price: product.SalesOrderInventory?.price || product.price || 0
+              }
+            })) || []
+          }
+        }
+      );
+
+      if (response.data.success) {
+        toast({
+          title: "Success",
+          description: "Sales order updated successfully"
+        });
+        // Fetch updated data or force refresh
+        window.location.reload();
+      }
+
       setIsModalOpen(false);
+      return response.data;
     } catch (error) {
       console.error('Error updating order:', error);
+      toast({
+        title: "Error",
+        description: error.response?.data?.message || 'Failed to update order',
+        variant: "destructive"
+      });
+      throw error;
     }
   };
   
@@ -144,6 +178,7 @@ const SalesTable = ({ salesOrders, selectedOrders,  onSelectionChange, userRole,
   const confirmDelete = async () => {
     if (selectedOrder && managerPassword) {
       try {
+        setDeleteError(null); 
         await handleDeleteData(selectedOrder.sales_order_uuid, managerPassword);
         toast({
           title: "Success",
@@ -151,8 +186,9 @@ const SalesTable = ({ salesOrders, selectedOrders,  onSelectionChange, userRole,
         });
         setDeleteDialogOpen(false);
         setSelectedOrder(null);
-        setManagerPassword(''); // Clear password
+        setManagerPassword('');
       } catch (error) {
+        setDeleteError(error.message || "Failed to delete sales order");
         toast({
           title: "Error",
           description: error.message || "Failed to delete sales order",
@@ -164,15 +200,25 @@ const SalesTable = ({ salesOrders, selectedOrders,  onSelectionChange, userRole,
 
   const handleDeleteData = async (salesOrderUUID, managerPassword) => {
     try {
-      await instance.delete(`/sales/user/${username}/salesOrder/${salesOrderUUID}`, {
-        data: { managerPassword }
+      const response = await instance.delete(`/sales/user/${username}/salesOrder/${salesOrderUUID}`, {
+        data: { managerPassword } 
       });
       
-      // Refresh sales orders through parent callback
-      onSelectionChange([]);
+      if (response.data.success) {
+        toast({
+          title: "Success",
+          description: "Sales order deleted successfully"
+        });
+        window.location.reload();
+      }
+      
+      return response.data;
     } catch (error) {
-      console.error('Error deleting sales order:', error);
-      throw error;
+      console.error('Error details:', error.response?.data || error.message);
+      if (error.response?.status === 401) {
+        throw new Error("Invalid manager password");
+      }
+      throw new Error(error.response?.data?.message || 'Failed to delete sales order');
     }
   };
 
@@ -398,20 +444,11 @@ const SalesTable = ({ salesOrders, selectedOrders,  onSelectionChange, userRole,
               This action cannot be undone.
             </AlertDialogDescription>
           </AlertDialogHeader>
-          {userRole === 'Manager' && (
-            <div className="mb-4">
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Enter manager password to confirm
-              </label>
-              <input
-                type="password"
-                className="w-full px-3 py-2 border rounded-md"
-                placeholder="Manager password"
-                onChange={(e) => setManagerPassword(e.target.value)}
-                value={managerPassword}
-              />
-            </div>
-          )}
+            <ManagerPasswordInput
+              value={managerPassword}
+              onChange={(e) => setManagerPassword(e.target.value)}
+              error={deleteError} // Add state for error handling
+            />
           <AlertDialogFooter>
             <AlertDialogCancel 
               onClick={() => {

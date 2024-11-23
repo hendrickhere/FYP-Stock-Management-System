@@ -185,25 +185,14 @@ function Login({ onLoginSuccess }) {
       console.error('Login error:', error);
       let errorMessage = 'An error occurred. Please try again.';
       
-      if (error.response) {
-        if (error.response.status === 401) {
-          errorMessage = 'Invalid email or password.';
-        } else if (error.response.data && error.response.data.message) {
-          switch (error.response.data.message) {
-            case 'User already exists':
-              errorMessage = 'An account with this email already exists.';
-              break;
-            case 'Invalid email or password':
-              errorMessage = 'Invalid email or password.';
-              break;
-            case 'Email and password are required':
-              errorMessage = 'Please enter both email and password.';
-              break;
-            default:
-              errorMessage = error.response.data.message;
+        if (error.response) {
+          if (error.response.status === 401) {
+            errorMessage = 'Invalid email or password.';
+          } else if (error.response.data && error.response.data.message) {
+            // Use the specific error messages from the backend
+            errorMessage = error.response.data.message;
           }
         }
-      }
       
       setModalTitle('Error');
       setModalMessage(errorMessage);
