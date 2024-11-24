@@ -41,7 +41,7 @@ import logoImage from './logo.png';
   };
 
 function Login({ onLoginSuccess }) {
-  const {username, setUsername} = useContext(GlobalContext);
+  const {username, setUsername, setOrganizationId} = useContext(GlobalContext);
   
   const [signUpData, setSignUpData] = useState({
     name: '',
@@ -172,7 +172,7 @@ function Login({ onLoginSuccess }) {
         sessionStorage.setItem('userData', JSON.stringify(userData));
         
         setUsername(response.data.user.username);
-        
+        setOrganizationId(response.data.user.organization_id); 
         setModalTitle('Welcome Back');
         setModalMessage('Login successful! Redirecting to dashboard...');
         setModalOpen(true);

@@ -97,6 +97,8 @@ const MainContent = ({ isMobile, scrollDirection, isAtTop }) => {
     ...data,
     salesOrders: data?.salesOrders ? filterSalesOrders(data.salesOrders, searchConfig) : []
   }), [data, searchConfig]);
+  const [pageNumber, setPageNumber] = useState(1); 
+  const [pageSize, setPageSize] = useState(10);
 
   // Document generation handlers
   const handleGenerateInvoice = async () => {

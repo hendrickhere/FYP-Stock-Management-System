@@ -237,7 +237,8 @@ exports.verifyUser = async (email, password) => {
       role: user.role,
       email: user.email,
       created_at: user.created_at,
-      refreshToken: user.refreshToken
+      refreshToken: user.refreshToken,
+      organization_id: user.organization_id, 
     };
   } catch (error) {
     console.error("Error verifying user:", error);
