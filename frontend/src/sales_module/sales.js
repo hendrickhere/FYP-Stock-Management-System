@@ -53,6 +53,7 @@ const MainContent = ({ isMobile, scrollDirection, isAtTop }) => {
   const topButtonsRef = useRef(null);
   const [selectedOrders, setSelectedOrders] = useState([]);
   const [searchConfig, setSearchConfig] = useState({ term: '', activeFilters: [] });
+  const [highlightSelections, setHighlightSelections] = useState(false);
 
   const filterSalesOrders = (orders, searchConfig) => {
     if (!searchConfig?.term || !orders) return orders;
@@ -142,6 +143,10 @@ const MainContent = ({ isMobile, scrollDirection, isAtTop }) => {
     navigation(`/sales/edit_sales/${order.sales_order_uuid}`);
   };
 
+  const handleHighlightSelections = (highlight) => {
+  setHighlightSelections(highlight);
+  };
+
   function handleFilterChange(event) {
     setFilter(() => event.target.value);
   }
@@ -186,7 +191,7 @@ const MainContent = ({ isMobile, scrollDirection, isAtTop }) => {
           {/* Title and Search Section */}
           <div className="mb-6">
             <div className="flex flex-col lg:flex-row lg:items-center gap-4">
-              <h1 className="text-2xl font-bold">Sales Order</h1>
+              <h1 className="text-2xl font-bold">Sales Orders</h1>
                 <div className="lg:ml-20 flex-1">
                   <SalesOrderSearch
                     onFilterChange={setSearchConfig}
@@ -210,6 +215,7 @@ const MainContent = ({ isMobile, scrollDirection, isAtTop }) => {
             onGenerateQuotation={handleGenerateQuotation}
             onGenerateReceipt={handleGenerateReceipt}
             onReturnProduct={handleReturnProduct}
+            onHighlightSelections={handleHighlightSelections}
           />
 
           {/* Content Area */}
@@ -228,6 +234,8 @@ const MainContent = ({ isMobile, scrollDirection, isAtTop }) => {
                 handleEditData={handleEditData}
                 userRole="Manager"
                 username={username}
+                highlightSelections={highlightSelections}
+                setHighlightSelections={setHighlightSelections}
               />
               )
             )}

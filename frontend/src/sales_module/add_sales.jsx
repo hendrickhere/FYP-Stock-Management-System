@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { GlobalContext } from "../globalContext";
 import instance from "../axiosConfig";
 import MultiTaxSelection from './tax_section';
+import toast, { Toaster } from 'react-hot-toast';
 import { 
   Card,
   CardContent,
@@ -221,9 +222,9 @@ const MainContent = ({ isMobile }) => {
 
   const validateForm = () => {
       const newErrors = {};
-      console.log("Validating form state:", formState); // Debug log
       
       if (!formState.selectedCustomer) {
+          toast.error('Please select a customer');
           newErrors.customer = "Customer selection is required";
       }
       
@@ -239,21 +240,13 @@ const MainContent = ({ isMobile }) => {
           newErrors.paymentTerms = "Payment terms are required";
       }
 
-      // Check if items array has valid items
-      if (!formState.items || formState.items.length === 0) {
-          newErrors.items = "Please add at least one item to the order";
-      } else {
-          const validItems = formState.items.filter(item => 
-              item.product_uuid && 
-              item.quantity && 
-              item.quantity > 0
-          );
-          if (validItems.length === 0) {
-              newErrors.items = "Please add at least one valid item with quantity";
-          }
+      if (!formState.items || formState.items.length === 0 || !formState.items.some(item => 
+          item.product_uuid && item.quantity && item.quantity > 0
+      )) {
+          toast.error('Please add at least one valid item to the order');
+          newErrors.items = "Please add at least one valid item to the order";
       }
 
-      console.log("Validation errors:", newErrors); // Debug log
       setErrors(newErrors);
       return Object.keys(newErrors).length === 0;
   };
@@ -262,6 +255,8 @@ const MainContent = ({ isMobile }) => {
     e?.preventDefault();
 
     if (!validateForm()) {
+      // Show validation error toast
+      toast.error('Please fill in all required fields correctly');
       return;
     }
 
@@ -320,16 +315,42 @@ const MainContent = ({ isMobile }) => {
       );
 
       if (response.data) {
-        window.alert("Sales order created successfully!");
+        // Show success toast
+        toast.success('Sales order created successfully!', {
+          duration: 3000,
+          position: 'bottom-right',
+        });
         navigate(-1);
       }
     } catch (error) {
       console.error("Error details:", error.response?.data);
-      setApiError(
-        error.response?.data?.message || "Failed to create sales order"
-      );
+      
+      // Show specific error messages based on the error type
+      if (error.response?.status === 400) {
+        toast.error(error.response.data.message || 'Invalid sales order data', {
+          duration: 4000,
+          position: 'bottom-right',
+        });
+      } else if (error.response?.status === 401) {
+        toast.error('Unauthorized access. Please log in again.', {
+          duration: 4000,
+          position: 'bottom-right',
+        });
+      } else if (error.response?.status === 403) {
+        toast.error('You do not have permission to create sales orders.', {
+          duration: 4000,
+          position: 'bottom-right',
+        });
+      } else {
+        toast.error('Failed to create sales order. Please try again.', {
+          duration: 4000,
+          position: 'bottom-right',
+        });
+      }
+      
+      setApiError(error.response?.data?.message || "Failed to create sales order");
     }
-  };
+};
 
   const handleCancel = () => {
     setShowCancelDialog(true);
@@ -350,6 +371,9 @@ const MainContent = ({ isMobile }) => {
 
   return (
     <main className="flex-1">
+
+      <Toaster position="bottom-right" />
+
       <div className={`h-[calc(100vh-4rem)] overflow-y-auto ${isMobile ? 'w-full' : 'ml-[13rem]'}`}>
 
           <AlertDialog open={showCancelDialog} onOpenChange={setShowCancelDialog}>

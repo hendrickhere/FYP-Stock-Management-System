@@ -1,10 +1,10 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { FaTrashAlt, FaEdit, FaSort, FaSortUp, FaSortDown } from 'react-icons/fa';
 import { motion } from 'framer-motion';
 import format from 'date-fns/format';
 import isValid from 'date-fns/isValid';
 import parseISO from 'date-fns/parseISO';
-import { toast } from '../ui/use-toast';
+import toast, { Toaster } from 'react-hot-toast';
 import instance from '../axiosConfig';
 import ManagerPasswordInput from './managerPasswordInput';
 import {
@@ -19,7 +19,24 @@ import {
 } from "../ui/alert-dialog";
 import SalesOrderModal from './salesOrderInfoModal';
 
-const SalesTable = ({ salesOrders, selectedOrders,  onSelectionChange, userRole, username }) => {
+const SalesTable = ({ 
+  salesOrders, 
+  selectedOrders,  
+  onSelectionChange, 
+  userRole, 
+  username,
+  highlightSelections,
+  setHighlightSelections 
+  }) => {
+
+  useEffect(() => {
+    if (highlightSelections) {
+      const timer = setTimeout(() => {
+        setHighlightSelections(false);
+      }, 3000);
+      return () => clearTimeout(timer);
+    }
+  }, [highlightSelections, setHighlightSelections]);
 
   const [sortConfig, setSortConfig] = useState({ key: null, direction: null });
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
@@ -31,6 +48,13 @@ const SalesTable = ({ salesOrders, selectedOrders,  onSelectionChange, userRole,
   const handleEditData = (order) => {
   setSelectedOrder(order);
   setIsModalOpen(true);
+  };
+
+  const getCheckboxClass = () => {
+  const baseClass = "rounded border-gray-300";
+  return highlightSelections 
+    ? `${baseClass} ring-2 ring-red-500 ring-opacity-50 animate-pulse` 
+    : baseClass;
   };
 
   const handleUpdateOrder = async (updatedOrder) => {
@@ -164,10 +188,9 @@ const SalesTable = ({ salesOrders, selectedOrders,  onSelectionChange, userRole,
   // Delete handling
   const handleDeleteClick = async (order) => {
     if (userRole !== 'Manager') {
-      toast({
-        title: "Permission Denied",
-        description: "Only managers can delete sales orders.",
-        variant: "destructive"
+      toast.error('Only managers can delete sales orders', {
+        duration: 4000,
+        position: 'bottom-right',
       });
       return;
     }
@@ -178,22 +201,40 @@ const SalesTable = ({ salesOrders, selectedOrders,  onSelectionChange, userRole,
   const confirmDelete = async () => {
     if (selectedOrder && managerPassword) {
       try {
-        setDeleteError(null); 
+        setDeleteError(null);
         await handleDeleteData(selectedOrder.sales_order_uuid, managerPassword);
-        toast({
-          title: "Success",
-          description: "Sales order deleted successfully"
+        toast.success('Sales order deleted successfully', {
+          duration: 3000,
+          position: 'bottom-right',
         });
         setDeleteDialogOpen(false);
         setSelectedOrder(null);
         setManagerPassword('');
+        window.location.reload(); // Refresh the page to show updated data
       } catch (error) {
-        setDeleteError(error.message || "Failed to delete sales order");
-        toast({
-          title: "Error",
-          description: error.message || "Failed to delete sales order",
-          variant: "destructive"
-        });
+        setDeleteError(error.message);
+        // Show specific error messages based on error type
+        if (error.response?.status === 401) {
+          toast.error('Invalid manager password', {
+            duration: 4000,
+            position: 'bottom-right',
+          });
+        } else if (error.response?.status === 404) {
+          toast.error('Sales order not found', {
+            duration: 4000,
+            position: 'bottom-right',
+          });
+        } else if (error.response?.status === 500) {
+          toast.error('Server error. Please try again later', {
+            duration: 4000,
+            position: 'bottom-right',
+          });
+        } else {
+          toast.error(error.message || 'Failed to delete sales order', {
+            duration: 4000,
+            position: 'bottom-right',
+          });
+        }
       }
     }
   };
@@ -201,24 +242,28 @@ const SalesTable = ({ salesOrders, selectedOrders,  onSelectionChange, userRole,
   const handleDeleteData = async (salesOrderUUID, managerPassword) => {
     try {
       const response = await instance.delete(`/sales/user/${username}/salesOrder/${salesOrderUUID}`, {
-        data: { managerPassword } 
+        data: { managerPassword }
       });
-      
+
       if (response.data.success) {
-        toast({
-          title: "Success",
-          description: "Sales order deleted successfully"
-        });
-        window.location.reload();
+        return response.data;
+      } else {
+        throw new Error(response.data.message || 'Failed to delete sales order');
       }
-      
-      return response.data;
     } catch (error) {
       console.error('Error details:', error.response?.data || error.message);
+      
       if (error.response?.status === 401) {
         throw new Error("Invalid manager password");
+      } else if (!error.response) {
+        throw new Error("Network error. Please check your connection");
+      } else if (error.response?.status === 403) {
+        throw new Error("You don't have permission to delete this order");
+      } else if (error.response?.status === 404) {
+        throw new Error("Sales order not found");
+      } else {
+        throw new Error(error.response?.data?.message || 'Failed to delete sales order');
       }
-      throw new Error(error.response?.data?.message || 'Failed to delete sales order');
     }
   };
 
@@ -226,6 +271,8 @@ const SalesTable = ({ salesOrders, selectedOrders,  onSelectionChange, userRole,
 
   return (
     <div className="w-full -mt-4 lg:mt-0">
+
+      <Toaster position="bottom-right" />
 
       {selectedOrder && (
         <SalesOrderModal
@@ -258,9 +305,9 @@ const SalesTable = ({ salesOrders, selectedOrders,  onSelectionChange, userRole,
                 <div className="flex items-center gap-3">
                   <input
                     type="checkbox"
-                    checked={selectedOrders.length === sortedOrders.length && sortedOrders.length > 0}
-                    onChange={handleSelectAll}
-                    className="rounded border-gray-300"
+                    checked={selectedOrders.includes(order.sales_order_uuid)}
+                    onChange={() => handleSelectOrder(order.sales_order_uuid)}
+                    className={getCheckboxClass()}
                   />
                   <div>
                     <h3 className="font-medium text-gray-900">Order #{order.sales_order_uuid.slice(0, 8)}</h3>
@@ -334,7 +381,7 @@ const SalesTable = ({ salesOrders, selectedOrders,  onSelectionChange, userRole,
                       type="checkbox"
                       checked={selectedOrders.length === sortedOrders.length && sortedOrders.length > 0}
                       onChange={handleSelectAll}
-                      className="rounded border-gray-300"
+                      className={getCheckboxClass()}
                     />
                   </th>
                   {[
@@ -380,9 +427,9 @@ const SalesTable = ({ salesOrders, selectedOrders,  onSelectionChange, userRole,
                       <td className="px-3 py-4">
                         <input
                           type="checkbox"
-                          checked={selectedOrders.includes(order.sales_order_uuid)}
+                          checked={selectedOrders.includes(order.sales_order_uuid)} // Make sure order is from your map function
                           onChange={() => handleSelectOrder(order.sales_order_uuid)}
-                          className="rounded border-gray-300"
+                          className={getCheckboxClass()}
                         />
                       </td>
                       <td className="px-3 py-4 text-sm text-gray-900">

@@ -23,6 +23,28 @@ console.log("Loaded models:", {
   Product: !!Product,
 });
 
+async function verifyManagerPassword(managerPassword) {
+  try {
+    const managers = await User.findAll({
+      where: {
+        role: 'Manager'
+      }
+    });
+
+    // Check against all manager passwords
+    for (const manager of managers) {
+      const isValid = await bcrypt.compare(managerPassword, manager.password_hash);
+      if (isValid) {
+        return true;
+      }
+    }
+    return false;
+  } catch (error) {
+    console.error('Error verifying manager password:', error);
+    return false;
+  }
+}
+
 async function getSalesOrderByUUID(salesOrderUUID) {
   const salesOrder = await SalesOrder.findOne({
     where: {
@@ -605,7 +627,12 @@ exports.updateSalesOrder = async (username, salesOrderUUID, updatedData, manager
 
     // Verify manager password
     if (!managerPassword) {
-      throw new SalesError("Manager password is required", "AUTH_ERROR", 401);
+      throw new SalesError("Manager password is required", "INVALID_MANAGER_PASSWORD", 401);
+    }
+
+    const isValidManagerPassword = await verifyManagerPassword(managerPassword);
+    if (!isValidManagerPassword) {
+      throw new SalesError("The password doesn't match any manager's password", "INVALID_MANAGER_PASSWORD", 401);
     }
 
     const isValid = await bcrypt.compare(managerPassword, user.password_hash);
@@ -737,15 +764,17 @@ exports.deleteSalesOrder = async (username, salesOrderUUID, managerPassword) => 
   
   try {
     const user = await User.findOne({
-      where: {
-        username,
-        role: 'Manager'
-      },
+      where: { username },
       transaction
     });
 
     if (!user) {
-      throw new SalesError('User not found or not authorized', 'AUTH_ERROR', 401);
+      throw new SalesError('User not found', 'AUTH_ERROR', 401);
+    }
+
+    const isValidManagerPassword = await verifyManagerPassword(managerPassword);
+    if (!isValidManagerPassword) {
+      throw new SalesError("The password doesn't match any manager's password", "INVALID_MANAGER_PASSWORD", 401);
     }
 
     const isPasswordValid = await bcrypt.compare(managerPassword, user.password_hash);
