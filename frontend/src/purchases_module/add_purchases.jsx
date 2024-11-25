@@ -22,7 +22,7 @@ import {
 import { AlertCircle } from "lucide-react";
 import Header from "../header";
 import Sidebar from "../sidebar";
-import ItemTable from "../sales_module/addSalesInventoryTable";
+import ItemTable from "./addPurchasesInventoryTable";
 
 const AddPurchases = () => {
   const [isMobile, setIsMobile] = useState(window.innerWidth < 1024);
@@ -64,8 +64,9 @@ const MainContent = ({ isMobile }) => {
     orderDate: "",
     paymentTerms: "",
     deliveryMethod: "",
-    deliveredDate: "",
-    items: [{}]
+    deliveredDate: "", // This will now trigger status update to 'delivered' if set
+    items: [{}],
+    orderStatus: 'pending' 
   });
 
   const handleCancel = () => {
@@ -130,15 +131,32 @@ const MainContent = ({ isMobile }) => {
       newErrors.paymentTerms = "Payment terms are required";
     }
 
+    // Validate delivered date is not before order date
+    if (formState.deliveredDate && formState.orderDate) {
+      const orderDate = new Date(formState.orderDate);
+      const deliveredDate = new Date(formState.deliveredDate);
+      if (deliveredDate < orderDate) {
+        newErrors.deliveredDate = "Delivered date cannot be before order date";
+      }
+    }
+
+    // Validate items
+    if (!formState.items.length || !formState.items.some(item => item.product_uuid)) {
+      newErrors.items = "At least one item must be added to the purchase order";
+    }
+
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
 
   const calculateTotalAmount = () => {
-    var totalAmount = 0;
+    let totalAmount = 0;
     formState.items.forEach((item) => {
-      totalAmount += item.price * item.quantity;
+      if (item.quantity && item.cost) {
+        totalAmount += (parseFloat(item.cost) * parseInt(item.quantity, 10));
+      }
     });
+    console.log('Calculated total amount:', totalAmount); // Debug log
     return totalAmount;
   };
 
@@ -152,26 +170,48 @@ const MainContent = ({ isMobile }) => {
       return;
     }
 
-    var totalPurchase = calculateTotalAmount();
     try {
-      const vendorData = {
+      const totalAmount = calculateTotalAmount();
+      
+      // Add validation for total amount
+      if (!totalAmount || totalAmount <= 0) {
+        throw new Error('Total amount must be greater than 0');
+      }
+
+      const purchaseData = {
         orderDate: formState.orderDate,
         paymentTerms: formState.paymentTerms,
-        deliveredDate: formState.deliveredDate,
-        totalAmount: totalPurchase,
+        deliveredDate: formState.deliveredDate || null,
+        totalAmount: totalAmount, // Make sure this is set
+        total_amount: totalAmount, // Add this as well to match backend expectation
         deliveryMethod: formState.deliveryMethod,
         vendorSn: formState.selectedVendor.vendor_sn,
         username: username,
+        orderStatus: formState.deliveredDate ? 'delivered' : 'pending',
         itemsList: formState.items.map(item => ({
           uuid: item.product_uuid,
-          quantity: item.quantity
+          quantity: parseInt(item.quantity, 10),
+          cost: parseFloat(item.cost)
         }))
       };
 
-      await instance.post(`http://localhost:3002/api/purchases/add`, vendorData);
+      console.log('Submitting purchase data:', purchaseData); // Debug log
+
+      const endpoint = formState.deliveredDate 
+        ? `/purchases/add-delivered`
+        : `/purchases/add`;
+
+      const response = await instance.post(endpoint, purchaseData);
+      console.log('Purchase creation response:', response.data);
+      
       navigate(-1);
     } catch (error) {
-      setApiError("Failed to create purchase order. Please try again.");
+      console.error('Purchase order creation error:', error.response || error);
+      setApiError(
+        error.response?.data?.message || 
+        error.message ||
+        "Failed to create purchase order. Please check your input and try again."
+      );
     } finally {
       setIsSubmitting(false);
     }
@@ -296,19 +336,26 @@ const MainContent = ({ isMobile }) => {
                     </div>
 
                     <div className="space-y-2">
-                      <label className="text-sm font-medium text-gray-700">Delivered Date (leave empty if not received)</label>
-                      <input
-                        type="date"
-                        name="deliveredDate"
-                        value={formState.deliveredDate}
-                        onChange={handleInputChange}
-                        className={`w-full p-2 border rounded-md ${
-                          errors.deliveredDate ? 'border-red-500' : 'border-gray-300'
-                        }`}
-                      />
-                      {errors.deliveredDate && (
-                        <p className="text-red-500 text-sm">{errors.deliveredDate}</p>
-                      )}
+                      <label className="text-sm font-medium text-gray-700">
+                        Delivered Date
+                      </label>
+                      <div className="space-y-1">
+                        <input
+                          type="date"
+                          name="deliveredDate"
+                          value={formState.deliveredDate}
+                          onChange={handleInputChange}
+                          className={`w-full p-2 border rounded-md ${
+                            errors.deliveredDate ? 'border-red-500' : 'border-gray-300'
+                          }`}
+                        />
+                        <p className="text-sm text-gray-500">
+                          Set this only if items have been received. This will automatically update inventory stock.
+                        </p>
+                        {errors.deliveredDate && (
+                          <p className="text-red-500 text-sm">{errors.deliveredDate}</p>
+                        )}
+                      </div>
                     </div>
 
                     <div className="space-y-2">

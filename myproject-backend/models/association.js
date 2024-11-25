@@ -99,21 +99,41 @@ module.exports = (db) => {
 
     // Purchase Order Associations
     console.log('\n--- Setting up Purchase Order Associations ---');
-    PurchaseOrder.belongsToMany(Product, {
-        through: PurchaseOrderItem,
-        foreignKey: "purchase_order_id",
-        otherKey: "product_id",
-    });
-    Product.belongsToMany(PurchaseOrder, {
-        through: PurchaseOrderItem,
-        foreignKey: "product_id",
-        otherKey: "purchase_order_id",
-    });
-    console.log('✓ Product <-> PurchaseOrder many-to-many association established');
+    // PurchaseOrder.belongsToMany(Product, {
+    //     through: PurchaseOrderItem,
+    //     foreignKey: "purchase_order_id",
+    //     otherKey: "product_id",
+    // });
+    // Product.belongsToMany(PurchaseOrder, {
+    //     through: PurchaseOrderItem,
+    //     foreignKey: "product_id",
+    //     otherKey: "purchase_order_id",
+    // });
+    // console.log('✓ Product <-> PurchaseOrder many-to-many association established');
 
     PurchaseOrder.belongsTo(User, { foreignKey: 'user_id', as: 'user' });
     User.hasMany(PurchaseOrder, { foreignKey: 'user_id' });
     console.log('✓ User <-> PurchaseOrder associations established');
+
+    PurchaseOrderItem.belongsTo(Product, {
+        foreignKey: 'product_id',
+        as: 'Product'
+    });
+
+    PurchaseOrderItem.belongsTo(PurchaseOrder, {
+        foreignKey: 'purchase_order_id'
+    });
+
+    // Then establish the reverse associations
+    Product.hasMany(PurchaseOrderItem, {
+        foreignKey: 'product_id',
+        as: 'PurchaseOrderItems'
+    });
+
+    PurchaseOrder.hasMany(PurchaseOrderItem, {
+        foreignKey: 'purchase_order_id',
+        as: 'PurchaseOrderItems'
+    });
 
     PurchaseOrder.belongsToMany(Tax, {
         through: PurchaseOrderTax,

@@ -4,7 +4,7 @@ import { Dialog } from '@headlessui/react';
 import { X, Edit, Save, Trash, Plus, Minus } from 'lucide-react';
 import { GlobalContext } from "../globalContext";
 import { Tab } from '@headlessui/react';
-import { toast } from '../ui/use-toast';
+import toast, { Toaster } from 'react-hot-toast';
 import instance from '../axiosConfig';
 import {
   AlertDialog,
@@ -33,6 +33,7 @@ const SalesOrderModal = ({ isOpen, onClose, order, onUpdate, onDelete, userRole 
   const [productSearchTerm, setProductSearchTerm] = useState('');
   const [customerData, setCustomerData] = useState(null);
   const [showCustomerSearch, setShowCustomerSearch] = useState(false);
+  const [isVerifying, setIsVerifying] = useState(false);
   const { username } = useContext(GlobalContext);
 
   const isManager = userRole === 'Manager';
@@ -211,19 +212,23 @@ const SalesOrderModal = ({ isOpen, onClose, order, onUpdate, onDelete, userRole 
     
     if (!editedOrder.Customer) {
       newErrors.customer = 'Customer is required';
+      toast.error('Please select a customer');
     }
 
     if (requiresShipping) {
       if (!editedOrder.expected_shipment_date) {
         newErrors.shipmentDate = 'Shipment date is required';
+        toast.error('Please enter expected shipment date');
       }
       if (!editedOrder.shipping_address) {
         newErrors.shippingAddress = 'Shipping address is required';
+        toast.error('Please enter shipping address');
       }
     }
 
     if (!editedOrder.Products?.length) {
       newErrors.products = 'At least one product is required';
+      toast.error('Please add at least one product');
     }
 
     setErrors(newErrors);
@@ -232,26 +237,35 @@ const SalesOrderModal = ({ isOpen, onClose, order, onUpdate, onDelete, userRole 
 
   const handleSave = async () => {
     if (!validateChanges()) {
+      toast.error('Please fill in all required fields correctly', {
+        duration: 4000,
+        position: 'bottom-right',
+      });
       return;
     }
 
     setIsSaving(true);
     try {
-      // Add manager password verification
       if (isManager) {
         setShowPasswordDialog(true);
         setPendingAction('edit');
       } else {
-        await handleUpdateOrder(editedOrder);
-        setIsEditing(false);
-        setHasChanges(false);
-        onClose();
+        const result = await handleUpdateOrder(editedOrder);
+        if (result.success) {
+          toast.success('Sales order updated successfully!', {
+            duration: 3000,
+            position: 'bottom-right',
+          });
+          setIsEditing(false);
+          setHasChanges(false);
+          onClose();
+        }
       }
     } catch (error) {
-      toast({
-        title: "Error",
-        description: error.message,
-        variant: "destructive"
+      console.error('Error updating order:', error);
+      toast.error(error.response?.data?.message || 'Failed to update sales order', {
+        duration: 4000,
+        position: 'bottom-right',
       });
     } finally {
       setIsSaving(false);
@@ -262,48 +276,50 @@ const SalesOrderModal = ({ isOpen, onClose, order, onUpdate, onDelete, userRole 
     if (isManager) {
       setShowDeleteConfirm(true);
     } else {
-      toast({
-        title: "Permission Denied",
-        description: "Only managers can delete sales orders.",
-        variant: "destructive"
+      toast.error('Only managers can delete sales orders', {
+        duration: 4000,
+        position: 'bottom-right',
       });
     }
   };
 
   const handlePasswordVerification = async () => {
-    try {
-      if (pendingAction === 'edit') {
-        const result = await handleUpdateOrder(editedOrder);
-        if (result.success) {
-          setIsEditing(false);
-          setShowPasswordDialog(false);
-          setAdminPassword('');
-          setPendingAction(null);
-          setHasChanges(false);
-          toast({
-            title: "Success",
-            description: "Sales order updated successfully"
+      setIsVerifying(true);
+      try {
+          if (pendingAction === 'edit') {
+              const result = await handleUpdateOrder(editedOrder);
+              if (result.success) {
+                  setIsEditing(false);
+                  setShowPasswordDialog(false);
+                  setAdminPassword('');
+                  setPendingAction(null);
+                  setHasChanges(false);
+                  toast.success("Sales order updated successfully", {
+                      duration: 3000,
+                      position: 'bottom-right',
+                  });
+                  onClose();
+                  window.location.reload();
+              }
+          } else if (pendingAction === 'delete') {
+              await onDelete(order.sales_order_uuid, adminPassword);
+              setShowPasswordDialog(false);
+              setAdminPassword('');
+              setPendingAction(null);
+              onClose();
+          }
+      } catch (error) {
+          console.error('Error:', error);
+          // Show more descriptive error message
+          toast.error("The password doesn't match any manager's password in the system. Please try again.", {
+              duration: 4000,
+              position: 'bottom-right',
           });
-          onClose();
-          window.location.reload();
-        }
-      } else if (pendingAction === 'delete') {
-        await onDelete(order.sales_order_uuid, adminPassword);
-        setShowPasswordDialog(false);
-        setAdminPassword('');
-        setPendingAction(null);
-        onClose();
+          // Clear password but keep dialog open
+          setAdminPassword('');
+      } finally {
+          setIsVerifying(false);
       }
-    } catch (error) {
-      console.error('Error:', error);
-      toast({
-        title: "Error",
-        description: error.response?.data?.message || "Invalid manager password",
-        variant: "destructive"
-      });
-      // Clear password but keep dialog open
-      setAdminPassword('');
-    }
   };
 
   const filteredProducts = availableProducts.filter(product =>
@@ -328,6 +344,9 @@ const SalesOrderModal = ({ isOpen, onClose, order, onUpdate, onDelete, userRole 
           }}
           className="fixed inset-0 z-50 overflow-hidden"
         >
+
+          <Toaster position="bottom-right" />
+
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
@@ -753,9 +772,12 @@ const SalesOrderModal = ({ isOpen, onClose, order, onUpdate, onDelete, userRole 
                 }}>
                   Cancel
                 </AlertDialogCancel>
-                <AlertDialogAction onClick={handlePasswordVerification}>
-                  Verify
-                </AlertDialogAction>
+                  <AlertDialogAction 
+                    onClick={handlePasswordVerification}
+                    disabled={!adminPassword || isVerifying}
+                  >
+                    {isVerifying ? 'Verifying...' : 'Verify'}
+                  </AlertDialogAction>
               </AlertDialogFooter>
             </AlertDialogContent>
           </AlertDialog>

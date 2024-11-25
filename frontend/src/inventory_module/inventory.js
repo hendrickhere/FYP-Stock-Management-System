@@ -1,4 +1,4 @@
-import React, {useState, useEffect, useContext, useRef} from "react";
+import React, {useState, useEffect, useContext, useRef, useCallback, useMemo} from "react";
 import Header from '../header';
 import Sidebar from '../sidebar';
 import { useNavigate } from 'react-router-dom';
@@ -7,6 +7,7 @@ import { GlobalContext } from "../globalContext";
 import InventoryLayout from "./inventoryCardLayout";
 import { CiExport } from "react-icons/ci";
 import ProductDetailModal from './inventoryDetailModal';
+import InventorySearch from "./inventorySearch";
 import { useScrollDirection } from '../useScrollDirection';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Button } from "../ui/button";
@@ -54,10 +55,59 @@ function MainContent({ isMobile }) {
   const { scrollDirection, isAtTop } = useScrollDirection();
   const [isTopButtonsVisible, setIsTopButtonsVisible] = useState(true);
   const topButtonsRef = useRef(null);
+  const [searchConfig, setSearchConfig] = useState({ term: '', activeFilters: [] });
 
   const [selectedProduct, setSelectedProduct] = useState(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isEditMode, setIsEditMode] = useState(false);
+
+  const filterInventory = useCallback((inventory, searchConfig) => {
+    if (!searchConfig?.term || !inventory?.inventories) return inventory?.inventories;
+    
+    const searchTerm = searchConfig.term.toLowerCase().trim();
+    const activeFilters = searchConfig.activeFilters || [];
+
+    return inventory.inventories.filter(product => {
+      const safeCheck = (value) => {
+        if (value === null || value === undefined) return false;
+        return value.toString().toLowerCase().includes(searchTerm);
+      };
+
+      return activeFilters.some(filter => {
+        switch (filter) {
+          case 'productName':
+            return safeCheck(product.product_name);
+          case 'skuNumber':
+            return safeCheck(product.sku_number);
+          case 'brand':
+            return safeCheck(product.brand);
+          case 'manufacturer':
+            return safeCheck(product.manufacturer);
+          case 'price':
+            return safeCheck(product.price);
+          case 'stock':
+            return safeCheck(product.product_stock);
+          case 'expiryDate':
+            return product.is_expiry_goods && 
+                  product.expiry_date && 
+                  safeCheck(new Date(product.expiry_date).toLocaleDateString());
+          case 'dimensions':
+            return safeCheck(product.dimensions);
+          case 'weight':
+            return safeCheck(product.weight);
+          case 'unit':
+            return safeCheck(product.unit);
+          default:
+            return false;
+        }
+      });
+    });
+  }, []);
+
+  const filteredData = useMemo(() => ({
+  ...data,
+  inventories: data?.inventories ? filterInventory(data, searchConfig) : []
+  }), [data, searchConfig, filterInventory]);
 
   const handleProductSelect = (product, isEdit = false) => {
     setSelectedProduct(product);
@@ -176,12 +226,15 @@ function MainContent({ isMobile }) {
             <div className="flex flex-col lg:flex-row lg:items-center gap-4">
               <h1 className="text-2xl font-bold">Inventory</h1>
               <div className="lg:w-auto lg:ml-20 flex-1">
-                <input
-                  className="w-full lg:w-[20rem] h-8 border-2 border-border-grey ps-2 rounded-lg"
-                  type="text"
-                  value={filter}
-                  placeholder="Search"
-                  onChange={handleFilterChange}
+                <InventorySearch
+                  onFilterChange={setSearchConfig}
+                  initialFilters={{
+                    productName: true,
+                    skuNumber: true,
+                    brand: true,
+                    stock: true,
+                    price: true
+                  }}
                 />
               </div>
             </div>
@@ -239,7 +292,7 @@ function MainContent({ isMobile }) {
                   layout
                 >
                   <InventoryLayout
-                    products={data}
+                    products={filteredData}
                     handleDeleteData={handleDeleteData}
                     handleEditData={handleEditData}
                     onProductSelect={handleProductSelect}

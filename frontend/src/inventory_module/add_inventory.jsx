@@ -2,6 +2,7 @@ import React, { useState, useContext, useEffect } from "react";
 import { useLocation, useNavigate } from 'react-router-dom';
 import { GlobalContext } from "../globalContext";
 import instance from "../axiosConfig";
+import toast, { Toaster } from 'react-hot-toast';
 import { 
   Card,
   CardContent,
@@ -260,6 +261,8 @@ const MainContent = ({ data, isAdd, isMobile }) => {
       if (!validateForm()) {
         console.log("Form validation failed"); 
         setIsSubmitting(false);
+        // Show validation error toast
+        toast.error('Please fill in all required fields correctly');
         return;
       }
 
@@ -303,7 +306,7 @@ const MainContent = ({ data, isAdd, isMobile }) => {
 
         if (missingFields.length > 0) {
           console.log("Missing fields:", missingFields); 
-          setApiError(`Missing required fields: ${missingFields.join(', ')}`);
+          toast.error(`Missing required fields: ${missingFields.join(', ')}`);
           setIsSubmitting(false);
           return;
         }
@@ -319,7 +322,11 @@ const MainContent = ({ data, isAdd, isMobile }) => {
 
         if (response.data) {
           console.log("Success response:", response.data); 
-          window.alert('Inventory added successfully!');
+          // Show success toast
+          toast.success('Inventory added successfully!', {
+            duration: 3000,
+            position: 'bottom-right',
+          });
           navigate(-1);
         }
       } catch (error) {
@@ -329,6 +336,20 @@ const MainContent = ({ data, isAdd, isMobile }) => {
           response: error.response,
           data: error.response?.data
         });
+
+        // Show specific error messages based on the error type
+        if (error.response?.status === 413) {
+          toast.error('Image size is too large. Please use smaller images.', {
+            duration: 4000,
+            position: 'bottom-right',
+          });
+        } else {
+          toast.error(error.response?.data?.message || 'Failed to add inventory. Please try again.', {
+            duration: 4000,
+            position: 'bottom-right',
+          });
+        }
+        
         setApiError(error.response?.data?.message || "Failed to save inventory. Please try again.");
       } finally {
         console.log("Form submission completed"); 
@@ -347,6 +368,9 @@ const MainContent = ({ data, isAdd, isMobile }) => {
 
   return (
   <main className="flex-1">
+
+    <Toaster position="bottom-right" />
+    
     <div className={`h-[calc(100vh-4rem)] pb-8 overflow-y-auto ${isMobile ? 'w-full' : 'ml-[13rem]'}`}>
 
         <AlertDialog open={showCancelDialog} onOpenChange={setShowCancelDialog}>
