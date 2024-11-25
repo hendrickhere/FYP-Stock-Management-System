@@ -103,7 +103,7 @@ const MainContent = ({ isMobile }) => {
       if (!organizationId) {
         throw new Error('Organization ID is missing');
       }
-      const response = await instance.get(`/discounts?organization_id=${organizationId}`);
+      const response = await instance.get(`/discounts?organizationId=${organizationId}`);
       setDiscounts(response.data.discounts);
     } catch (err) {
       console.error('Fetch discounts error:', err);
@@ -118,7 +118,7 @@ const MainContent = ({ isMobile }) => {
       if (!organizationId) {
         throw new Error('Organization ID is missing');
       }
-      const response = await instance.get(`/taxes?organization_id=${organizationId}`);
+      const response = await instance.get(`/taxes?orgId=${organizationId}`);
       setTaxes(response.data.data);
       setIsTaxLoading(false);
     } catch (err) {
@@ -301,12 +301,16 @@ const MainContent = ({ isMobile }) => {
                 tax_amount: tempPaymentInfo.taxes.tax_amount,
               }))
             : null,
+        subtotal: tempPaymentInfo?.subtotal ?? 0,
+        grandtotal: tempPaymentInfo?.grandtotal ?? 0,
+        totalTax: tempPaymentInfo.totalTaxAmount ?? 0, 
+        discountAmount: tempPaymentInfo.totalDiscountAmount ?? 0,
       };
 
       console.log("Submitting sales data:", salesData); // Debug log
 
       const response = await instance.post(
-        `http://localhost:3002/api/user/${username}/salesOrder`,
+        `http://localhost:3002/api/sales/${username}/salesOrder`,
         salesData
       );
 

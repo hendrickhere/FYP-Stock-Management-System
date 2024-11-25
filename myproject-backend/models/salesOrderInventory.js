@@ -34,6 +34,10 @@ class SalesOrderInventory extends Model {
                 type: DataTypes.FLOAT,
                 allowNull: false,
             },
+            discounted_price: {
+                type: DataTypes.DECIMAL(10, 2),
+                allowNull: true,
+            },
             status_id: {
                 type: DataTypes.INTEGER,
                 allowNull: false,

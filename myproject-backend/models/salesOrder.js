@@ -34,6 +34,22 @@ class SalesOrder extends Model {
                 type: DataTypes.INTEGER,
                 allowNull: false,
             },
+            subtotal: {
+                type: DataTypes.DECIMAL(10, 2),
+                allowNull: false,
+            },
+            grand_total: {
+                type: DataTypes.DECIMAL(10, 2),
+                allowNull: false,
+            },
+            discount_amount: {
+                type: DataTypes.DECIMAL(10, 2), 
+                allowNull: true, 
+            },
+            total_tax: {
+                type: DataTypes.DECIMAL(10, 2), 
+                allowNull: true,
+            }
         }, {
             sequelize,
             modelName: 'SalesOrder',

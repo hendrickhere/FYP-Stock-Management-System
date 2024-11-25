@@ -13,7 +13,7 @@ const {
   sequelize
 } = require("../models");
 const SalesError = require("../errors/salesError");
-const { ValidationError, Op } = require("sequelize");
+const { ValidationError, Op, where } = require("sequelize");
 // Add debug logging
 console.log("Loaded models:", {
   User: !!User,
@@ -93,7 +93,8 @@ exports.getSalesOrderTotal = async (username, salesOrderUUID) => {
   return total;
 };
 
-exports.getAllSalesOrders = async (username) => {
+exports.getAllSalesOrders = async (username, pageNumber, pageSize) => {
+  const offset = (pageNumber - 1) * pageSize;
   try {
     const user = await User.findOne({
       where: {
@@ -120,15 +121,34 @@ exports.getAllSalesOrders = async (username) => {
           ],
         },
         {
-          model: SalesOrderInventory,
-          as: "items",
-          attributes: ["quantity", "price"],
+          model: Product,
+          through: {
+            model: SalesOrderInventory,
+            attributes: ["quantity", "price"],
+          },
         },
+        {
+          model: Discount,
+          through: {
+            model: SalesOrderDiscount,
+            attributes: ["applied_discount_rate", "discount_amount"],
+          },
+          as: "discounts",
+        },
+        {
+          model: Tax,
+          through: {
+            model: SalesOrderTax, 
+            attributes: ["applied_tax_rate", "tax_amount"]
+          },
+          as: "taxes"
+        }
       ],
       order: [["order_date_time", "DESC"]],
+      limit: pageSize,
+      offset: offset,
     });
 
-    // Format the response to match frontend expectations
     return {
       salesOrders: salesOrders.map((order) => ({
         sales_order_id: order.sales_order_id,
@@ -136,18 +156,17 @@ exports.getAllSalesOrders = async (username) => {
         order_date_time: order.order_date_time,
         expected_shipment_date: order.expected_shipment_date,
         customer: order.Customer || null,
-        total_price: order.items
-          ? order.items.reduce(
-              (sum, item) => sum + item.quantity * item.price,
-              0
-            )
-          : 0,
+        grandtotal: order.grand_total,
+        subtotal: order.subtotal,
+        discounts: order.discounts,
+        taxes: order.taxes,
+        discountAmount: order.discount_amount,
+        totalTax: order.total_tax,
         inventories: order.items || [],
       })),
     };
   } catch (error) {
     console.error("Error in getAllSalesOrders service:", error);
-    // Return empty array instead of throwing
     return { salesOrders: [] };
   }
 };
@@ -380,15 +399,15 @@ exports.getAllSalesOrders = async (username) => {
           model: Product,
           through: {
             model: SalesOrderInventory,
-            as: "sales_order_items", // Match your association alias
-            attributes: ["quantity", "price"],
+            as: "sales_order_items", 
+            attributes: ["quantity", "price", "discounted_price"],
           },
           attributes: [
-            "product_id", // Include this
+            "product_id", 
             "product_uuid",
             "product_name",
             "sku_number",
-            "product_description",
+            "description",
           ],
         },
       ],
@@ -410,14 +429,13 @@ exports.getAllSalesOrders = async (username) => {
             ...plainOrder.Customer,
             customer_contact: plainOrder.Customer?.customer_contact || "N/A",
           },
-          // Transform Products to match frontend expectations
           products:
             plainOrder.Products?.map((product) => ({
               product_id: product.product_id,
               product_uuid: product.product_uuid,
               product_name: product.product_name,
               sku_number: product.sku_number,
-              product_description: product.product_description,
+              product_description: product.description,
               sales_order_items: {
                 quantity: product.SalesOrderInventory?.quantity || 0,
                 price: product.SalesOrderInventory?.price || 0,
@@ -452,7 +470,6 @@ exports.createSalesOrder = async (username, salesData) => {
       throw new Error("User not found");
     }
 
-    // First get customer by UUID to get the customer_id
     const customer = await Customer.findOne({
       where: { customer_uuid: salesData.customerUUID },
     });
@@ -461,9 +478,8 @@ exports.createSalesOrder = async (username, salesData) => {
       throw new Error("Customer not found");
     }
 
-    // Prepare the sales order data with the correct customer_id
     const salesOrderData = {
-      order_date_time: new Date(), // Use current timestamp
+      order_date_time: new Date(),
       expected_shipment_date: salesData.expectedShipmentDate,
       payment_terms: salesData.paymentTerms,
       delivery_method: salesData.deliveryMethod,
@@ -471,43 +487,75 @@ exports.createSalesOrder = async (username, salesData) => {
       customer_id: customer.customer_id,
       user_id: user.user_id,
       organization_id: user.organization_id,
+      subtotal: salesData.subtotal,
+      grand_total: salesData.grandtotal,
+      total_tax: salesData.totalTax,
+      discount_amount: salesData.discountAmount,
     };
 
     console.log("Creating sales order with data:", salesOrderData);
 
-    // Create the sales order
-    const salesOrder = await SalesOrder.create(salesOrderData);
+    const salesOrder = await SalesOrder.create(salesOrderData, { transaction });
+    let totalDiscountRate = 0;
 
-    // Create sales order items
-    if (salesData.itemsList && salesData.itemsList.length > 0) {
-      const orderItems = salesData.itemsList.map((item) => ({
-        sales_order_id: salesOrder.sales_order_id,
-        product_id: item.uuid,
-        quantity: item.quantity,
-        price: item.price,
-        status_id: 1,
-      }));
-      await SalesOrderInventory.bulkCreate(orderItems);
-    }
     if (salesData.discounts && salesData.discounts.length > 0) {
-      const salesDiscounts = salesData.discounts.map((discount) => ({
-        sales_order_id: salesOrder.sales_order_id,
-        discount_id: discount.discount_id,
-        applied_discount_rate: discount.discount_rate,
-        discount_amount: discount.discount_amount,
-      }));
-      await SalesOrderDiscount.bulkCreate(salesDiscounts);
+      const salesDiscounts = salesData.discounts.map((discount) => {
+        totalDiscountRate += discount.discount_rate;
+        return {
+          sales_order_id: salesOrder.sales_order_id,
+          discount_id: discount.discount_id,
+          applied_discount_rate: discount.discount_rate,
+          discount_amount: discount.discount_amount,
+        };
+      });
+      await SalesOrderDiscount.bulkCreate(salesDiscounts, { transaction });
     }
 
-    if(salesData.taxes && salesData.taxes.length > 0){
+    if (salesData.itemsList && salesData.itemsList.length > 0) {
+      const orderItems = [];
+      await Promise.all(
+        salesData.itemsList.map(async (item) => {
+          const itemObj = await getInventoryByUUID(item.uuid);
+          
+          const leftoverStock = itemObj.product_stock - item.quantity;
+          if (leftoverStock < 0) {
+            throw new Error(
+              "Unable to create sales order due to low stock volume, please try again after stock volume is increased."
+            );
+          }
+          await Product.update(
+            { product_stock: leftoverStock },
+            {
+              where: {
+                product_id: itemObj.product_id,
+              },
+              transaction,
+            }
+          );
+          orderItems.push({
+            sales_order_id: salesOrder.sales_order_id,
+            product_id: itemObj.product_id,
+            quantity: item.quantity,
+            price: item.price,
+            discounted_price:
+              totalDiscountRate > 0 ? item.price * (1 - totalDiscountRate) : null,
+            status_id: 1,
+          });
+        })
+      );
+      await SalesOrderInventory.bulkCreate(orderItems, { transaction });
+    }
+
+    if (salesData.taxes && salesData.taxes.length > 0) {
       const salesTaxes = salesData.taxes.map((tax) => ({
-        sales_order_id: salesOrder.sales_order_id, 
+        sales_order_id: salesOrder.sales_order_id,
         tax_id: tax.tax_id,
-        applied_tax_rate: tax.tax_rate, 
+        applied_tax_rate: tax.tax_rate,
         tax_amount: tax.tax_amount,
       }));
-      await SalesOrderTax.bulkCreate(salesTaxes);
+      await SalesOrderTax.bulkCreate(salesTaxes, { transaction });
     }
+
     await transaction.commit();
     return salesOrder;
   } catch (error) {
@@ -554,6 +602,15 @@ exports.getAvailableProducts = async (username) => {
     throw error;
   }
 };
+async function getInventoryByUUID(uuid) {
+  const inventory = await Product.findOne({
+    where: {
+      status_id: 1, 
+      product_uuid: uuid,
+    }
+  }); 
+  return inventory; 
+}
 
 exports.updateSalesOrder = async (username, salesOrderUUID, updatedData, managerPassword) => {
   const transaction = await sequelize.transaction();
