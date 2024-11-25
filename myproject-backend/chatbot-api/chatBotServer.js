@@ -9,6 +9,7 @@ const { Op } = require("sequelize");
 const authMiddleware = require("../backend-middleware/authMiddleware");
 const multer = require('multer');
 const PDFParser = require('pdf-parse');
+const { processDocument } = require('./documentProcessor');
 
 // Environment setup
 const envPath = path.join(__dirname, '.env');
@@ -63,47 +64,62 @@ function estimateTokens(text, images = []) {
 }
 
 const processFile = async (file) => {
-    let content = '';
-    
     try {
-        if (file.mimetype === 'application/pdf') {
-            const pdfData = await PDFParser(file.buffer);
-            const textContent = pdfData.text.substring(0, 4000);
-            const estimatedTokens = estimateTokens(textContent);
-            await checkRateLimit(estimatedTokens);
-            content = textContent;
-        } else if (file.mimetype.startsWith('image/')) {
-            const estimatedTokens = estimateTokens('', [file]);
-            await checkRateLimit(estimatedTokens);
-            
-            const response = await openai.chat.completions.create({
-                model: "gpt-4o",
-                messages: [
-                    {
-                        role: "user",
-                        content: [
-                            { type: "text", text: "Analyze this image for inventory details. Focus on product names, quantities, and prices." },
-                            {
-                                type: "image_url",
-                                image_url: {
-                                    url: `data:${file.mimetype};base64,${file.buffer.toString('base64')}`
-                                }
-                            }
-                        ]
-                    }
-                ],
-                max_tokens: rateLimiter.maxRequestSize,
-                temperature: 0.7
-            });
-            content = response.choices[0].message.content;
+        // First process the document with OCR
+        const { extractedItems, metadata } = await processDocument(file);
+        
+        // If no items were extracted, throw an error
+        if (!extractedItems || extractedItems.length === 0) {
+            console.error('No items extracted from document');
+            throw new Error('Could not extract any items from the document. Please check the format.');
         }
-        return { content, metadata: { filename: file.originalname, filesize: file.size } };
+
+        console.log('Extracted items:', extractedItems);
+
+        // Create a concise prompt for OpenAI that includes the full context
+        const promptText = `Analyze this purchase order:
+        Items:
+        ${extractedItems.map(item => 
+            `- ${item.productName} (SKU: ${item.sku}): ${item.quantity} units at RM${item.price}`
+        ).join('\n')}
+
+        Total items: ${extractedItems.length}
+        Total value: RM${extractedItems.reduce((sum, item) => sum + (item.price * item.quantity), 0).toFixed(2)}
+
+        Provide a brief analysis of these items, focusing on:
+        1. Stock level implications
+        2. Any notable quantities or values
+        3. Suggested actions for inventory management`;
+
+        // Get OpenAI analysis with minimal tokens
+        const response = await openai.chat.completions.create({
+            model: "gpt-4",
+            messages: [
+                {
+                    role: "system",
+                    content: "You are a stock management assistant analyzing a purchase order. Give specific, actionable insights about the items and quantities."
+                },
+                {
+                    role: "user",
+                    content: promptText
+                }
+            ],
+            max_tokens: 200,
+            temperature: 0.3
+        });
+
+        return {
+            content: response.choices[0].message.content,
+            metadata: {
+                ...metadata,
+                extractedItems,
+                totalItems: extractedItems.length,
+                totalValue: extractedItems.reduce((sum, item) => sum + (item.price * item.quantity), 0)
+            }
+        };
     } catch (error) {
-        if (error.message.includes('rate_limit')) {
-            throw new Error('Rate limit reached. Please try again in a minute.');
-        }
         console.error('File processing error:', error);
-        throw new Error('Error processing file: ' + error.message);
+        throw new Error(`Error processing file: ${error.message}`);
     }
 };
 
@@ -196,38 +212,15 @@ router.post('/process-file', authMiddleware, upload.single('file'), async (req, 
       return res.status(400).json({ error: 'No file uploaded' });
     }
 
-    const { content, metadata } = await processFile(req.file);
-    const username = req.user.username;
-
-    // Get inventory context for better analysis
-    const inventoryContext = await userService.getAllInventory(username);
+    console.log('Processing file:', req.file.originalname);
     
-    const analysis = await openai.chat.completions.create({
-      model: "gpt-4o",
-      messages: [
-        {
-          role: "system",
-          content: `You are analyzing a document in the context of inventory management.
-                  Current inventory context: ${JSON.stringify(inventoryContext)}
-                  
-                  Provide concise, focused analysis with specific insights and figures.
-                  Avoid unnecessary preamble or tangential information.
-                  Include only relevant details that directly relate to inventory management.
-                  Maintain professionalism while being direct and brief.`
-        },
-        {
-          role: "user",
-          content: `Analyze this content and provide relevant insights about inventory, sales, or business operations: ${content}`
-        }
-      ],
-      temperature: 0.7,
-      max_tokens: maxOutputTokens
-    });
+    // Single call to processFile which now handles both OCR and OpenAI analysis
+    const { content, metadata } = await processFile(req.file);
 
     res.json({
       success: true,
-      message: analysis.choices[0].message.content,
-      fileAnalysis: { content, metadata }
+      message: content,
+      fileAnalysis: { metadata }
     });
 
   } catch (error) {

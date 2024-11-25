@@ -1,5 +1,5 @@
 import React, { useState, useRef } from 'react';
-import { Send, Search, X, Upload, FileText } from 'lucide-react';
+import { Send, Search, X, Upload, FileText, Image } from 'lucide-react';
 import { Alert } from '../ui/alert';
 
 const SUGGESTED_QUERIES = [
@@ -111,26 +111,45 @@ const Input = ({ onSend, disabled, onFileUpload }) => {
     }
   };
 
+  const renderFilePreview = () => {
+    if (!selectedFile) return null;
+
+    return (
+      <div className="flex items-center gap-2 p-2 bg-gray-50 rounded-md">
+        {selectedFile.type === 'application/pdf' ? (
+          <FileText className="w-4 h-4 text-blue-500" />
+        ) : (
+          <Image className="w-4 h-4 text-blue-500" />
+        )}
+        <div className="flex flex-col flex-1">
+          <span className="text-sm text-gray-600 truncate">{selectedFile.name}</span>
+          <span className="text-xs text-gray-400">
+            {(selectedFile.size / 1024).toFixed(1)}KB
+            {selectedFile.type === 'application/pdf' ? ' • PDF' : ' • Image'}
+          </span>
+        </div>
+        <button
+          type="button"
+          onClick={removeFile}
+          className="ml-auto text-gray-400 hover:text-gray-600"
+        >
+          <X className="w-4 h-4" />
+        </button>
+      </div>
+    );
+  };
+
  return (
     <div className="relative px-2 sm:px-4 py-2 sm:py-3">
       <form onSubmit={handleSend} className="flex flex-col gap-2">
         {(selectedFile || fileError) && (
-          <div className="flex items-center gap-2 p-2 bg-gray-50 rounded-md">
-            {selectedFile && (
-              <>
-                <FileText className="w-4 h-4 text-blue-500" />
-                <span className="text-sm text-gray-600 truncate">{selectedFile.name}</span>
-                <button
-                  type="button"
-                  onClick={removeFile}
-                  className="ml-auto text-gray-400 hover:text-gray-600"
-                >
-                  <X className="w-4 h-4" />
-                </button>
-              </>
-            )}
-            {fileError && (
-              <span className="text-sm text-red-500">{fileError}</span>
+          <div className="px-2">
+            {fileError ? (
+              <Alert variant="destructive" className="text-sm">
+                {fileError}
+              </Alert>
+            ) : (
+              renderFilePreview()
             )}
           </div>
         )}
@@ -161,24 +180,28 @@ const Input = ({ onSend, disabled, onFileUpload }) => {
             style={{ minHeight: '40px' }}
           />
 
-          <input
-            ref={fileInputRef}
-            type="file"
-            onChange={handleFileSelect}
-            accept=".pdf,.jpg,.jpeg,.png"
-            className="hidden"
-          />
-
-          <button
-            type="button"
-            onClick={() => fileInputRef.current?.click()}
-            className={`p-1.5 sm:p-2 transition-colors ${
-              disabled ? 'text-gray-300' : 'text-gray-400 hover:text-purple-600'
-            }`}
-            disabled={disabled}
-          >
-            <Upload className="w-5 h-5 sm:w-6 sm:h-6" />
-          </button>
+          <div className="relative">
+            <input
+              ref={fileInputRef}
+              type="file"
+              onChange={handleFileSelect}
+              accept=".pdf,.jpg,.jpeg,.png"
+              className="hidden"
+            />
+            <button
+              type="button"
+              onClick={() => fileInputRef.current?.click()}
+              className={`p-1.5 sm:p-2 transition-colors relative group ${
+                disabled ? 'text-gray-300' : 'text-gray-400 hover:text-purple-600'
+              }`}
+              disabled={disabled}
+            >
+              <Upload className="w-5 h-5 sm:w-6 sm:h-6" />
+              <span className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-2 py-1 text-xs text-white bg-gray-800 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">
+                Upload PDF or Image
+              </span>
+            </button>
+          </div>
           
           <button 
             type="submit"

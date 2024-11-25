@@ -14,10 +14,12 @@
     "multer": "^1.4.5-lts.1",
     "openai": "^4.67.3",
     "pdf-parse": "^1.1.1",
+    "pdf.js-extract": "^0.2.1",
     "querystring-browser": "^1.0.4",
     "react-hot-toast": "^2.4.1",
     "stream-browserify": "^3.0.0",
-    "tailwind-merge": "^2.5.4"
+    "tailwind-merge": "^2.5.4",
+    "tesseract.js": "^5.1.1"
   },
   "devDependencies": {
     "autoprefixer": "^10.4.20",
