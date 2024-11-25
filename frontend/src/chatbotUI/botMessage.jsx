@@ -1,21 +1,72 @@
 import React from 'react';
-import { Bot, AlertCircle, FileText, Package, Calendar, TrendingUp, DollarSign } from 'lucide-react';
+import { Bot, AlertCircle, FileText, Package, Calendar, TrendingUp, DollarSign, CheckCircle } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from "../ui/alert";
 
 const BotMessage = ({ text, data, isError, fileAnalysis }) => {
 
-    const renderFileProcessing = () => {
-    if (!data?.isProcessingFile) return null;
+  const renderOCRResults = () => {
+    if (!data?.extractedItems?.length) return null;
+
+    // Check if we have data but no extracted items
+    if (data?.metadata?.extractedItems?.length === 0) {
+        return (
+            <Alert className="mt-4 bg-yellow-50 border-yellow-200">
+                <AlertCircle className="h-4 w-4 text-yellow-600" />
+                <AlertTitle className="text-yellow-800">Document Processing</AlertTitle>
+                <AlertDescription>
+                    <div className="mt-2 text-sm text-yellow-700">
+                        No inventory items could be extracted from this document. Please ensure the document contains product details in a recognizable format.
+                        <div className="mt-1 text-xs text-yellow-600">
+                            File processed: {data.metadata.filename}
+                        </div>
+                    </div>
+                </AlertDescription>
+            </Alert>
+        );
+    }
 
     return (
-      <Alert className="mt-4 bg-blue-50 border-blue-200">
-        <FileText className="h-4 w-4 text-blue-600" />
-        <AlertTitle className="text-blue-800">Processing File</AlertTitle>
+      <Alert className="mt-4 bg-green-50 border-green-200">
+        <CheckCircle className="h-4 w-4 text-green-600" />
+        <AlertTitle className="text-green-800">Extracted Inventory Items</AlertTitle>
         <AlertDescription>
           <div className="mt-2">
-            <div className="w-full bg-blue-100 rounded-full h-2.5">
-              <div className="bg-blue-600 h-2.5 rounded-full animate-pulse" style={{ width: '100%' }}></div>
+            <div className="overflow-x-auto">
+              <table className="min-w-full divide-y divide-gray-200">
+                <thead className="bg-green-100">
+                  <tr>
+                    <th className="px-3 py-2 text-left text-xs font-medium text-green-800">Product</th>
+                    <th className="px-3 py-2 text-left text-xs font-medium text-green-800">SKU</th>
+                    <th className="px-3 py-2 text-right text-xs font-medium text-green-800">Qty</th>
+                    <th className="px-3 py-2 text-right text-xs font-medium text-green-800">Price</th>
+                  </tr>
+                </thead>
+                <tbody className="bg-white divide-y divide-gray-200">
+                  {data.extractedItems.map((item, index) => (
+                    <tr key={index} className="text-sm">
+                      <td className="px-3 py-2 whitespace-nowrap">{item.productName}</td>
+                      <td className="px-3 py-2 whitespace-nowrap font-mono text-xs">{item.sku}</td>
+                      <td className="px-3 py-2 text-right">{item.quantity}</td>
+                      <td className="px-3 py-2 text-right">
+                        RM {parseFloat(item.price).toFixed(2)}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
+            
+            {data.status === 'processing' && (
+              <div className="mt-4 text-sm text-green-700">
+                Processing inventory updates...
+              </div>
+            )}
+            
+            {data.updates && (
+              <div className="mt-4 text-sm text-green-700">
+                ✓ Updated {data.updates.count} inventory items
+              </div>
+            )}
           </div>
         </AlertDescription>
       </Alert>
@@ -157,6 +208,7 @@ const BotMessage = ({ text, data, isError, fileAnalysis }) => {
         `}>
           <div className="text-sm whitespace-pre-wrap">{text}</div>
         </div>
+        {renderOCRResults()}
         {renderFileAnalysis()}
         {renderInventoryInsights(data)}
       </div>

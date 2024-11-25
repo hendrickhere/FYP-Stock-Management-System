@@ -102,7 +102,7 @@ const SalesActionBar = ({
             onClick={onCreateNew}
           >
             <Plus className="w-4 h-4 mr-2" />
-            Create Order
+            Create Sales
           </Button>
 
           <DropdownMenu>
