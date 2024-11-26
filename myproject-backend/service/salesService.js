@@ -12,7 +12,7 @@ const {
   Organization,
   sequelize
 } = require("../models");
-const SalesError = require("../errors/salesError");
+const { SalesError, InvalidTimeRangeError, UserNotFoundError, DatabaseError } = require("../errors/salesError");
 const { ValidationError, Op, where } = require("sequelize");
 // Add debug logging
 console.log("Loaded models:", {
@@ -170,12 +170,6 @@ exports.getAllSalesOrders = async (username, pageNumber, pageSize) => {
     return { salesOrders: [] };
   }
 };
-
-class ValidationSalesError extends SalesError {
-  constructor(message) {
-    super(message, "VALIDATION_ERROR", 400);
-  }
-}
 
 const validateItemLists = (itemLists) => {
   if (!Array.isArray(itemLists) || itemLists.length === 0) {
@@ -455,6 +449,82 @@ exports.getAllSalesOrders = async (username) => {
   } catch (error) {
     console.error("Error in getAllSalesOrders service:", error);
     throw error;
+  }
+};
+const getTodayDateRange = () => {
+  const today = new Date();
+  
+  const startDate = new Date(
+    today.getFullYear(),
+    today.getMonth(),
+    today.getDate(),
+    0, 0, 0, 0
+  );
+  
+  const endDate = new Date(
+    today.getFullYear(),
+    today.getMonth(),
+    today.getDate(),
+    23, 59, 59, 999
+  );
+  
+  return { startDate, endDate };
+};
+exports.getSalesOrderTotalWithTimeRange = async (username, timeRange) => {
+if (!username) {
+    throw new SalesError('Username is required', 400);
+  }
+  const parsedTimeRange = parseInt(timeRange);
+  if (isNaN(parsedTimeRange) || parsedTimeRange <= 0) {
+    throw new InvalidTimeRangeError('Time range must be a positive number');
+  }
+
+  const MAX_TIME_RANGE = 365 * 24 * 60 * 60 * 1000;
+  if (parsedTimeRange > MAX_TIME_RANGE) {
+    throw new InvalidTimeRangeError('Time range cannot exceed 1 year');
+  }
+
+  try {
+    const user = await User.findOne({ where: { username } });
+    if (!user) {
+      throw new UserNotFoundError(username);
+    }
+    let startDate = new Date();
+    let endDate = new Date(startDate.getTime() + parsedTimeRange);
+    switch (parsedTimeRange) {
+      case 86400000: {
+        const todayRange = getTodayDateRange();
+        startDate = todayRange.startDate;
+        endDate = todayRange.endDate;
+        break;
+      }
+    }
+    
+
+    const salesOrders = await SalesOrder.findAll({
+      where: {
+        organization_id: user.organization_id,
+        order_date_time: {
+          [Op.between]: [startDate, endDate]
+        }
+      },
+      attributes: [
+        [sequelize.fn('SUM', sequelize.col('grand_total')), 'totalSales']
+      ],
+      raw: true
+    });
+
+    return salesOrders[0]?.totalSales || 0;
+
+  } catch (error) {
+    console.error('Sales order query error:', error);
+    if (error instanceof SalesError) {
+      throw error;
+    }
+    
+    throw new DatabaseError(
+      'An error occurred while fetching sales data: ' + error.message
+    );
   }
 };
 

@@ -10,6 +10,7 @@ router.get('/test', (req, res) => {
 router.use(authMiddleware);
 
 router.get('/user/:username', SalesController.getAllSalesOrders);
+router.get('/:username/salesOrderTotal', SalesController.getAllSalesOrderWithTimeRange);
 router.get('/:username/salesOrders', SalesController.getAllSalesOrders);
 router.get('/:salesOrderUUID/total', SalesController.getSalesOrderTotal);
 router.post('/:username/salesOrder', SalesController.createSalesOrder);
