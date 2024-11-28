@@ -1,5 +1,6 @@
 const SalesService = require('../service/salesService');
-const SalesError = require("../errors/salesError");
+const { SalesError } = require('../errors/salesError.js');
+
 exports.getAllSalesOrders = async (req, res) => {
     try {
         console.log('Received request params:', req.params);
@@ -18,12 +19,55 @@ exports.getAllSalesOrders = async (req, res) => {
             return res.status(404).json({ message: 'No sales orders found' });
         }
         
-        res.status(200).json({ salesOrders: salesOrders }); 
+        res.status(200).json( salesOrders ); 
     } catch (err) {
         console.error('Error in getAllSalesOrders:', err);
         res.status(500).json({ message: err.message }); // Changed from 404 to 500 for server errors
     }
 };
+
+exports.getAllSalesOrderWithTimeRange = async (req, res, next) => {
+    try {
+      const { username } = req.params;
+      const { range } = req.query;
+  
+      const salesOrderTotal = await SalesService.getSalesOrderTotalWithTimeRange(
+        username,
+        range
+      );
+  
+      return res.status(200).json({
+        success: true,
+        data: {
+          username,
+          timeRange: range,
+          totalSales: salesOrderTotal
+        }   
+      });
+  
+    } catch (error) {
+      console.error('Sales controller error:', error);
+  
+      if (error instanceof SalesError) {
+        return res.status(error.statusCode).json({
+          success: false,
+          error: {
+            type: error.name,
+            message: error.message,
+            statusCode: error.statusCode
+          }
+        });
+      }
+        return res.status(500).json({
+        success: false,
+        error: {
+          type: 'UnexpectedError',
+          message: 'An unexpected error occurred',
+          statusCode: 500
+        }
+      });
+    }
+  };
 
 exports.getSalesOrderTotal = async (req, res) => {
     try {

@@ -123,8 +123,8 @@ const SalesOrderModal = ({ isOpen, onClose, order, onUpdate, onDelete, userRole 
             products: updatedOrder.Products?.map(product => ({
               product_id: product.product_id,
               sales_order_items: {
-                quantity: product.SalesOrderInventory?.quantity || 0,
-                price: product.SalesOrderInventory?.price || product.price || 0
+                quantity: product.sales_order_items?.quantity || 0,
+                price: product.sales_order_items?.price || product.price || 0
               }
             })) || []
           },
@@ -170,8 +170,8 @@ const SalesOrderModal = ({ isOpen, onClose, order, onUpdate, onDelete, userRole 
         product.product_uuid === productId 
           ? { 
               ...product, 
-              SalesOrderInventory: {
-                ...product.SalesOrderInventory,
+              sales_order_items: {
+                ...product.sales_order_items,
                 quantity: parseInt(newQuantity) || 0
               }
             }
@@ -188,7 +188,7 @@ const SalesOrderModal = ({ isOpen, onClose, order, onUpdate, onDelete, userRole 
         ...prev.Products,
         {
           ...product,
-          SalesOrderInventory: {
+          sales_order_items: {
             quantity: 1,
             price: product.price
           }
@@ -430,7 +430,7 @@ const SalesOrderModal = ({ isOpen, onClose, order, onUpdate, onDelete, userRole 
                                         className="px-4 py-2 hover:bg-gray-100 cursor-pointer"
                                         onClick={() => {
                                           handleCustomerChange(customer);
-                                          setShowCustomerSearch(false);
+                                          setShowCustomerSearch(falPse);
                                         }}
                                       >
                                         {customer.customer_name}
@@ -582,7 +582,7 @@ const SalesOrderModal = ({ isOpen, onClose, order, onUpdate, onDelete, userRole 
                                     </div>
                                   </div>
                                   <div className="text-gray-600">
-                                    {formatCurrency(product.price)}
+                                    {formatCurrency(parseInt(product.sales_order_items.discounted_price))}
                                   </div>
                                 </div>
                               ))}
@@ -629,9 +629,9 @@ const SalesOrderModal = ({ isOpen, onClose, order, onUpdate, onDelete, userRole 
                                       <button
                                         onClick={() => handleProductQuantityChange(
                                           product.product_uuid,
-                                          (product.SalesOrderInventory?.quantity || 0) - 1
+                                          (product.sales_order_items?.product_quantity || 0) - 1
                                         )}
-                                        disabled={(product.SalesOrderInventory?.quantity || 0) <= 1}
+                                        disabled={(product.sales_order_items?.quantity || 0) <= 1}
                                         className="p-1 hover:bg-gray-100 rounded disabled:opacity-50"
                                       >
                                         <Minus className="w-4 h-4" />
@@ -639,7 +639,7 @@ const SalesOrderModal = ({ isOpen, onClose, order, onUpdate, onDelete, userRole 
                                       <input
                                         type="number"
                                         min="1"
-                                        value={product.SalesOrderInventory?.quantity || 0}
+                                        value={product.sales_order_items?.quantity || 0}
                                         onChange={(e) => handleProductQuantityChange(
                                           product.product_uuid,
                                           e.target.value
@@ -649,7 +649,7 @@ const SalesOrderModal = ({ isOpen, onClose, order, onUpdate, onDelete, userRole 
                                       <button
                                         onClick={() => handleProductQuantityChange(
                                           product.product_uuid,
-                                          (product.SalesOrderInventory?.quantity || 0) + 1
+                                          (product.sales_order_items?.quantity || 0) + 1
                                         )}
                                         className="p-1 hover:bg-gray-100 rounded"
                                       >
@@ -657,16 +657,16 @@ const SalesOrderModal = ({ isOpen, onClose, order, onUpdate, onDelete, userRole 
                                       </button>
                                     </div>
                                   ) : (
-                                    product.SalesOrderInventory?.quantity || 0
+                                    product.sales_order_items?.quantity || 0
                                   )}
                                 </td>
                                 <td className="px-6 py-4 text-right">
-                                  {formatCurrency(product.SalesOrderInventory?.price || 0)}
+                                  {formatCurrency(parseInt(product.sales_order_items?.discounted_price) || 0)}
                                 </td>
                                 <td className="px-6 py-4 text-right">
                                   {formatCurrency(
-                                    (product.SalesOrderInventory?.price || 0) *
-                                    (product.SalesOrderInventory?.quantity || 0)
+                                    (parseInt(product.sales_order_items?.discounted_price) || 0) *
+                                    (parseInt(product.sales_order_items?.quantity) || 0)
                                   )}
                                 </td>
                                 {isEditing && (

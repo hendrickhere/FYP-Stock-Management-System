@@ -131,7 +131,7 @@ const MainContent = ({ isMobile, scrollDirection, isAtTop }) => {
       });
       
       // Refresh the sales orders list
-      fetchSalesOrder();
+      fetchSalesOrder(pageNumber);
     } catch (error) {
       console.error('Error deleting sales order:', error);
       throw error; // Throw error so it can be caught by the table component
@@ -139,7 +139,6 @@ const MainContent = ({ isMobile, scrollDirection, isAtTop }) => {
   };
 
   const handleEditData = (order) => {
-    // Navigate to edit page with order data
     navigation(`/sales/edit_sales/${order.sales_order_uuid}`);
   };
 
@@ -156,14 +155,14 @@ const MainContent = ({ isMobile, scrollDirection, isAtTop }) => {
   }
 
   useEffect(() => {
-    fetchSalesOrder();
+    fetchSalesOrder(pageNumber);
   }, [render]);
 
-  async function fetchSalesOrder() {
+  async function fetchSalesOrder(pageNumber) {
     try {
       setLoading(true);
       const encodedUsername = encodeURIComponent(username);
-      const response = await axiosInstance.get(`http://localhost:3002/api/user/${username}/salesOrders`);
+      const response = await axiosInstance.get(`http://localhost:3002/api/sales/${username}/salesOrders?pageNumber=${pageNumber}`);
       
       if (response.data && Array.isArray(response.data.salesOrders)) {
         setData(response.data);

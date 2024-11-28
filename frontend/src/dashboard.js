@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useContext } from 'react';
 import Header from './header';
 import Sidebar from './sidebar';
 import { BarChart3, Users, Package, Calendar, TrendingUp, DollarSign, ShoppingCart, AlertTriangle, ChevronDown, ZoomIn } from 'lucide-react';
@@ -17,7 +17,8 @@ import {
   AreaChart,
   Area,
 } from 'recharts';
-
+import { GlobalContext } from './globalContext';
+import instance from './axiosConfig';
 const Dashboard = ({ userRole = 'manager', onLogout}) => {
   const [isMobile, setIsMobile] = useState(window.innerWidth < 1024);
 
@@ -44,6 +45,24 @@ const Dashboard = ({ userRole = 'manager', onLogout}) => {
 const MainContent = ({ userRole }) => {
   const isManager = userRole === 'manager';
   const [isMobile, setIsMobile] = useState(window.innerWidth < 1024);
+  const [totalSales, setTotalSales] = useState(0); 
+  const [timeRange, setTimeRange] = useState(86400000); 
+  const {username} = useContext(GlobalContext);
+
+  const fetchTotalSalesWithTimeRange = async (timeRange) => {
+    try{
+      const total = await instance.get(`/sales/${username}/salesOrderTotal?range=${timeRange}`)
+
+      if(total) {
+        setTotalSales(total.data.data.totalSales);
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  }
+  useEffect(() => {
+    fetchTotalSalesWithTimeRange(timeRange);
+  }, [timeRange]);
 
   useEffect(() => {
     const handleResize = () => {
@@ -71,7 +90,7 @@ const MainContent = ({ userRole }) => {
             {isManager && (
               <QuickStatCard
                 title="Today's Sale"
-                value="RM10,000"
+                value={`RM${totalSales}`}
                 trend="+10%"
                 icon={<DollarSign className="w-6 h-6" />}
                 trendUp={true}
@@ -152,7 +171,6 @@ const StockReport = () => {
   const [dateRange, setDateRange] = useState({ start: null, end: null });
   const [showDatePicker, setShowDatePicker] = useState(false);
   
-  // Enhanced sample data with more metrics and forecasting
   const data = [
     { 
       month: 'Jan', 
@@ -192,7 +210,6 @@ const StockReport = () => {
     }
   ];
 
-  // Calculate forecasts using Triple Exponential Smoothing
   const calculateForecast = useCallback((historicalData, periods = 3) => {
     const alpha = 0.3; // Level smoothing
     const beta = 0.1;  // Trend smoothing

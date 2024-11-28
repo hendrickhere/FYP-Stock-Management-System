@@ -338,8 +338,8 @@ const SalesTable = ({
                 <div>
                   <p className="text-gray-500 text-xs uppercase tracking-wider">Total</p>
                   <p className="font-medium text-gray-900">
-                    {typeof order.total_price === 'number' 
-                      ? order.total_price.toLocaleString('en-MY', {
+                    {typeof order.grand_total
+                      ? parseInt(order.grand_total).toLocaleString('en-MY', {
                           style: 'currency',
                           currency: 'MYR'
                         })
@@ -390,7 +390,7 @@ const SalesTable = ({
                     { key: 'expected_shipment_date', label: 'Shipment Date' },
                     { key: 'customer', label: 'Customer' },
                     { key: 'shipping_address', label: 'Shipping Address' },
-                    { key: 'total_price', label: 'Total' },
+                    { key: 'grand_total', label: 'Total' },
                   ].map(column => (
                     <th
                       key={column.key}
@@ -448,8 +448,8 @@ const SalesTable = ({
                         {formatAddress(order.Customer)}
                       </td>
                       <td className="px-3 py-4 text-sm text-gray-900">
-                        {typeof order.total_price === 'number' 
-                          ? order.total_price.toLocaleString('en-MY', {
+                        {typeof order.grand_total 
+                          ? parseInt(order.grand_total).toLocaleString('en-MY', {
                               style: 'currency',
                               currency: 'MYR'
                             })
