@@ -139,7 +139,6 @@ const MainContent = ({ isMobile, scrollDirection, isAtTop }) => {
   };
 
   const handleEditData = (order) => {
-    // Navigate to edit page with order data
     navigation(`/sales/edit_sales/${order.sales_order_uuid}`);
   };
 

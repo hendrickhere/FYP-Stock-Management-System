@@ -93,83 +93,85 @@ exports.getSalesOrderTotal = async (username, salesOrderUUID) => {
   return total;
 };
 
-exports.getAllSalesOrders = async (username, pageNumber, pageSize) => {
-  const offset = (pageNumber - 1) * pageSize;
-  try {
-    const user = await User.findOne({
-      where: {
-        username: username,
-      },
-    });
+// exports.getAllSalesOrders = async (username, pageNumber, pageSize) => {
+//   const offset = (pageNumber - 1) * pageSize;
+//   try {
+//     const user = await User.findOne({
+//       where: {
+//         username: username,
+//       },
+//     });
 
-    if (!user) {
-      throw new Error("User not found");
-    }
+//     if (!user) {
+//       throw new Error("User not found");
+//     }
 
-    const salesOrders = await SalesOrder.findAll({
-      where: {
-        organization_id: user.organization_id,
-      },
-      include: [
-        {
-          model: Customer,
-          required: false,
-          attributes: [
-            "customer_name",
-            "customer_designation",
-            "shipping_address",
-          ],
-        },
-        {
-          model: Product,
-          through: {
-            model: SalesOrderInventory,
-            attributes: ["quantity", "price"],
-          },
-        },
-        {
-          model: Discount,
-          through: {
-            model: SalesOrderDiscount,
-            attributes: ["applied_discount_rate", "discount_amount"],
-          },
-          as: "discounts",
-        },
-        {
-          model: Tax,
-          through: {
-            model: SalesOrderTax, 
-            attributes: ["applied_tax_rate", "tax_amount"]
-          },
-          as: "taxes"
-        }
-      ],
-      order: [["order_date_time", "DESC"]],
-      limit: pageSize,
-      offset: offset,
-    });
+//     const salesOrders = await SalesOrder.findAll({
+//       where: {
+//         organization_id: user.organization_id,
+//       },
+//       include: [
+//         {
+//           model: Customer,
+//           required: false,
+//           attributes: [
+//             "customer_name",
+//             "customer_designation",
+//             "shipping_address",
+//           ],
+//           as: "customer"
+//         },
+//         {
+//           model: Product,
+//           through: {
+//             model: SalesOrderInventory,
+//             attributes: ["quantity", "price"],
+//           },
+//           as: "products"
+//         },
+//         {
+//           model: Discount,
+//           through: {
+//             model: SalesOrderDiscount,
+//             attributes: ["applied_discount_rate", "discount_amount"],
+//           },
+//           as: "discounts",
+//         },
+//         {
+//           model: Tax,
+//           through: {
+//             model: SalesOrderTax, 
+//             attributes: ["applied_tax_rate", "tax_amount"]
+//           },
+//           as: "taxes"
+//         }
+//       ],
+//       order: [["order_date_time", "DESC"]],
+//       limit: pageSize,
+//       offset: offset,
+//     });
 
-    return {
-      salesOrders: salesOrders.map((order) => ({
-        sales_order_id: order.sales_order_id,
-        sales_order_uuid: order.sales_order_uuid,
-        order_date_time: order.order_date_time,
-        expected_shipment_date: order.expected_shipment_date,
-        customer: order.Customer || null,
-        grandtotal: order.grand_total,
-        subtotal: order.subtotal,
-        discounts: order.discounts,
-        taxes: order.taxes,
-        discountAmount: order.discount_amount,
-        totalTax: order.total_tax,
-        inventories: order.items || [],
-      })),
-    };
-  } catch (error) {
-    console.error("Error in getAllSalesOrders service:", error);
-    return { salesOrders: [] };
-  }
-};
+//     return {
+//       salesOrders: salesOrders.map((order) => ({
+//         sales_order_id: order.sales_order_id,
+//         sales_order_uuid: order.sales_order_uuid,
+//         order_date_time: order.order_date_time,
+//         expected_shipment_date: order.expected_shipment_date,
+//         customer: order.Customer || null,
+//         grandtotal: order.grand_total,
+//         subtotal: order.subtotal,
+//         discounts: order.discounts,
+//         taxes: order.taxes,
+//         products: order.products, 
+//         discountAmount: order.discount_amount,
+//         totalTax: order.total_tax,
+//       })),
+//     };
+//   } catch (error) {
+//     console.error("Error in getAllSalesOrders service:", error);
+//     return { salesOrders: [] };
+//   }
+// };
 
 const validateItemLists = (itemLists) => {
   if (!Array.isArray(itemLists) || itemLists.length === 0) {
@@ -423,18 +425,18 @@ exports.getAllSalesOrders = async (username) => {
             ...plainOrder.Customer,
             customer_contact: plainOrder.Customer?.customer_contact || "N/A",
           },
-          products:
-            plainOrder.Products?.map((product) => ({
-              product_id: product.product_id,
-              product_uuid: product.product_uuid,
-              product_name: product.product_name,
-              sku_number: product.sku_number,
-              product_description: product.description,
-              sales_order_items: {
-                quantity: product.SalesOrderInventory?.quantity || 0,
-                price: product.SalesOrderInventory?.price || 0,
-              },
-            })) || [],
+          // products:
+          //   plainOrder.Products?.map((product) => ({
+          //     product_id: product.product_id,
+          //     product_uuid: product.product_uuid,
+          //     product_name: product.product_name,
+          //     sku_number: product.sku_number,
+          //     product_description: product.description,
+          //     sales_order_items: {
+          //       quantity: product.SalesOrderInventory?.quantity || 0,
+          //       price: product.SalesOrderInventory?.price || 0,
+          //     },
+          //   })) || [],
         };
       }),
     };
