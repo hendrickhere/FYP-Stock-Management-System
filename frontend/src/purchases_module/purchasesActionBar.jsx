@@ -33,20 +33,6 @@ const PurchasesActionBar = ({
 
           <Button
             variant="outline"
-            onClick={onManageTax}
-            className="flex items-center space-x-2 px-4 py-2"
-          >
-            <BadgeDollarSign className="w-4 h-4 mr-2" />
-            Manage Tax
-            {selectedOrders.length > 0 && 
-              <span className="ml-2 px-2 py-0.5 rounded-full text-xs bg-gray-100">
-                {selectedOrders.length}
-              </span>
-            }
-          </Button>
-
-          <Button
-            variant="outline"
             onClick={onRecordExpenses}
             className="flex items-center space-x-2 px-4 py-2"
           >
@@ -58,41 +44,6 @@ const PurchasesActionBar = ({
               </span>
             }
           </Button>
-
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button
-                variant="outline"
-                className={`flex items-center space-x-2 ${selectedOrders.length > 0 ? "" : "opacity-50"}`}
-              >
-                <Receipt className="w-4 h-4 mr-2" />
-                Create Documents
-                {selectedOrders.length > 0 && 
-                  <span className={`ml-2 px-2 py-0.5 rounded-full text-xs ${
-                    selectedOrders.length > 5 ? 'bg-red-100 text-red-600' : 'bg-gray-100'
-                  }`}>
-                    {selectedOrders.length}
-                  </span>
-                }
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="start" className="w-48">
-              <DropdownMenuItem 
-                className="flex items-center"
-                onClick={() => onCreateBill('invoice')}
-              >
-                <Receipt className="w-4 h-4 mr-2" />
-                Create Invoice
-              </DropdownMenuItem>
-              <DropdownMenuItem 
-                className="flex items-center"
-                onClick={() => onCreateBill('bill')}
-              >
-                <Receipt className="w-4 h-4 mr-2" />
-                Create Bill
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
         </div>
 
         {selectedOrders.length > 0 && (
