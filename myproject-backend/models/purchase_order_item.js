@@ -28,17 +28,17 @@ class PurchaseOrderItem extends Model {
                 allowNull: false
             },
             tax: {
-                type: DataTypes.FLOAT,
+                type: DataTypes.DECIMAL(10,2),  
                 allowNull: true,
-                defaultValue: 0
+                defaultValue: 0.00
             },
             discount: {
-                type: DataTypes.FLOAT,
+                type: DataTypes.DECIMAL(10,2),  
                 allowNull: true,
-                defaultValue: 0
+                defaultValue: 0.00
             },
             total_price: {
-                type: DataTypes.FLOAT,
+                type: DataTypes.DECIMAL(10,2),  
                 allowNull: false,
             }
         }, {

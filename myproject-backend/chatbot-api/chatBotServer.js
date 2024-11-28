@@ -9,7 +9,13 @@ const { Op } = require("sequelize");
 const authMiddleware = require("../backend-middleware/authMiddleware");
 const multer = require('multer');
 const PDFParser = require('pdf-parse');
-const { processDocument } = require('./documentProcessor');
+const { 
+  processDocument,
+  extractTextFromImage,
+  extractTextFromPDF,
+  parseInventoryInfo 
+} = require('./documentProcessor');
+const chatbotIntelligence = require('./chatBotIntelligence');
 
 // Environment setup
 const envPath = path.join(__dirname, '.env');
@@ -22,6 +28,36 @@ if (fs.existsSync(envPath)) {
 
 console.log('Environment loaded from:', envPath);
 console.log('API Key present:', !!process.env.OPENAI_API_KEY);
+
+const SYSTEM_PROMPT = `You are StockSavvy, an intelligent inventory management assistant. You can:
+1. Process and analyze purchase orders
+2. Provide inventory insights
+3. Answer questions about stock management
+4. Guide users through business processes
+
+For purchase orders:
+- Extract and validate item details
+- Calculate totals and taxes
+- Generate summaries
+- Guide users through confirmation
+
+Format responses professionally using markdown.
+If you can't help with something, explain why and suggest alternatives.`;
+
+const chatCompletion = async (messages, contextData = {}) => {
+    const systemMessage = {
+        role: "system",
+        content: SYSTEM_PROMPT + (contextData ? `\nCurrent context: ${JSON.stringify(contextData)}` : '')
+    };
+
+    const response = await openai.chat.completions.create({
+        model: "gpt-4",
+        messages: [systemMessage, ...messages],
+        temperature: 0.7
+    });
+
+    return response.choices[0].message.content;
+};
 
 const upload = multer({
   storage: multer.memoryStorage(),
@@ -38,6 +74,37 @@ const upload = multer({
     }
   }
 });
+
+const parseItems = (text) => {
+  const items = [];
+  const lines = text.split('\n');
+  
+  // Regular expression to match item patterns
+  const itemPattern = /(\d{3})\s+([\w\s-]+)\s+(\d+)\s+(\d+\.\d{2})\s+(\d+(?:\.\d{2})?)/g;
+  
+  // Find all matches in the text
+  let match;
+  while ((match = itemPattern.exec(text)) !== null) {
+    try {
+      const item = {
+        sku: `PO-${match[1]}`,
+        productName: match[2].trim(),
+        quantity: parseInt(match[3]),
+        price: parseFloat(match[4]),
+        total: parseFloat(match[5])
+      };
+      
+      // Validate the item data
+      if (item.quantity > 0 && item.price > 0 && item.total > 0) {
+        items.push(item);
+      }
+    } catch (error) {
+      console.error('Error parsing item:', error);
+    }
+  }
+
+  return items;
+};
 
 const openai = new OpenAI({
     apiKey: process.env.OPENAI_API_KEY
@@ -64,64 +131,136 @@ function estimateTokens(text, images = []) {
 }
 
 const processFile = async (file) => {
-    try {
-        // First process the document with OCR
-        const { extractedItems, metadata } = await processDocument(file);
-        
-        // If no items were extracted, throw an error
-        if (!extractedItems || extractedItems.length === 0) {
-            console.error('No items extracted from document');
-            throw new Error('Could not extract any items from the document. Please check the format.');
-        }
+  try {
+    if (file.mimetype === 'application/pdf') {
+      // Add options to handle problematic PDFs
+      const options = {
+        pagerender: render_page,
+        max: 2, // Process max 2 pages
+        version: 'v2.0.550'  // Use newer PDF.js version
+      };
 
-        console.log('Extracted items:', extractedItems);
-
-        // Create a concise prompt for OpenAI that includes the full context
-        const promptText = `Analyze this purchase order:
-        Items:
-        ${extractedItems.map(item => 
-            `- ${item.productName} (SKU: ${item.sku}): ${item.quantity} units at RM${item.price}`
-        ).join('\n')}
-
-        Total items: ${extractedItems.length}
-        Total value: RM${extractedItems.reduce((sum, item) => sum + (item.price * item.quantity), 0).toFixed(2)}
-
-        Provide a brief analysis of these items, focusing on:
-        1. Stock level implications
-        2. Any notable quantities or values
-        3. Suggested actions for inventory management`;
-
-        // Get OpenAI analysis with minimal tokens
-        const response = await openai.chat.completions.create({
-            model: "gpt-4",
-            messages: [
-                {
-                    role: "system",
-                    content: "You are a stock management assistant analyzing a purchase order. Give specific, actionable insights about the items and quantities."
-                },
-                {
-                    role: "user",
-                    content: promptText
-                }
-            ],
-            max_tokens: 200,
-            temperature: 0.3
-        });
-
-        return {
-            content: response.choices[0].message.content,
-            metadata: {
-                ...metadata,
-                extractedItems,
-                totalItems: extractedItems.length,
-                totalValue: extractedItems.reduce((sum, item) => sum + (item.price * item.quantity), 0)
-            }
+      // Function to handle page rendering
+      function render_page(pageData) {
+        let render_options = {
+          normalizeWhitespace: true,
+          disableCombineTextItems: false
         };
-    } catch (error) {
-        console.error('File processing error:', error);
-        throw new Error(`Error processing file: ${error.message}`);
+        return pageData.getTextContent(render_options)
+          .then(function(textContent) {
+            let text = "";
+            for (let item of textContent.items) {
+              text += item.str + " ";
+            }
+            return text;
+          });
+      }
+
+      // Process the PDF with error handling
+      const dataBuffer = file.buffer;
+      let pdfData;
+      
+      try {
+        pdfData = await new Promise((resolve, reject) => {
+          PDFParser(dataBuffer, options).then(function(data) {
+            resolve(data);
+          }).catch(function(error) {
+            // Try alternate parsing method if first fails
+            const pdf = require('pdf-parse');
+            return pdf(dataBuffer).then(data => resolve(data));
+          });
+        });
+      } catch (pdfError) {
+        console.error('PDF parsing error:', pdfError);
+        throw new Error('Unable to parse PDF. Please ensure the file is not corrupted.');
+      }
+
+      // Extract text content
+      const textContent = pdfData.text || '';
+
+      // Parse items using more flexible regex pattern
+      const items = [];
+      const itemRegex = /(\d{3})\s*(Car|Truck)\s*Battery\s*-\s*Model\s*([A-Z]\d+)\s*(\d+)\s*(\d+(?:\.\d{2})?)/g;
+      
+      let match;
+      while ((match = itemRegex.exec(textContent)) !== null) {
+        const item = {
+          sku: `BAT-${match[3]}`,
+          productName: `${match[2]} Battery - Model ${match[3]}`,
+          quantity: parseInt(match[4]),
+          price: parseFloat(match[5]),
+          total: parseInt(match[4]) * parseFloat(match[5])
+        };
+        items.push(item);
+      }
+
+      // Extract PO metadata
+      const poNumber = textContent.match(/PO Number:\s*([\w-]+)/)?.[1] || '';
+      const poDate = textContent.match(/Date:\s*([\d\s\w]+)/)?.[1] || '';
+      const vendorName = textContent.match(/Vendor Name:\s*([^\\n]+)/)?.[1] || '';
+
+      // Calculate totals
+      const subtotal = items.reduce((sum, item) => sum + item.total, 0);
+      const tax = subtotal * 0.06; // 6% tax rate from PO
+      const shipping = 500.00; // From PO
+      const grandTotal = subtotal + tax + shipping;
+
+      const metadata = {
+        poNumber,
+        poDate,
+        vendorName,
+        extractedItems: items,
+        subtotal,
+        tax,
+        shipping,
+        grandTotal
+      };
+
+      return {
+        content: generateAnalysis(metadata),
+        metadata,
+        success: true
+      };
+
+    } else {
+      throw new Error('Unsupported file type. Please upload a PDF file.');
     }
+  } catch (error) {
+    console.error('File processing error:', error);
+    throw new Error(`Error processing file: ${error.message}`);
+  }
 };
+
+const generateAnalysis = (result) => {
+  // Ensure we're accessing the correct data structure
+  const items = result.extractedItems || [];
+  const subtotal = items.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+  const tax = subtotal * 0.06;
+  const shipping = 500.00;
+  const grandTotal = subtotal + tax + shipping;
+
+  const itemDetails = items.map(item => 
+    `   • ${item.productName}: ${item.quantity} units at RM${item.price.toFixed(2)} each (Total: RM${(item.quantity * item.price).toFixed(2)})`
+  ).join('\n');
+
+  return {
+    analysis: `I've analyzed your purchase order document. Here's what I found:
+
+1. Number of items: ${items.length}
+2. Items detail:
+${itemDetails}
+
+3. Summary:
+   • Subtotal: RM${subtotal.toFixed(2)}
+   • Tax (6%): RM${tax.toFixed(2)}
+   • Shipping: RM${shipping.toFixed(2)}
+   • Grand Total: RM${grandTotal.toFixed(2)}`,
+    metadata: { items, subtotal, tax, shipping, grandTotal }
+  };
+};
+
+// Update the itemRegex pattern in processFile function:
+const itemRegex = /(\d{3})\s+(Car|Truck)\s*Battery\s*-\s*Model\s*([A-Z0-9]+)\s*(\d+)\s*(\d+(?:\.\d{2})?)\s*(\d+(?:\.\d{2})?)/g;
 
 async function checkRateLimit(requiredTokens) {
     const now = Date.now();
@@ -145,6 +284,103 @@ async function checkRateLimit(requiredTokens) {
     
     // If we reach here, update token count
     rateLimiter.tokens += requiredTokens;
+}
+
+async function validateExtractedData(data, models) {
+    const warnings = [];
+    const { Product, Vendor } = models;
+
+    // Validate vendor
+    if (data.vendor) {
+        const vendor = await Vendor.findOne({ 
+            where: { 
+                vendor_name: { [Op.iLike]: `%${data.vendor.name}%` }
+            }
+        });
+        if (!vendor) {
+            warnings.push({
+                field: 'vendor',
+                message: 'Vendor not found in database'
+            });
+        }
+    }
+
+    // Validate items
+    if (data.items) {
+        for (const item of data.items) {
+            const product = await Product.findOne({
+                where: {
+                    [Op.or]: [
+                        { sku_number: item.sku },
+                        { product_name: { [Op.iLike]: `%${item.name}%` }}
+                    ]
+                }
+            });
+
+            if (!product) {
+                warnings.push({
+                    field: 'item',
+                    item: item.name,
+                    message: 'Product not found in database'
+                });
+            }
+        }
+    }
+
+    // Validate required fields based on document type
+    const requiredFields = {
+        purchase_order: ['vendor', 'items', 'metadata.date'],
+        invoice: ['vendor', 'items', 'metadata.date'],
+        delivery_note: ['vendor', 'items']
+    };
+
+    if (data.documentType in requiredFields) {
+        for (const field of requiredFields[data.documentType]) {
+            if (!getNestedValue(data, field)) {
+                warnings.push({
+                    field,
+                    message: 'Required field missing'
+                });
+            }
+        }
+    }
+
+    return {
+        hasWarnings: warnings.length > 0,
+        warnings,
+        suggestedActions: generateSuggestedActions(warnings)
+    };
+}
+
+async function getContextData(message, username) {
+    const contextData = {};
+    
+    if (message.toLowerCase().includes('inventory') || 
+        message.toLowerCase().includes('stock')) {
+        contextData.inventory = await userService.getAllInventory(username);
+    }
+    
+    if (message.toLowerCase().includes('purchase') || 
+        message.toLowerCase().includes('order')) {
+        contextData.recentOrders = await userService.getRecentPurchaseOrders(username);
+    }
+
+    return contextData;
+}
+
+// Helper to extract actions from AI response
+function extractActions(response) {
+    const actions = [];
+    
+    if (response.toLowerCase().includes('upload')) {
+        actions.push('upload');
+    }
+    if (response.toLowerCase().includes('confirm')) {
+        actions.push('confirm');
+    }
+    // Add more action detection as needed
+
+    return actions;
 }
 
 // Helper function for inventory insights
@@ -206,134 +442,96 @@ async function getInventoryInsights(username) {
   }
 }
 
+// File processing endpoint
 router.post('/process-file', authMiddleware, upload.single('file'), async (req, res) => {
-  try {
-    if (!req.file) {
-      return res.status(400).json({ error: 'No file uploaded' });
+    try {
+        if (!req.file) {
+            return res.status(400).json({ 
+                success: false, 
+                error: 'No file uploaded' 
+            });
+        }
+
+        // Use chatbotIntelligence to process the file
+        const conversationId = req.user.user_id;
+        const result = await chatbotIntelligence.analyzeDocument(req.file, conversationId);
+
+        if (result.success) {
+            res.json({
+                success: true,
+                message: result.explanation,
+                analysis: result.analysis,
+                suggestedActions: result.suggestedActions
+            });
+        } else {
+            res.status(422).json({
+                success: false,
+                error: result.error,
+                explanation: result.explanation
+            });
+        }
+
+    } catch (error) {
+        console.error('File processing error:', error);
+        res.status(500).json({ 
+            success: false, 
+            error: error.message || 'Error processing file'
+        });
     }
-
-    console.log('Processing file:', req.file.originalname);
-    
-    // Single call to processFile which now handles both OCR and OpenAI analysis
-    const { content, metadata } = await processFile(req.file);
-
-    res.json({
-      success: true,
-      message: content,
-      fileAnalysis: { metadata }
-    });
-
-  } catch (error) {
-    console.error('File processing error:', error);
-    res.status(500).json({
-      success: false,
-      error: error.message || 'Error processing file'
-    });
-  }
 });
 
+// Chat endpoint
 router.post('/chat', authMiddleware, async (req, res) => {
-  try {
-    const userMessage = req.body.message;
-    const username = req.user.username;
-    const estimatedTokens = estimateTokens(userMessage) + 500; // Message + buffer
-    await checkRateLimit(estimatedTokens);
-    
-    if (!userMessage) {
-      return res.status(400).json({ error: 'Message is required' });
-    }
+    try {
+        const { message } = req.body;
+        const username = req.user.username;
+        const conversationId = req.user.user_id;
 
-    // Initialize empty contextData
-    let contextData = {};
-    
-    // Check message type and get only relevant data
-    if (/low stock|reorder|running out/i.test(userMessage)) {
-      const allInventory = await userService.getAllInventory(username);
-      contextData.lowStockItems = allInventory
-        .filter(item => item.product_stock < 10)
-        .map(item => ({
-          name: item.product_name,
-          sku: item.sku_number,
-          stock: item.product_stock,
-          reorderPoint: 10
-        }));
-    }
-    
-    else if (/expir(y|ing)|expire/i.test(userMessage)) {
-      const allInventory = await userService.getAllInventory(username);
-      contextData.expiringItems = allInventory
-        .filter(item => {
-          if (item.is_expiry_goods && item.expiry_date) {
-            const daysUntilExpiry = Math.ceil((new Date(item.expiry_date) - new Date()) / (1000 * 60 * 60 * 24));
-            return daysUntilExpiry <= 30;
-          }
-          return false;
-        })
-        .map(item => ({
-          name: item.product_name,
-          sku: item.sku_number,
-          expiryDate: item.expiry_date,
-          daysRemaining: Math.ceil((new Date(item.expiry_date) - new Date()) / (1000 * 60 * 60 * 24))
-        }));
-    }
-    
-    else if (/total value|inventory value/i.test(userMessage)) {
-      const allInventory = await userService.getAllInventory(username);
-      contextData.totalValue = allInventory.reduce((sum, item) => sum + (item.price * item.product_stock), 0);
-      contextData.productCount = allInventory.length;
-    }
-    
-    else if (/distribution|manufacturer|brand/i.test(userMessage)) {
-      const allInventory = await userService.getAllInventory(username);
-      contextData.categories = allInventory.reduce((acc, item) => {
-        if (!acc[item.manufacturer]) {
-          acc[item.manufacturer] = {
-            count: 0,
-            totalValue: 0
-          };
+        if (!message) {
+            return res.status(400).json({ 
+                success: false, 
+                error: 'Message is required' 
+            });
         }
-        acc[item.manufacturer].count++;
-        acc[item.manufacturer].totalValue += item.price * item.product_stock;
-        return acc;
-      }, {});
+
+        // Use chatbotIntelligence for chat handling
+        const response = await chatbotIntelligence.handleUserResponse(
+            conversationId,
+            message,
+            { username }
+        );
+
+        res.json({
+            success: true,
+            message: response.message,
+            suggestedActions: response.suggestedActions,
+            context: response.context
+        });
+
+    } catch (error) {
+        console.error('Chat error:', error);
+        res.status(500).json({
+            success: false,
+            error: error.message || 'Error processing chat request'
+        });
+    }
+});
+
+// Error handling middleware
+router.use((error, req, res, next) => {
+    console.error('Chatbot error:', error);
+    
+    if (error instanceof multer.MulterError) {
+        return res.status(400).json({
+            success: false,
+            error: 'File upload error: ' + error.message
+        });
     }
 
-    const systemPrompt = `You are StockSavvy, an intelligent stock management assistant with access to real-time inventory data.
-    ${contextData ? `Current inventory insights: ${JSON.stringify(contextData)}` : ''}
-    
-    Provide clear, actionable insights about ONLY the specific information requested.
-    Focus on the exact query and avoid including unrelated inventory information.
-    Format your responses in a professional and easy-to-read manner using markdown.
-    When mentioning numbers, use proper formatting (e.g., RM 1,234.56 for currency).
-    
-    If asked about specific products or data that isn't available in the current context,
-    acknowledge the limitation and suggest what information would be helpful.
-    
-    Current user: ${username}`;
-
-    const completion = await openai.chat.completions.create({
-      model: "gpt-4",
-      messages: [
-        {"role": "system", "content": systemPrompt},
-        {"role": "user", "content": userMessage}
-      ],
-      temperature: 0.7,
-      max_tokens: maxOutputTokens
-    });
-
-    res.json({
-      success: true,
-      message: completion.choices[0].message.content,
-      data: contextData
-    });
-
-  } catch (error) {
-    console.error('Error:', error);
     res.status(500).json({
-      success: false,
-      error: error.message || 'Error processing your request'
+        success: false,
+        error: error.message || 'Internal server error'
     });
-  }
 });
 
 async function getMinimalContext(message, username) {

@@ -430,7 +430,7 @@ const SalesOrderModal = ({ isOpen, onClose, order, onUpdate, onDelete, userRole 
                                         className="px-4 py-2 hover:bg-gray-100 cursor-pointer"
                                         onClick={() => {
                                           handleCustomerChange(customer);
-                                          setShowCustomerSearch(falPse);
+                                          setShowCustomerSearch(false);
                                         }}
                                       >
                                         {customer.customer_name}

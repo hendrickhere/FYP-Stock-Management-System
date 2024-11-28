@@ -23,8 +23,15 @@ class Product extends Model {
                 allowNull: false,
             },
             sku_number: {
-                type: DataTypes.INTEGER,
+                type: DataTypes.STRING,  
                 allowNull: true,
+                validate: {
+                    isValidSKU(value) {
+                        if (value && !value.match(/^(BAT|PO)-[A-Z0-9]+$/)) {
+                            throw new Error('Invalid SKU format');
+                        }
+                    }
+                }
             },
             unit: {
                 type: DataTypes.STRING,
