@@ -314,7 +314,7 @@ const ItemTable = ({ items, setItems }) => {
                 {/* Unit Price Cell */}
                 <td className="px-6 py-4">
                   <div className="text-sm">
-                    {item.price ? item.price.toFixed(2) : '-'}
+                    {parseFloat(item.price)  ? parseFloat(item.price).toFixed(2) : '-'}
                   </div>
                 </td>
                 <td className="px-6 py-4 text-sm font-medium">
@@ -453,7 +453,7 @@ const ItemTable = ({ items, setItems }) => {
                             {/* Price and Stock Information */}
                             <div className="text-right ml-4">
                               <div className="font-medium text-blue-600">
-                                MYR {product.price?.toFixed(2)}
+                                MYR {parseFloat(product.price)?.toFixed(2)}
                               </div>
                               <div className={`text-sm mt-1 ${
                                 product.product_stock <= 5 

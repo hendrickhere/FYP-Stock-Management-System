@@ -1,6 +1,6 @@
 const db = require("../models");
 const DiscountError = require("../errors/discountError");
-
+const { Op } = require("sequelize");
 const Discount = db.Discount;
 const Organization = db.Organization;
 
@@ -94,10 +94,15 @@ exports.getDiscounts = async (organizationId) => {
   }
 
   try {
+    const currentDate = new Date();
     const discounts = await Discount.findAll({
       where: {
         organization_id: organizationId,
         discount_status: 1,
+        [Op.or]: [
+          { discount_end: null },  
+          { discount_end: { [Op.gt]: currentDate } }  
+        ]
       },
       attributes: [
         "discount_id",
@@ -193,6 +198,19 @@ exports.deleteDiscount = async (discountId) => {
   }
 };
 
+exports.getDiscountByIdAsync = async (discountId) => {
+  try{
+    const discount = await Discount.findByPk(discountId);
+    return discount.dataValues; 
+  } catch (err) {
+    console.error("Failed to fetch discount:", err);
+    throw new DiscountError(
+      "Failed to fetch discount", 
+      "INTERNAL_SERVER_ERROR", 
+      500
+    );
+  }
+}
 const getOrganization = async (organizationId) => {
   return await Organization.findOne({
     where: {

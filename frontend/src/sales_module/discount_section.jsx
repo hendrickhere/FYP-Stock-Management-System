@@ -1,11 +1,13 @@
-import React, { useState, useEffect, useContext } from 'react';
+import React from 'react';
 import { X, Loader2, Percent } from 'lucide-react';
-import { GlobalContext } from '../globalContext';
-import instance from '../axiosConfig';
 
-const MultiDiscountSelection = ({selectedDiscounts, discounts, handleDiscountChange, isLoading, error}) => {
-  
-
+const MultiDiscountSelection = ({
+  selectedDiscounts = [],
+  discounts = [],
+  handleDiscountChange,
+  isLoading,
+  error
+}) => {
   const handleDiscountToggle = (discount) => {
     handleDiscountChange(discount);
   };
@@ -26,6 +28,23 @@ const MultiDiscountSelection = ({selectedDiscounts, discounts, handleDiscountCha
     return (
       <div className="w-full max-w-4xl p-6 bg-red-50 rounded-lg border border-red-200 text-red-700">
         {error}
+      </div>
+    );
+  }
+
+  // Handle empty or null discounts
+  if (!discounts || discounts.length === 0) {
+    return (
+      <div className="w-full max-w-4xl p-6 bg-white rounded-lg shadow-sm">
+        <div className="flex justify-between items-center mb-6">
+          <h2 className="text-2xl font-semibold text-gray-800">Discount Selection</h2>
+        </div>
+        <div className="flex flex-col items-center justify-center py-12 px-4 bg-gray-50 rounded-lg border border-gray-200">
+          <div className="text-center space-y-3">
+            <p className="text-gray-600 text-lg">No discounts are currently available</p>
+            <p className="text-sm text-gray-500">Check back later for new promotions and special offers</p>
+          </div>
+        </div>
       </div>
     );
   }
@@ -126,39 +145,5 @@ const MultiDiscountSelection = ({selectedDiscounts, discounts, handleDiscountCha
     </div>
   );
 };
-
-// Mock data for demonstration
-const mockDiscounts = [
-  {
-    discount_id: 1,
-    discount_name: 'Early Bird',
-    description: 'Special discount for early purchases',
-    discount_rate: 10,
-    is_special: true,
-    discount_end: '2024-12-31'
-  },
-  {
-    discount_id: 2,
-    discount_name: 'Bulk Purchase',
-    description: 'Discount for bulk orders',
-    discount_rate: 15,
-    is_special: false
-  },
-  {
-    discount_id: 3,
-    discount_name: 'Seasonal Sale',
-    description: 'Limited time seasonal discount',
-    discount_rate: 20,
-    is_special: true,
-    discount_end: '2024-06-30'
-  },
-  {
-    discount_id: 4,
-    discount_name: 'Loyalty Reward',
-    description: 'Special discount for loyal customers',
-    discount_rate: 5,
-    is_special: false
-  }
-];
 
 export default MultiDiscountSelection;
