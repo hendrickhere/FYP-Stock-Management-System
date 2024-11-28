@@ -19,6 +19,14 @@ console.log('SalesOrder model:', !!SalesOrder);
 console.log('Product model:', !!Product);
 
 
+exports.getUserByUsernameAsync = async (username) => {
+  const user = await User.findOne({
+    where: {
+      username: username,
+    },
+  });
+  return user.dataValues;
+}
 async function getUserByUsername(username) {
   const user = await User.findOne({
     where: {
@@ -87,7 +95,33 @@ async function getUserByRefreshToken(refreshToken) {
     throw error;
   }
 }
+exports.getInventoryCount = async (username) => {
+  const user = await getUserByUsername(username);
 
+  if(!user) {
+    throw UserNotFoundException(username);
+  }
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const [totalCount, todayCount] = await Promise.all([
+    Product.count({
+      include: [{
+        model: User,
+        where: { organization_id: user.organization_id }
+      }]
+    }),
+    Product.count({
+      where: {  created_at: { [Op.gte]: today },},
+      include: [{
+        model: User,
+        where: { organization_id: user.organization_id }
+      }]
+    })
+  ]);
+  return {
+    total: totalCount,
+    newToday: todayCount
+  };}
 exports.signup = async (userData) => {
   const { username, email, password, role, created_at } = userData;
 

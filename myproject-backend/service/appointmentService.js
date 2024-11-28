@@ -2,7 +2,9 @@ const { username } = require('../config/env');
 const {Appointment, User, Customer, Organization} = require('../models');
 const { v4: uuidv4 } = require('uuid');
 const StakeholderService = require("../service/stakeholderService");
-
+const { getUserByUsernameAsync } = require('./userService');
+const {UserNotFoundException} = require("../errors/notFoundException");
+const AppointmentError = require("../errors/appointmentError");
 exports.getAllAppointmentWithCustomersId = async (customerId) => {
     const appointments = await Appointments.findAll(
         {
@@ -13,6 +15,20 @@ exports.getAllAppointmentWithCustomersId = async (customerId) => {
     );
 
     return appointments; 
+}
+
+exports.getAppointmentCount = async (username) => {
+  const user = await getUserByUsernameAsync(username);
+
+  if(user == null){
+    throw new UserNotFoundException(username);
+  }
+
+  try {
+    
+  } catch (err) {
+
+  }
 }
 
 exports.insertAppointment = async (requestBody) => {

@@ -1,6 +1,6 @@
 const { User, Vendor, Customer } = require("../models");
 const { v4: uuidv4 } = require("uuid");
-
+const { Op } = require("sequelize");
 exports.getAllVendors = async (username) => {
   const existingUser = await getUserFromUsername(username);
 
@@ -61,8 +61,8 @@ exports.updateVendor = async (vendorId, vendorData, username) => {
     const existingVendor = await Vendor.findOne({
       where: {
         vendor_id: vendorId,
-        user_id: user.user_id
-      }
+        user_id: user.user_id,
+      },
     });
 
     if (!existingVendor) {
@@ -75,21 +75,21 @@ exports.updateVendor = async (vendorId, vendorData, username) => {
         contact_person: vendorData.contactPerson,
         phone_number: vendorData.phoneNumber,
         address: vendorData.address,
-        updated_at: new Date()
+        updated_at: new Date(),
       },
       {
         where: {
           vendor_id: vendorId,
-          user_id: user.user_id
-        }
+          user_id: user.user_id,
+        },
       }
     );
 
     const updatedVendor = await Vendor.findOne({
       where: {
         vendor_id: vendorId,
-        user_id: user.user_id
-      }
+        user_id: user.user_id,
+      },
     });
 
     return updatedVendor;
@@ -106,8 +106,8 @@ exports.deleteVendor = async (vendorId, username) => {
   const result = await Vendor.destroy({
     where: {
       vendor_id: vendorId,
-      user_id: user.user_id
-    }
+      user_id: user.user_id,
+    },
   });
 
   if (!result) throw new Error("Vendor not found or already deleted");
@@ -171,18 +171,56 @@ exports.getAllCustomers = async (username, pageNumber, pageSize) => {
     if (!customers) {
       throw new Error("No customers found.");
     }
-    const mappedCustomers = customers.map(customer => {
-        return {
-          ...customer.dataValues, 
-          registration_date: customer.createdAt, 
-          status: customer.status_id
-        };
-      });
-  
-      return mappedCustomers;
+    const mappedCustomers = customers.map((customer) => {
+      return {
+        ...customer.dataValues,
+        registration_date: customer.createdAt,
+        status: customer.status_id,
+      };
+    });
+
+    return mappedCustomers;
   } else {
     throw new Error("User does not exist.");
   }
+};
+
+exports.getCustomerCount = async (username) => {
+  const user = await getUserFromUsername(username);
+
+  if (!user) {
+    throw new UserNotFoundException(username);
+  }
+
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  const [totalCount, todayCount] = await Promise.all([
+    Customer.count({
+      include: [
+        {
+          model: User,
+          where: { organization_id: user.organization_id },
+        },
+      ],
+    }),
+    Customer.count({
+      where: {
+        created_at: { [Op.gte]: today },
+      },
+      include: [
+        {
+          model: User,
+          where: { organization_id: user.organization_id },
+        },
+      ],
+    }),
+  ]);
+
+  return {
+    total: totalCount,
+    newToday: todayCount,
+  };
 };
 
 exports.getCustomer = async (customerUuid, username) => {
@@ -227,8 +265,8 @@ exports.updateCustomer = async (uuid, customerData, username) => {
     const existingCustomer = await Customer.findOne({
       where: {
         customer_uuid: uuid,
-        user_id: user.user_id
-      }
+        user_id: user.user_id,
+      },
     });
 
     if (!existingCustomer) {
@@ -245,13 +283,13 @@ exports.updateCustomer = async (uuid, customerData, username) => {
         customer_company: customerData.customerCompany,
         billing_address: customerData.billingAddress,
         shipping_address: customerData.shippingAddress,
-        updated_at: new Date()
+        updated_at: new Date(),
       },
       {
         where: {
           customer_uuid: uuid,
-          user_id: user.user_id
-        }
+          user_id: user.user_id,
+        },
       }
     );
 
@@ -259,8 +297,8 @@ exports.updateCustomer = async (uuid, customerData, username) => {
     const updatedCustomer = await Customer.findOne({
       where: {
         customer_uuid: uuid,
-        user_id: user.user_id
-      }
+        user_id: user.user_id,
+      },
     });
 
     return updatedCustomer;
@@ -277,8 +315,8 @@ exports.deleteCustomer = async (uuid, username) => {
   const result = await Customer.destroy({
     where: {
       customer_uuid: uuid,
-      user_id: user.user_id
-    }
+      user_id: user.user_id,
+    },
   });
 
   if (!result) throw new Error("Customer not found or already deleted");

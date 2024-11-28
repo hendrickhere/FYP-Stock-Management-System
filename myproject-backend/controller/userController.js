@@ -47,6 +47,41 @@ exports.getCurrentUser = async (req, res) => {
   }
 };
 
+exports.getInventoryCount = async (req, res) => {
+  const {username} = req.query; 
+
+  if(!username) {
+    return res.status(400).json({message: "Username cannot be empty!"});
+  }
+
+  try{
+    var inventoryCount = await UserService.getInventoryCount(username);
+    return res.status(200).json({
+      message: "Inventory count retrieved", 
+      data: inventoryCount,
+    }); 
+  } catch(err) {
+    if(error instanceof InventoryError){
+      return res.status(error.statusCode).json({
+        success: false,
+        error: {
+          type: error.name,
+          message: error.message,
+          statusCode: error.statusCode
+        }
+      });
+    }
+    return res.status(500).json({
+      success: false,
+      error: {
+        type: 'UnexpectedError',
+        message: 'An unexpected error occurred',
+        statusCode: 500
+      }
+    });
+  }
+}
+
 exports.refreshToken = async (req, res) => {
   const { refreshToken } = req.body;
 

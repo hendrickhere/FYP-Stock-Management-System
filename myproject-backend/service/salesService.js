@@ -570,7 +570,7 @@ exports.createSalesOrder = async (username, salesData) => {
     }
 
     //discount validation
-    for (const discount of salesOrder.discount) {
+    for (const discount of salesData.discounts) {
       const currentDiscount = await getDiscountByIdAsync(discount.discount_id);
       const currentDate = new Date();
       if (new Date(currentDiscount.discount_start) > currentDate) {
