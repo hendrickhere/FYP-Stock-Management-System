@@ -287,10 +287,10 @@ const MainContent = ({ isMobile }) => {
         })),
         discounts:
           selectedDiscount.length > 0
-            ? selectedDiscount.map((discount) => ({
+            ? selectedDiscount.map((discount, index) => ({
                 discount_id: discount.discount_id,
                 discount_rate: discount.discount_rate,
-                discount_amount: tempPaymentInfo.discounts.discount_amount,
+                discount_amount: tempPaymentInfo.discounts.find(d => d.discount_id === discount.discount_id)?.discount_amount,
               }))
             : null,
         taxes:
@@ -298,7 +298,7 @@ const MainContent = ({ isMobile }) => {
             ? selectedTaxes.map((tax) => ({
                 tax_id: tax.tax_id,
                 tax_rate: tax.tax_rate,
-                tax_amount: tempPaymentInfo.taxes.tax_amount,
+                tax_amount: tempPaymentInfo.taxes.find(t => t.tax_id === tax.tax_id)?.tax_amount,
               }))
             : null,
         subtotal: tempPaymentInfo?.subtotal ?? 0,

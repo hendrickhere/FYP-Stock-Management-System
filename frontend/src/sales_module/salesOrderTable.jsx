@@ -339,7 +339,7 @@ const SalesTable = ({
                   <p className="text-gray-500 text-xs uppercase tracking-wider">Total</p>
                   <p className="font-medium text-gray-900">
                     {typeof order.grand_total
-                      ? parseInt(order.grand_total).toLocaleString('en-MY', {
+                      ? parseFloat(order.grand_total).toLocaleString('en-MY', {
                           style: 'currency',
                           currency: 'MYR'
                         })
@@ -449,7 +449,7 @@ const SalesTable = ({
                       </td>
                       <td className="px-3 py-4 text-sm text-gray-900">
                         {typeof order.grand_total 
-                          ? parseInt(order.grand_total).toLocaleString('en-MY', {
+                          ? parseFloat(order.grand_total).toLocaleString('en-MY', {
                               style: 'currency',
                               currency: 'MYR'
                             })
