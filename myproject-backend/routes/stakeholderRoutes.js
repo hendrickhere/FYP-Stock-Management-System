@@ -10,6 +10,7 @@ router.delete('/vendors/:vendor_id', StakeholderController.deleteVendor);
 router.post('/addCustomer', StakeholderController.addCustomer);
 router.get('/customers', StakeholderController.getAllCustomers);
 router.get('/customer/:uuid', StakeholderController.getCustomer);
+router.get('/customers/count', StakeholderController.getCustomerCount);
 router.put('/customers/:uuid', StakeholderController.updateCustomer);
 router.delete('/customer/:uuid', StakeholderController.deleteCustomer);
 

@@ -48,6 +48,14 @@ const MainContent = ({ userRole }) => {
   const [totalSales, setTotalSales] = useState(0); 
   const [timeRange, setTimeRange] = useState(86400000); 
   const {username} = useContext(GlobalContext);
+  const [customerCount, setCustomerCount] = useState({
+    totalCount: 0, 
+    newToday: 0
+  }); 
+  const [productCount, setProductCount] = useState({
+    totalCount: 0,
+    newToday: 0
+  });
 
   const fetchTotalSalesWithTimeRange = async (timeRange) => {
     try{
@@ -60,8 +68,28 @@ const MainContent = ({ userRole }) => {
       console.error(err);
     }
   }
+
+  const fetchTotalCustomerCount = async (username) => {
+    try{
+      const total = await instance.get(`/stakeholders/customers/count?username=${username}`);
+      setCustomerCount(total.data.data); 
+    } catch (err) {
+      console.error(err);
+    }
+  }
+
+  const fetchTotalProductCount = async (username) => {
+    try {
+      const total = await instance.get(`/user/inventory/count?username=${username}`);
+      setProductCount(total.data.data);
+    } catch(err) {
+      console.error(err);
+    }
+  }
   useEffect(() => {
     fetchTotalSalesWithTimeRange(timeRange);
+    fetchTotalCustomerCount(username);
+    fetchTotalProductCount(username);
   }, [timeRange]);
 
   useEffect(() => {
@@ -98,17 +126,17 @@ const MainContent = ({ userRole }) => {
             )}
             <QuickStatCard
               title="Registered Customers"
-              value="2,000"
-              trend="+5"
+              value={customerCount.total}
+              trend={`+${customerCount.newToday}`}
               icon={<Users className="w-6 h-6" />}
               trendUp={true}
             />
             <QuickStatCard
               title="Total Products"
-              value="498"
-              trend="-3"
+              value={productCount.total}
+              trend={`+${productCount.newToday}`}
               icon={<Package className="w-6 h-6" />}
-              trendUp={false}
+              trendUp={true}
             />
             <QuickStatCard
               title="Daily Appointments"

@@ -23,7 +23,21 @@ exports.getAllAppointment = async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 };
+exports.getAppointmentCount = async (req, res) => {
+  try {
+    const {username} = req.query;
 
+    if(!username){
+      return res.status(400).json({message: "Username cannot be empty!"});
+    }
+
+    const totalCount = await AppointmentService.getAppointmentCount(username);
+
+    res.status(200).json({message: "Appointment count retrieved successfully", data: totalCount});
+  } catch(err) {
+    
+  }
+}
 exports.insertAppointment = async (req, res) => {
   try {
     const result = await AppointmentService.insertAppointment(req.body);

@@ -157,6 +157,29 @@ exports.getCustomer = async (req, res) => {
   }
 };
 
+exports.getCustomerCount = async (req, res) => {
+  const { username } = req.query; 
+
+  try{
+    if(!username){
+      return res.status(400).json({
+        message: "Username cannot be empty!"
+      });
+    }
+    var count = await StakeholderService.getCustomerCount(username);
+
+    return res.status(200).json({
+      message: "Customer count retrieved", 
+      data: count,
+    });
+
+  } catch (err) {
+    return res.status(500).json({
+      message: `Unexpected error occurred, ${err.message}`
+    });
+  }
+}
+
 exports.updateCustomer = async (req, res) => {
   try {
     const uuid = req.params.uuid;

@@ -10,6 +10,7 @@ router.post('/login', UserController.login);
 
 router.get('/:username/salesOrders', UserController.getSalesOrder);
 
+router.get("/inventory/count", UserController.getInventoryCount);
 router.post('/:username/addInventory', UserController.addInventory);
 router.get('/:username/inventories', UserController.getAllInventory);
 router.put('/:username/:inventoryuuid/editInventory', UserController.updateInventory);
