@@ -14,6 +14,7 @@ const {
 } = require("../models");
 const { SalesError, InvalidTimeRangeError, UserNotFoundError, DatabaseError } = require("../errors/salesError");
 const { ValidationError, Op, where } = require("sequelize");
+const { getDiscountByIdAsync } = require("../service/discountService");
 // Add debug logging
 console.log("Loaded models:", {
   User: !!User,
@@ -566,6 +567,18 @@ exports.createSalesOrder = async (username, salesData) => {
 
     if (!customer) {
       throw new Error("Customer not found");
+    }
+
+    //discount validation
+    for (const discount of salesOrder.discount) {
+      const currentDiscount = await getDiscountByIdAsync(discount.discount_id);
+      const currentDate = new Date();
+      if (new Date(currentDiscount.discount_start) > currentDate) {
+        throw new SalesError("Discount hasn't started yet", "VALIDATION_ERROR", "400");
+      }
+      if (currentDiscount.discount_end && new Date(currentDiscount.discount_end) < currentDate) {
+        throw new SalesError("Discount has expired", "VALIDATION_ERROR", "400");
+      }
     }
 
     const salesOrderData = {

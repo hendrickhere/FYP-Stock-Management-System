@@ -1,10 +1,7 @@
-import React, { useState, useEffect, useContext} from 'react';
-import { X, Loader2 } from 'lucide-react';
-import axiosInstance from '../axiosConfig';
-import { GlobalContext } from "../globalContext";
+import React from 'react';
+import { Loader2, X } from 'lucide-react';
 
-const MultiTaxSelection = ({taxes, selectedTaxes, handleTaxChange, isLoading, error, removeTax}) => {
-
+const MultiTaxSelection = ({taxes = [], selectedTaxes = [], handleTaxChange, isLoading, error, removeTax}) => {
   const handleTaxToggle = (tax) => {
     handleTaxChange(tax);
   };
@@ -21,6 +18,23 @@ const MultiTaxSelection = ({taxes, selectedTaxes, handleTaxChange, isLoading, er
     return (
       <div className="w-full max-w-4xl p-6 bg-red-50 rounded-lg border border-red-200 text-red-700">
         {error}
+      </div>
+    );
+  }
+
+  // Handle empty or null taxes
+  if (!taxes || taxes.length === 0) {
+    return (
+      <div className="w-full max-w-4xl p-6 bg-white rounded-lg shadow-sm">
+        <div className="flex justify-between items-center mb-6">
+          <h2 className="text-2xl font-semibold text-gray-800">Tax Selection</h2>
+        </div>
+        <div className="flex flex-col items-center justify-center py-12 px-4 bg-gray-50 rounded-lg border border-gray-200">
+          <div className="text-center space-y-3">
+            <p className="text-gray-600 text-lg">No taxes are currently available</p>
+            <p className="text-sm text-gray-500">Please check back later or contact support if you believe this is an error</p>
+          </div>
+        </div>
       </div>
     );
   }
@@ -96,7 +110,5 @@ const MultiTaxSelection = ({taxes, selectedTaxes, handleTaxChange, isLoading, er
     </div>
   );
 };
-
-
 
 export default MultiTaxSelection;
