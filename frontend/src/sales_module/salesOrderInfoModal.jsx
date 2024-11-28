@@ -16,6 +16,8 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '../ui/alert-dialog';
+import PriceDisplay from "./priceDisplay";
+import TooltipValue from "./tooltipValue.jsx";
 
 const SalesOrderModal = ({ isOpen, onClose, order, onUpdate, onDelete, userRole }) => {
   const [editedOrder, setEditedOrder] = useState(order);
@@ -181,6 +183,41 @@ const SalesOrderModal = ({ isOpen, onClose, order, onUpdate, onDelete, userRole 
     setHasChanges(true);
   };
 
+  const getDiscountTooltip = () => (
+    <>
+      <p className="font-medium text-center border-b pb-1 mb-2">Applied Discounts:</p>
+      {order.Discounts.map((discount, index) => (
+        <div key={index} className="px-2">
+          <div className="flex items-center justify-between gap-4">
+            <span className="py-1">{discount.discount_name}</span>
+            <div className="text-right text-gray-600">
+              <div>({(discount.sales_order_discounts.applied_discount_rate * 100).toFixed(0)}%)</div>
+              <div className="text-xs">RM {parseFloat(discount.sales_order_discounts.discount_amount).toFixed(2)}</div>
+            </div>
+          </div>
+        </div>
+      ))}
+    </>
+  );
+
+  const getTaxTooltip = () => (
+    <>
+      <p className="font-medium text-center border-b pb-1 mb-2">Tax Details:</p>
+      {order.Taxes.map((tax, index) => (
+        <div key={index} className="px-2">
+          <div className="flex items-center justify-between gap-4">
+            <span className="py-1">{tax.tax_name}</span>
+            <div className="text-right text-gray-600">
+              <div>({(tax.sales_order_taxes.applied_tax_rate * 100).toFixed(0)}%)</div>
+              <div className="text-xs">RM {parseFloat(tax.sales_order_taxes.tax_amount).toFixed(2)}</div>
+            </div>
+          </div>
+        </div>
+      ))}
+    </>
+  );
+
+
   const handleAddProduct = (product) => {
     setEditedOrder(prev => ({
       ...prev,
@@ -335,7 +372,11 @@ const SalesOrderModal = ({ isOpen, onClose, order, onUpdate, onDelete, userRole 
           open={isOpen}
           onClose={() => {
             if (hasChanges) {
-              if (window.confirm('You have unsaved changes. Are you sure you want to close?')) {
+              if (
+                window.confirm(
+                  "You have unsaved changes. Are you sure you want to close?"
+                )
+              ) {
                 onClose();
               }
             } else {
@@ -344,7 +385,6 @@ const SalesOrderModal = ({ isOpen, onClose, order, onUpdate, onDelete, userRole 
           }}
           className="fixed inset-0 z-50 overflow-hidden"
         >
-
           <Toaster position="bottom-right" />
 
           <motion.div
@@ -355,9 +395,9 @@ const SalesOrderModal = ({ isOpen, onClose, order, onUpdate, onDelete, userRole 
           />
 
           <motion.div
-            initial={{ x: '100%' }}
+            initial={{ x: "100%" }}
             animate={{ x: 0 }}
-            exit={{ x: '100%' }}
+            exit={{ x: "100%" }}
             transition={{ type: "spring", damping: 30 }}
             className="absolute right-0 top-0 h-full w-full max-w-2xl bg-white shadow-xl"
           >
@@ -388,14 +428,15 @@ const SalesOrderModal = ({ isOpen, onClose, order, onUpdate, onDelete, userRole 
             <div className="p-6 overflow-y-auto max-h-[calc(100vh-80px)]">
               <Tab.Group>
                 <Tab.List className="flex space-x-1 rounded-xl bg-gray-100 p-1 mb-6">
-                  {['Order Details', 'Products', 'Payment Info'].map((tab) => (
+                  {["Order Details", "Products", "Payment Info"].map((tab) => (
                     <Tab
                       key={tab}
                       className={({ selected }) =>
                         `w-full rounded-lg py-2.5 text-sm font-medium leading-5
-                        ${selected
-                          ? 'bg-white text-blue-700 shadow'
-                          : 'text-gray-700 hover:bg-white/[0.12] hover:text-blue-600'
+                        ${
+                          selected
+                            ? "bg-white text-blue-700 shadow"
+                            : "text-gray-700 hover:bg-white/[0.12] hover:text-blue-600"
                         }`
                       }
                     >
@@ -409,7 +450,9 @@ const SalesOrderModal = ({ isOpen, onClose, order, onUpdate, onDelete, userRole 
                   <Tab.Panel>
                     <div className="space-y-6">
                       <div className="bg-gray-50 p-4 rounded-lg">
-                        <h3 className="text-lg font-semibold mb-4">Customer Information</h3>
+                        <h3 className="text-lg font-semibold mb-4">
+                          Customer Information
+                        </h3>
                         {isEditing ? (
                           <div className="relative">
                             <input
@@ -417,14 +460,14 @@ const SalesOrderModal = ({ isOpen, onClose, order, onUpdate, onDelete, userRole 
                               readOnly
                               className="w-full p-2 border rounded-md"
                               placeholder="Select Customer"
-                              value={editedOrder?.Customer?.customer_name || ''}
+                              value={editedOrder?.Customer?.customer_name || ""}
                               onClick={handleCustomerSearch}
                             />
                             {showCustomerSearch && (
                               <div className="absolute w-full z-10">
                                 <div className="mt-1 w-full bg-white border rounded-lg shadow-lg">
                                   <ul className="py-1 max-h-60 overflow-auto">
-                                    {customerData?.customers.map(customer => (
+                                    {customerData?.customers.map((customer) => (
                                       <li
                                         key={customer.customer_uuid}
                                         className="px-4 py-2 hover:bg-gray-100 cursor-pointer"
@@ -446,26 +489,60 @@ const SalesOrderModal = ({ isOpen, onClose, order, onUpdate, onDelete, userRole 
                             <div>
                               <p className="text-sm text-gray-500">Name</p>
                               <p className="font-medium">
-                                {editedOrder?.Customer?.customer_name || 'N/A'}
+                                {editedOrder?.Customer?.customer_name || "N/A"}
                               </p>
                             </div>
                             <div>
                               <p className="text-sm text-gray-500">Contact</p>
                               <p className="font-medium">
-                                {editedOrder?.Customer?.customer_contact || 'N/A'}
+                                {editedOrder?.Customer?.customer_contact ||
+                                  "N/A"}
                               </p>
                             </div>
                           </div>
                         )}
                       </div>
-
+                      <div>
+                        <div className="space-y-6">
+                          <div className="bg-gray-50 p-4 rounded-lg">
+                          <h2 className="text-lg font-medium mb-4">Order Summary</h2>
+        <div className="space-y-4">
+          <div className="flex flex-col">
+            <p className="text-gray-500 text-sm">Subtotal</p>
+            <p className="text-right">RM {parseFloat(order.subtotal).toFixed(2)}</p>
+          </div>
+          
+          <TooltipValue 
+            label="Discount" 
+            value={`RM ${parseFloat(order.discount_amount).toFixed(2)}`}
+            tooltipContent={getDiscountTooltip()}
+          />
+          
+          <TooltipValue 
+            label="Tax" 
+            value={`RM ${parseFloat(order.total_tax).toFixed(2)}`}
+            tooltipContent={getTaxTooltip()}
+          />
+          
+          <div className="pt-4 border-t">
+            <div className="flex flex-col">
+              <p className="text-gray-500 text-sm">Total</p>
+              <p className="text-right">RM {parseFloat(order.grand_total).toFixed(2)}</p>
+            </div>
+          </div>
+        </div>
+                          </div>
+                        </div>
+                      </div>
                       {isEditing && (
                         <div className="mb-4">
                           <label className="flex items-center space-x-2">
                             <input
                               type="checkbox"
                               checked={requiresShipping}
-                              onChange={(e) => setRequiresShipping(e.target.checked)}
+                              onChange={(e) =>
+                                setRequiresShipping(e.target.checked)
+                              }
                               className="rounded border-gray-300"
                             />
                             <span>This order requires shipping</span>
@@ -473,35 +550,63 @@ const SalesOrderModal = ({ isOpen, onClose, order, onUpdate, onDelete, userRole 
                         </div>
                       )}
 
-                      {(requiresShipping || (!isEditing && order?.expected_shipment_date)) && (
+                      {(requiresShipping ||
+                        (!isEditing && order?.expected_shipment_date)) && (
                         <div className="bg-gray-50 p-4 rounded-lg">
-                          <h3 className="text-lg font-semibold mb-4">Shipping Information</h3>
+                          <h3 className="text-lg font-semibold mb-4">
+                            Shipping Information
+                          </h3>
                           <div className="grid grid-cols-2 gap-4">
                             {isEditing ? (
                               <>
                                 <div>
-                                  <label className="block text-sm text-gray-500">Expected Shipment</label>
+                                  <label className="block text-sm text-gray-500">
+                                    Expected Shipment
+                                  </label>
                                   <input
                                     type="date"
-                                    value={editedOrder.expected_shipment_date?.split('T')[0] || ''}
-                                    onChange={(e) => handleEdit('expected_shipment_date', e.target.value)}
+                                    value={
+                                      editedOrder.expected_shipment_date?.split(
+                                        "T"
+                                      )[0] || ""
+                                    }
+                                    onChange={(e) =>
+                                      handleEdit(
+                                        "expected_shipment_date",
+                                        e.target.value
+                                      )
+                                    }
                                     className="mt-1 block w-full rounded-md border-gray-300 shadow-sm"
                                   />
                                 </div>
                                 <div>
-                                  <label className="block text-sm text-gray-500">Delivery Method</label>
+                                  <label className="block text-sm text-gray-500">
+                                    Delivery Method
+                                  </label>
                                   <input
                                     type="text"
-                                    value={editedOrder.delivery_method || ''}
-                                    onChange={(e) => handleEdit('delivery_method', e.target.value)}
+                                    value={editedOrder.delivery_method || ""}
+                                    onChange={(e) =>
+                                      handleEdit(
+                                        "delivery_method",
+                                        e.target.value
+                                      )
+                                    }
                                     className="mt-1 block w-full rounded-md border-gray-300 shadow-sm"
                                   />
                                 </div>
                                 <div className="col-span-2">
-                                  <label className="block text-sm text-gray-500">Shipping Address</label>
+                                  <label className="block text-sm text-gray-500">
+                                    Shipping Address
+                                  </label>
                                   <textarea
-                                    value={editedOrder.shipping_address || ''}
-                                    onChange={(e) => handleEdit('shipping_address', e.target.value)}
+                                    value={editedOrder.shipping_address || ""}
+                                    onChange={(e) =>
+                                      handleEdit(
+                                        "shipping_address",
+                                        e.target.value
+                                      )
+                                    }
                                     className="mt-1 block w-full rounded-md border-gray-300 shadow-sm"
                                     rows={3}
                                   />
@@ -510,21 +615,29 @@ const SalesOrderModal = ({ isOpen, onClose, order, onUpdate, onDelete, userRole 
                             ) : (
                               <>
                                 <div>
-                                  <p className="text-sm text-gray-500">Expected Shipment</p>
+                                  <p className="text-sm text-gray-500">
+                                    Expected Shipment
+                                  </p>
                                   <p className="font-medium">
-                                    {formatDate(editedOrder?.expected_shipment_date)}
+                                    {formatDate(
+                                      editedOrder?.expected_shipment_date
+                                    )}
                                   </p>
                                 </div>
                                 <div>
-                                  <p className="text-sm text-gray-500">Delivery Method</p>
+                                  <p className="text-sm text-gray-500">
+                                    Delivery Method
+                                  </p>
                                   <p className="font-medium">
-                                    {editedOrder?.delivery_method || 'N/A'}
+                                    {editedOrder?.delivery_method || "N/A"}
                                   </p>
                                 </div>
                                 <div className="col-span-2">
-                                  <p className="text-sm text-gray-500">Shipping Address</p>
+                                  <p className="text-sm text-gray-500">
+                                    Shipping Address
+                                  </p>
                                   <p className="font-medium">
-                                    {editedOrder?.shipping_address || 'N/A'}
+                                    {editedOrder?.shipping_address || "N/A"}
                                   </p>
                                 </div>
                               </>
@@ -539,7 +652,9 @@ const SalesOrderModal = ({ isOpen, onClose, order, onUpdate, onDelete, userRole 
                   <Tab.Panel>
                     <div className="bg-gray-50 p-4 rounded-lg">
                       <div className="flex justify-between items-center mb-4">
-                        <h3 className="text-lg font-semibold">Order Products</h3>
+                        <h3 className="text-lg font-semibold">
+                          Order Products
+                        </h3>
                         {isEditing && (
                           <button
                             onClick={() => setShowProductSearch(true)}
@@ -548,7 +663,7 @@ const SalesOrderModal = ({ isOpen, onClose, order, onUpdate, onDelete, userRole 
                             Add Product
                           </button>
                         )}
-                                              </div>
+                      </div>
                       <div className="space-y-4">
                         {showProductSearch && (
                           <div className="mb-4 border p-4 rounded-lg">
@@ -565,11 +680,13 @@ const SalesOrderModal = ({ isOpen, onClose, order, onUpdate, onDelete, userRole 
                               type="text"
                               placeholder="Search products..."
                               value={productSearchTerm}
-                              onChange={(e) => setProductSearchTerm(e.target.value)}
+                              onChange={(e) =>
+                                setProductSearchTerm(e.target.value)
+                              }
                               className="w-full px-3 py-2 border rounded-md mb-2"
                             />
                             <div className="max-h-60 overflow-y-auto">
-                              {filteredProducts.map(product => (
+                              {filteredProducts.map((product) => (
                                 <div
                                   key={product.product_uuid}
                                   className="flex justify-between items-center p-2 hover:bg-gray-100 rounded-md cursor-pointer"
@@ -582,14 +699,19 @@ const SalesOrderModal = ({ isOpen, onClose, order, onUpdate, onDelete, userRole 
                                     </div>
                                   </div>
                                   <div className="text-gray-600">
-                                    {formatCurrency(parseInt(product.sales_order_items.discounted_price))}
+                                    {formatCurrency(
+                                      parseInt(
+                                        product.sales_order_items
+                                          .discounted_price
+                                      )
+                                    )}
                                   </div>
                                 </div>
                               ))}
                             </div>
                           </div>
                         )}
-                        
+
                         <table className="min-w-full divide-y divide-gray-200">
                           <thead>
                             <tr>
@@ -617,7 +739,9 @@ const SalesOrderModal = ({ isOpen, onClose, order, onUpdate, onDelete, userRole 
                               <tr key={product.product_uuid}>
                                 <td className="px-6 py-4">
                                   <div>
-                                    <p className="font-medium">{product.product_name}</p>
+                                    <p className="font-medium">
+                                      {product.product_name}
+                                    </p>
                                     <p className="text-sm text-gray-500">
                                       SKU: {product.sku_number}
                                     </p>
@@ -627,11 +751,17 @@ const SalesOrderModal = ({ isOpen, onClose, order, onUpdate, onDelete, userRole 
                                   {isEditing ? (
                                     <div className="flex items-center justify-end space-x-2">
                                       <button
-                                        onClick={() => handleProductQuantityChange(
-                                          product.product_uuid,
-                                          (product.sales_order_items?.product_quantity || 0) - 1
-                                        )}
-                                        disabled={(product.sales_order_items?.quantity || 0) <= 1}
+                                        onClick={() =>
+                                          handleProductQuantityChange(
+                                            product.product_uuid,
+                                            (product.sales_order_items
+                                              ?.product_quantity || 0) - 1
+                                          )
+                                        }
+                                        disabled={
+                                          (product.sales_order_items
+                                            ?.quantity || 0) <= 1
+                                        }
                                         className="p-1 hover:bg-gray-100 rounded disabled:opacity-50"
                                       >
                                         <Minus className="w-4 h-4" />
@@ -639,18 +769,26 @@ const SalesOrderModal = ({ isOpen, onClose, order, onUpdate, onDelete, userRole 
                                       <input
                                         type="number"
                                         min="1"
-                                        value={product.sales_order_items?.quantity || 0}
-                                        onChange={(e) => handleProductQuantityChange(
-                                          product.product_uuid,
-                                          e.target.value
-                                        )}
+                                        value={
+                                          product.sales_order_items?.quantity ||
+                                          0
+                                        }
+                                        onChange={(e) =>
+                                          handleProductQuantityChange(
+                                            product.product_uuid,
+                                            e.target.value
+                                          )
+                                        }
                                         className="w-16 text-right px-2 py-1 border rounded"
                                       />
                                       <button
-                                        onClick={() => handleProductQuantityChange(
-                                          product.product_uuid,
-                                          (product.sales_order_items?.quantity || 0) + 1
-                                        )}
+                                        onClick={() =>
+                                          handleProductQuantityChange(
+                                            product.product_uuid,
+                                            (product.sales_order_items
+                                              ?.quantity || 0) + 1
+                                          )
+                                        }
                                         className="p-1 hover:bg-gray-100 rounded"
                                       >
                                         <Plus className="w-4 h-4" />
@@ -661,18 +799,55 @@ const SalesOrderModal = ({ isOpen, onClose, order, onUpdate, onDelete, userRole 
                                   )}
                                 </td>
                                 <td className="px-6 py-4 text-right">
-                                  {formatCurrency(parseInt(product.sales_order_items?.discounted_price) || 0)}
+                                  <PriceDisplay
+                                    price={
+                                      parseInt(
+                                        product.sales_order_items?.price
+                                      ) || 0
+                                    }
+                                    discountedPrice={
+                                      parseInt(
+                                        product.sales_order_items
+                                          ?.discounted_price
+                                      ) || 0
+                                    }
+                                    discounts={editedOrder?.Discounts || []}
+                                    formatCurrency={formatCurrency}
+                                  />
                                 </td>
                                 <td className="px-6 py-4 text-right">
-                                  {formatCurrency(
-                                    (parseInt(product.sales_order_items?.discounted_price) || 0) *
-                                    (parseInt(product.sales_order_items?.quantity) || 0)
-                                  )}
+                                  <div className="flex flex-col space-y-1">
+                                    <span className="text-gray-500 line-through">
+                                      {formatCurrency(
+                                        (parseInt(
+                                          product.sales_order_items?.price
+                                        ) || 0) *
+                                          (parseInt(
+                                            product.sales_order_items?.quantity
+                                          ) || 0)
+                                      )}
+                                    </span>
+                                    <span className="font-medium">
+                                      {formatCurrency(
+                                        (parseInt(
+                                          product.sales_order_items
+                                            ?.discounted_price
+                                        ) || 0) *
+                                          (parseInt(
+                                            product.sales_order_items?.quantity
+                                          ) || 0)
+                                      )}
+                                    </span>
+                                  </div>
                                 </td>
                                 {isEditing && (
                                   <td className="px-6 py-4 text-right">
                                     <button
-                                      onClick={() => handleRemoveProduct(product.product_uuid)}
+                                      onClick={() =>
+                                        handleRemoveProduct(
+                                          product.product_uuid
+                                        )
+                                      }
                                       className="text-red-500 hover:text-red-700"
                                     >
                                       <Trash className="w-4 h-4" />
@@ -690,16 +865,22 @@ const SalesOrderModal = ({ isOpen, onClose, order, onUpdate, onDelete, userRole 
                   {/* Payment Info Panel */}
                   <Tab.Panel>
                     <div className="bg-gray-50 p-4 rounded-lg">
-                      <h3 className="text-lg font-semibold mb-4">Payment Details</h3>
+                      <h3 className="text-lg font-semibold mb-4">
+                        Payment Details
+                      </h3>
                       <div className="space-y-4">
                         {isEditing ? (
                           <>
                             <div>
-                              <label className="block text-sm text-gray-500">Payment Terms</label>
+                              <label className="block text-sm text-gray-500">
+                                Payment Terms
+                              </label>
                               <input
                                 type="text"
-                                value={editedOrder?.payment_terms || ''}
-                                onChange={(e) => handleEdit('payment_terms', e.target.value)}
+                                value={editedOrder?.payment_terms || ""}
+                                onChange={(e) =>
+                                  handleEdit("payment_terms", e.target.value)
+                                }
                                 className="mt-1 block w-full rounded-md border-gray-300 shadow-sm"
                               />
                             </div>
@@ -707,9 +888,11 @@ const SalesOrderModal = ({ isOpen, onClose, order, onUpdate, onDelete, userRole 
                         ) : (
                           <>
                             <div>
-                              <p className="text-sm text-gray-500">Payment Terms</p>
+                              <p className="text-sm text-gray-500">
+                                Payment Terms
+                              </p>
                               <p className="font-medium">
-                                {editedOrder?.payment_terms || 'N/A'}
+                                {editedOrder?.payment_terms || "N/A"}
                               </p>
                             </div>
                           </>
@@ -739,18 +922,23 @@ const SalesOrderModal = ({ isOpen, onClose, order, onUpdate, onDelete, userRole 
                     className="px-4 py-2 bg-blue-500 text-white font-medium rounded-md hover:bg-blue-600 disabled:opacity-50"
                     disabled={isSaving || !hasChanges}
                   >
-                    {isSaving ? 'Saving...' : 'Save Changes'}
+                    {isSaving ? "Saving..." : "Save Changes"}
                   </button>
                 </div>
               )}
             </div>
           </motion.div>
-          
+
           {/* Password Dialog */}
-          <AlertDialog open={showPasswordDialog} onOpenChange={setShowPasswordDialog}>
+          <AlertDialog
+            open={showPasswordDialog}
+            onOpenChange={setShowPasswordDialog}
+          >
             <AlertDialogContent className="bg-white">
               <AlertDialogHeader>
-                <AlertDialogTitle>Manager Verification Required</AlertDialogTitle>
+                <AlertDialogTitle>
+                  Manager Verification Required
+                </AlertDialogTitle>
                 <AlertDialogDescription>
                   Please enter your manager password to continue.
                 </AlertDialogDescription>
@@ -765,30 +953,36 @@ const SalesOrderModal = ({ isOpen, onClose, order, onUpdate, onDelete, userRole 
                 name={`manager-pwd-${Math.random()}`}
               />
               <AlertDialogFooter>
-                <AlertDialogCancel onClick={() => {
-                  setShowPasswordDialog(false);
-                  setAdminPassword('');
-                  setPendingAction(null);
-                }}>
+                <AlertDialogCancel
+                  onClick={() => {
+                    setShowPasswordDialog(false);
+                    setAdminPassword("");
+                    setPendingAction(null);
+                  }}
+                >
                   Cancel
                 </AlertDialogCancel>
-                  <AlertDialogAction 
-                    onClick={handlePasswordVerification}
-                    disabled={!adminPassword || isVerifying}
-                  >
-                    {isVerifying ? 'Verifying...' : 'Verify'}
-                  </AlertDialogAction>
+                <AlertDialogAction
+                  onClick={handlePasswordVerification}
+                  disabled={!adminPassword || isVerifying}
+                >
+                  {isVerifying ? "Verifying..." : "Verify"}
+                </AlertDialogAction>
               </AlertDialogFooter>
             </AlertDialogContent>
           </AlertDialog>
 
           {/* Delete Confirmation Dialog */}
-          <AlertDialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>
+          <AlertDialog
+            open={showDeleteConfirm}
+            onOpenChange={setShowDeleteConfirm}
+          >
             <AlertDialogContent>
               <AlertDialogHeader>
                 <AlertDialogTitle>Confirm Deletion</AlertDialogTitle>
                 <AlertDialogDescription>
-                  Are you sure you want to delete this sales order? This action cannot be undone.
+                  Are you sure you want to delete this sales order? This action
+                  cannot be undone.
                 </AlertDialogDescription>
               </AlertDialogHeader>
               <AlertDialogFooter>
@@ -798,7 +992,7 @@ const SalesOrderModal = ({ isOpen, onClose, order, onUpdate, onDelete, userRole 
                 <AlertDialogAction
                   onClick={() => {
                     setShowDeleteConfirm(false);
-                    setPendingAction('delete');
+                    setPendingAction("delete");
                     setShowPasswordDialog(true);
                   }}
                   className="bg-red-500 hover:bg-red-600 text-white"

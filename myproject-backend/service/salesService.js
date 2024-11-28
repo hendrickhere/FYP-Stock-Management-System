@@ -392,7 +392,7 @@ exports.getAllSalesOrders = async (username) => {
           ],
         },
         {
-          model: Product,
+        model: Product,
           through: {
             model: SalesOrderInventory,
             as: "sales_order_items", 
@@ -403,9 +403,27 @@ exports.getAllSalesOrders = async (username) => {
             "product_uuid",
             "product_name",
             "sku_number",
-            "description",
+          "description",
           ],
         },
+        {
+          model: Discount,
+          through: {
+            model: SalesOrderDiscount,
+            as: "sales_order_discounts", 
+            attributes: ["applied_discount_rate", "discount_amount"] 
+          },
+          attributes: ["discount_name", "discount_rate"] 
+        },
+        {
+          model: Tax,
+          through: {
+            model: SalesOrderTax,
+            as: "sales_order_taxes", 
+            attributes: ["applied_tax_rate", "tax_amount"] 
+          },
+          attributes: ["tax_name", "tax_rate"] 
+        }
       ],
       order: [["order_date_time", "DESC"]],
     });
