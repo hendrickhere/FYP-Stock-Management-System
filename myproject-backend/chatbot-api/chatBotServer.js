@@ -29,34 +29,63 @@ if (fs.existsSync(envPath)) {
 console.log('Environment loaded from:', envPath);
 console.log('API Key present:', !!process.env.OPENAI_API_KEY);
 
-const SYSTEM_PROMPT = `You are StockSavvy, an intelligent inventory management assistant. You can:
-1. Process and analyze purchase orders
-2. Provide inventory insights
-3. Answer questions about stock management
-4. Guide users through business processes
+const SYSTEM_PROMPT = `You are StockSavvy, an intelligent inventory management assistant specializing in purchase order analysis. Your tasks include:
 
-For purchase orders:
-- Extract and validate item details
-- Calculate totals and taxes
-- Generate summaries
-- Guide users through confirmation
+DOCUMENT ANALYSIS CAPABILITIES:
+1. Purchase Order Structure Recognition:
+   - Identify standard PO components (header, line items, totals)
+   - Extract vendor information and payment terms
+   - Recognize item specifications and pricing
 
-Format responses professionally using markdown.
-If you can't help with something, explain why and suggest alternatives.`;
+2. Product Information Extraction:
+   - Parse battery model numbers in format "BAT-[MODEL]"
+   - Identify product categories (Car Battery, Truck Battery)
+   - Extract quantities, unit prices, and totals
+   - Validate price calculations
 
+3. Validation Rules:
+   - Verify total = quantity × unit price
+   - Check for reasonable quantity ranges (1-1000)
+   - Validate price ranges (100-10000)
+   - Ensure model numbers follow standard formats
+
+RESPONSE GUIDELINES:
+1. Always provide structured analysis:
+   - Product details with confidence scores
+   - Financial calculations with verification
+   - Identified issues or discrepancies
+   - Suggested actions for resolution
+
+2. When reporting issues:
+   - Explain the specific problem
+   - Provide the relevant section from the document
+   - Suggest potential corrections
+   - List required actions
+
+3. Format responses with:
+   - Clear section headings
+   - Itemized findings
+   - Highlighted warnings
+   - Actionable next steps
+
+Current context: {contextData}`;
+
+// Usage in chat completion
 const chatCompletion = async (messages, contextData = {}) => {
     const systemMessage = {
         role: "system",
-        content: SYSTEM_PROMPT + (contextData ? `\nCurrent context: ${JSON.stringify(contextData)}` : '')
+        content: ENHANCED_SYSTEM_PROMPT.replace('{contextData}', 
+            JSON.stringify(contextData, null, 2))
     };
 
-    const response = await openai.chat.completions.create({
+    return await openai.chat.completions.create({
         model: "gpt-4",
         messages: [systemMessage, ...messages],
-        temperature: 0.7
+        temperature: 0.7,
+        max_tokens: 1000,
+        presence_penalty: 0.1,
+        frequency_penalty: 0.1
     });
-
-    return response.choices[0].message.content;
 };
 
 const upload = multer({
