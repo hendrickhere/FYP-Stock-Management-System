@@ -1,12 +1,35 @@
 import React, { useState, useEffect } from 'react';
-import { Bot, AlertCircle, FileText, Package, Calendar, TrendingUp, DollarSign, CheckCircle } from 'lucide-react';
+import { 
+  Bot, 
+  AlertCircle, 
+  FileText, 
+  Package, 
+  Calendar, 
+  TrendingUp, 
+  DollarSign, 
+  CheckCircle,
+  Calculator 
+} from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from "../ui/alert";
 import PurchaseOrderPreview from './purchaseOrderPreview';
 import axiosInstance from '../axiosConfig';
 import { InventoryInsights } from './inventoryInsights';
 import { Button } from '../ui/button';
+import { 
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle
+} from "../ui/card";
 
-const BotMessage = ({ text, data, isError, fileAnalysis, showPreview }) => {
+const BotMessage = ({ 
+  text, 
+  data, 
+  isError, 
+  fileAnalysis, 
+  showPreview,
+  actions 
+}) => {
   const [isProcessing, setIsProcessing] = useState(false);
   const [error, setError] = useState(null); 
   const [isTimedOut, setIsTimedOut] = useState(false);
@@ -468,6 +491,192 @@ const DocumentAnalysis = ({ analysis }) => {
     </div>
   );
 };
+
+  const renderDocumentAnalysis = () => {
+    if (!fileAnalysis?.metadata?.extractedItems) return null;
+
+    const items = fileAnalysis.metadata.extractedItems;
+    const financials = calculateFinancials(items);
+
+    const hasNewProducts = items.some(item => item.notFound);
+    const hasInsufficientStock = items.some(item => item.insufficientStock);
+
+    return (
+      <div className="space-y-4 mt-4">
+        {/* Products Card */}
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-lg flex items-center gap-2">
+              <Package className="w-5 h-5 text-blue-600" />
+              Products Analysis
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
+              {items.map((item, index) => (
+                <div 
+                  key={index}
+                  className={`p-3 rounded-lg border ${
+                    item.notFound || item.insufficientStock 
+                      ? 'bg-amber-50 border-amber-200' 
+                      : 'bg-gray-50 border-gray-100'
+                  }`}
+                >
+                  <div className="flex justify-between items-start">
+                    <div>
+                      <h4 className="font-medium text-gray-900">{item.productName}</h4>
+                      <p className="text-sm text-gray-500">SKU: {item.sku}</p>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-sm font-medium">{item.quantity} units</p>
+                      <p className="text-sm text-gray-500">
+                        @ RM{parseFloat(item.price).toFixed(2)}
+                      </p>
+                    </div>
+                  </div>
+                  {item.notFound && (
+                    <div className="mt-2 flex items-center gap-2 text-amber-600 text-sm">
+                      <AlertCircle className="w-4 h-4" />
+                      New product - needs to be added to inventory
+                    </div>
+                  )}
+                  {item.insufficientStock && (
+                    <div className="mt-2 flex items-center gap-2 text-amber-600 text-sm">
+                      <AlertCircle className="w-4 h-4" />
+                      Insufficient stock available
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Financial Summary Card */}
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-lg flex items-center gap-2">
+              <Calculator className="w-5 h-5 text-green-600" />
+              Financial Summary
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-2">
+              <div className="flex justify-between items-center py-2">
+                <span className="text-gray-600">Subtotal</span>
+                <span className="font-medium">RM{financials.subtotal.toFixed(2)}</span>
+              </div>
+              <div className="flex justify-between items-center py-2">
+                <span className="text-gray-600">Tax (6%)</span>
+                <span className="font-medium">RM{financials.tax.toFixed(2)}</span>
+              </div>
+              <div className="flex justify-between items-center py-2">
+                <span className="text-gray-600">Shipping</span>
+                <span className="font-medium">RM{financials.shipping.toFixed(2)}</span>
+              </div>
+              <div className="flex justify-between items-center pt-3 border-t">
+                <span className="font-semibold">Total</span>
+                <span className="font-semibold text-lg">
+                  RM{financials.total.toFixed(2)}
+                </span>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Action Required Section - Only show if there are issues */}
+        {(hasNewProducts || hasInsufficientStock) && (
+          <Alert className="bg-amber-50 border-amber-200">
+            <AlertCircle className="h-4 w-4 text-amber-600" />
+            <AlertTitle className="text-amber-800">Action Required</AlertTitle>
+            <AlertDescription className="text-amber-700">
+              <p className="mt-1">Before processing this purchase order, we need to:</p>
+              <ul className="list-disc pl-4 mt-2 space-y-1">
+                {hasNewProducts && (
+                  <li>Add the new products to your inventory system</li>
+                )}
+                {hasInsufficientStock && (
+                  <li>Address the insufficient stock levels</li>
+                )}
+              </ul>
+            </AlertDescription>
+          </Alert>
+        )}
+
+        {/* Action Buttons */}
+        {actions && actions.length > 0 && (
+          <div className="flex flex-wrap gap-2 justify-end mt-4">
+            {actions.map((action, index) => (
+              <Button
+                key={index}
+                variant={action.variant || "default"}
+                onClick={action.handler}
+                className="min-w-[120px]"
+              >
+                {action.label}
+              </Button>
+            ))}
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  // Helper function to calculate financials
+  const calculateFinancials = (items) => {
+    const subtotal = items.reduce((sum, item) => 
+      sum + (parseFloat(item.price) * parseInt(item.quantity)), 0
+    );
+    const tax = subtotal * 0.06;
+    const shipping = 500; // Default shipping fee
+    return {
+      subtotal,
+      tax,
+      shipping,
+      total: subtotal + tax + shipping
+    };
+  };
+
+  return (
+    <div className="flex items-start gap-3 animate-fadeIn">
+      <div className="flex-shrink-0 w-8 h-8 rounded-full bg-purple-100 flex items-center justify-center">
+        <Bot className="w-5 h-5 text-purple-600" />
+      </div>
+
+      <div className="flex-1 space-y-4">
+        {/* Initial Message */}
+        <div className={`px-4 py-3 rounded-2xl rounded-tl-none ${
+          isError ? 'bg-red-50 text-red-600' : 'bg-gray-100'
+        }`}>
+          <div className="text-sm whitespace-pre-wrap">{text}</div>
+        </div>
+
+        {/* Error Alert */}
+        {isError && (
+          <Alert variant="destructive">
+            <AlertCircle className="h-4 w-4" />
+            <AlertTitle>Error Processing Document</AlertTitle>
+            <AlertDescription>
+              {text}
+            </AlertDescription>
+          </Alert>
+        )}
+
+        {/* Document Analysis */}
+        {fileAnalysis && renderDocumentAnalysis()}
+
+        {/* General Data Display */}
+        {data && !fileAnalysis && (
+          <Alert className="bg-blue-50 border-blue-200">
+            <FileText className="h-4 w-4 text-blue-600" />
+            <AlertDescription className="text-blue-700">
+              {JSON.stringify(data, null, 2)}
+            </AlertDescription>
+          </Alert>
+        )}
+      </div>
+    </div>
+  );
 
 const renderPurchaseOrderPreview = (fileAnalysis) => {
   if (!fileAnalysis?.metadata?.extractedItems?.length) return null;

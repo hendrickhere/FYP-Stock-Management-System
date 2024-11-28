@@ -227,62 +227,168 @@ const handleFileUpload = async (file) => {
     const formData = new FormData();
     formData.append('file', file);
 
-    // Upload notification
+    // Initial processing message
     setMessages(prev => [...prev, {
       type: 'bot',
-      text: "Processing your purchase order document...",
+      text: "I'm analyzing your purchase order document. This will just take a moment...",
       timestamp: new Date().toISOString()
     }]);
 
-    // Get the response from the server
     const response = await axiosInstance.post("/chatbot/process-file", formData);
-    
-    // Properly destructure all needed data from the response
-    const { 
-      fileAnalysis, 
-      analysis,   
-      explanation 
-    } = response.data;
-
-    // Extract items and calculate total value
+    const { fileAnalysis, analysis } = response.data;
     const extractedItems = fileAnalysis?.metadata?.extractedItems || [];
-    const totalValue = extractedItems.reduce((sum, item) => 
+
+    // Calculate financial details
+    const subtotal = extractedItems.reduce((sum, item) => 
       sum + (parseFloat(item.price) * parseInt(item.quantity)), 0
     );
+    const tax = subtotal * 0.06;
+    const shipping = 500; // Default shipping
+    const total = subtotal + tax + shipping;
 
-    // Create the analysis message with all necessary data
-    const analysisMessage = {
+    // Generate a more user-friendly response
+    let analysisMessage = {
       type: 'bot',
-      text: `I've analyzed your purchase order document. Here's what I found:
+      text: `I've reviewed your purchase order and found that we need to set up these batteries in your inventory system before we can process the order.
 
-1. Number of items: ${extractedItems.length}
-2. Total value: RM${totalValue.toFixed(2)}
-        
-Would you like to review the details and proceed with processing this purchase order?`,
+Here's what I found in your document:
+
+${extractedItems.map(item => 
+  `• ${item.productName}
+   Quantity: ${item.quantity} units
+   Unit Price: RM${parseFloat(item.price).toFixed(2)}
+   Total: RM${(item.quantity * item.price).toFixed(2)}`
+).join('\n\n')}
+
+Financial Summary:
+• Subtotal: RM${subtotal.toFixed(2)}
+• Tax (6%): RM${tax.toFixed(2)}
+• Shipping: RM${shipping.toFixed(2)}
+• Total: RM${total.toFixed(2)}
+
+To proceed, I can help you:
+1. Add these batteries to your inventory system now
+2. Save this as a draft purchase order and add the products later
+3. Modify the order to use existing products
+
+Which option would you prefer?`,
       fileAnalysis: fileAnalysis,
+      actions: [
+        {
+          label: "Add to Inventory",
+          action: "add_products",
+          variant: "default"
+        },
+        {
+          label: "Save as Draft",
+          action: "save_draft",
+          variant: "outline"
+        },
+        {
+          label: "Modify Order",
+          action: "modify_order",
+          variant: "outline"
+        }
+      ],
       showPreview: true,
-      actions: ['confirm', 'edit', 'cancel'],
       timestamp: new Date().toISOString()
     };
 
     // Update messages with the new analysis
     setMessages(prev => [...prev, analysisMessage]);
 
+    // Update automation state
     setAutomationState(prev => ({
       ...prev,
-      step: 'review',
+      step: 'product_decision',
       data: {
-        extractedItems: fileAnalysis.metadata.extractedItems,
-        analysis: analysis,          
-        warranties: analysis?.warranties 
+        extractedItems,
+        analysis,
+        financials: {
+          subtotal,
+          tax,
+          shipping,
+          total
+        },
+        pendingProducts: extractedItems.map(item => ({
+          productName: item.productName,
+          sku: item.sku,
+          quantity: item.quantity,
+          price: item.price
+        }))
       }
     }));
 
   } catch (error) {
     console.error('File processing error:', error);
-    handleProcessingError(error);
+    // Provide a more helpful error message
+    setMessages(prev => [...prev, {
+      type: 'bot',
+      text: "I encountered an issue while processing your document. Would you like to try uploading it again, or should we create the purchase order manually?",
+      actions: [
+        {
+          label: "Upload Again",
+          action: "retry_upload",
+          variant: "default"
+        },
+        {
+          label: "Create Manually",
+          action: "create_manual",
+          variant: "outline"
+        }
+      ],
+      isError: true,
+      timestamp: new Date().toISOString()
+    }]);
   } finally {
     setStatus(prev => ({ ...prev, isProcessingFile: false }));
+  }
+};
+
+// Add helper function to handle the next steps
+const handleNextStep = async (action) => {
+  switch (action) {
+    case 'add_products':
+      setMessages(prev => [...prev, {
+        type: 'bot',
+        text: "Let's add the missing products to your inventory first. I'll guide you through the process for each product.",
+        timestamp: new Date().toISOString()
+      }]);
+      setAutomationState(prev => ({
+        ...prev,
+        step: 'adding_products'
+      }));
+      break;
+      
+    case 'edit':
+      setMessages(prev => [...prev, {
+        type: 'bot',
+        text: "You can now edit any details of the purchase order. Click on the fields you want to modify.",
+        timestamp: new Date().toISOString()
+      }]);
+      setAutomationState(prev => ({
+        ...prev,
+        step: 'editing'
+      }));
+      break;
+      
+    case 'proceed':
+    case 'confirm':
+      await handleConfirmPO(automationState.data);
+      break;
+      
+    case 'cancel':
+      setMessages(prev => [...prev, {
+        type: 'bot',
+        text: "I've cancelled the current process. Would you like to start over with a new purchase order?",
+        timestamp: new Date().toISOString()
+      }]);
+      setAutomationState({
+        isActive: false,
+        step: null,
+        data: null
+      });
+      break;
   }
 };
 
