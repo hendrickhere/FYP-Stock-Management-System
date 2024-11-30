@@ -3,17 +3,23 @@ const db = require("../models");
 const { OpenAI } = require("openai");
 
 class ChatbotService {
-    constructor(apiKey, documentProcessor) {
+    constructor(apiKey, baseProcessor, poProcessor) {
         if (!apiKey) {
             throw new Error('API key is required for ChatbotService');
         }
-        if (!documentProcessor) {
-            throw new Error('DocumentProcessor is required for ChatbotService');
+        if (!baseProcessor) {
+            throw new Error('Base DocumentProcessor is required for ChatbotService');
+        }
+        if (!poProcessor) {
+            throw new Error('PurchaseOrderProcessor is required for ChatbotService');
         }
 
         this.openai = new OpenAI({ apiKey });
-        this.documentProcessor = documentProcessor;
-        console.log('API Key passed to ChatbotService:', apiKey);
+        this.baseProcessor = baseProcessor;
+        this.poProcessor = poProcessor;
+        this.documentProcessor = baseProcessor;
+
+        console.log('API Key and processors initialized in ChatbotService');
         
         // Conversation management with timeouts
         this.conversations = new Map();
@@ -51,19 +57,19 @@ class ChatbotService {
     // Document Analysis Methods
     async processDocument(file) {
         try {
-            // Validate file input
             if (!file || !file.buffer) {
                 throw new Error('Invalid file data');
             }
 
-            // Use the document processor to process the file
-            const result = await this.documentProcessor.processDocument(file);
+            // First use base processor to determine document type
+            const baseResult = await this.baseProcessor.processDocument(file);
             
-            if (!result) {
-                throw new Error('Document processing failed to return results');
+            // If it's a purchase order, use the specialized processor
+            if (baseResult.metadata.documentType === 'purchase_order' && this.poProcessor) {
+                return await this.poProcessor.processPurchaseOrder(file);
             }
 
-            return result;
+            return baseResult;
         } catch (error) {
             console.error('Document processing error:', error);
             throw error;

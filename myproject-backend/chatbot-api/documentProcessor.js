@@ -3,7 +3,10 @@ const { PDFExtract } = require('pdf.js-extract');
 
 class DocumentProcessor {
     constructor() {
-        this.pdfExtract = new PDFExtract();
+        if (new.target === DocumentProcessor) {
+            this.pdfExtract = new PDFExtract();
+            console.log('Base DocumentProcessor initialized');
+        }
     }
 
 async processDocument(file) {
@@ -312,4 +315,94 @@ async processDocument(file) {
     }
 }
 
-module.exports = DocumentProcessor;
+class PurchaseOrderProcessor extends DocumentProcessor {
+    constructor() {
+        super();
+        // Initialize specific recognizers only if they're needed
+        this.recognizers = {
+            vendorInfo: null,
+            productDetails: null,
+            financialDetails: null
+        };
+        console.log('PurchaseOrderProcessor initialized');
+    }
+
+    initializeRecognizers() {
+        if (!this.recognizers.vendorInfo) {
+            // Simple recognizer implementation for now
+            this.recognizers = {
+                vendorInfo: {
+                    analyze: text => this.extractVendorInfo(text)
+                },
+                productDetails: {
+                    analyze: text => this.extractProductDetails(text)
+                },
+                financialDetails: {
+                    analyze: text => this.extractFinancialDetails(text)
+                }
+            };
+        }
+    }
+
+    // Add helper methods for recognizers
+    extractVendorInfo(text) {
+        // Implementation using existing patterns
+        return super.extractMetadata(text);
+    }
+
+    extractProductDetails(text) {
+        // Implementation using existing patterns
+        return super.extractItems(text);
+    }
+
+    extractFinancialDetails(text) {
+        // Implementation using existing patterns
+        const items = this.extractProductDetails(text);
+        return super.calculateFinancials(items);
+    }
+
+  async processPurchaseOrder(document) {
+    // First pass: Extract basic structure and metadata
+    const metadata = await this.extractMetadata(document);
+    
+    // Second pass: Detailed line item extraction with confidence scores
+    const items = await this.extractLineItems(document);
+    
+    // Third pass: Financial validation and reconciliation
+    const financials = await this.validateFinancials(items);
+    
+    // Fourth pass: Cross-reference with existing inventory
+    const inventoryAnalysis = await this.analyzeInventoryImpact(items);
+
+    return {
+      metadata,
+      items,
+      financials,
+      inventoryAnalysis,
+      confidence: this.calculateOverallConfidence()
+    };
+  }
+
+    async analyzeInventoryImpact(items) {
+    // This connects to your existing inventory checking logic
+    return {
+      newProducts: items.filter(item => !this.productExists(item)),
+      insufficientStock: items.filter(item => this.hasInsufficientStock(item)),
+      readyToProcess: items.filter(item => 
+        this.productExists(item) && !this.hasInsufficientStock(item)
+      )
+    };
+  }
+
+  // Add methods that work with your existing stock validation
+  async validateFinancials(items) {
+    const financials = await super.calculateFinancials(items);
+    // Add additional validation specific to purchase orders
+    return {
+      ...financials,
+      validationResults: await this.validateFinancialCalculations(financials)
+    };
+  }
+}
+
+module.exports = { DocumentProcessor, PurchaseOrderProcessor };

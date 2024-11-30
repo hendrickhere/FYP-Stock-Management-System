@@ -13,48 +13,33 @@ const initialState = {
 
 function purchaseOrderReducer(state, action) {
   switch (action.type) {
-    case 'SET_CURRENT_ORDER':
-      return {
-        ...state,
-        currentOrder: action.payload,
-        processingStage: 'initial_review'
-      };
-    
-    case 'ADD_PENDING_PRODUCTS':
-      return {
-        ...state,
-        pendingProducts: action.payload,
-        processingStage: 'adding_products'
-      };
-    
-    case 'SET_STOCK_ISSUES':
-      return {
-        ...state,
-        stockIssues: action.payload,
-        processingStage: 'resolving_stock'
-      };
-    
     case 'SET_PROCESSING_STAGE':
       return {
         ...state,
         processingStage: action.payload
       };
-    
+    case 'SET_PENDING_PRODUCTS':
+      return {
+        ...state,
+        pendingProducts: action.payload
+      };
+    case 'SET_STOCK_ISSUES':
+      return {
+        ...state,
+        stockIssues: action.payload
+      };
     case 'SET_VALIDATION_ERRORS':
       return {
         ...state,
         validationErrors: action.payload
       };
-    
     case 'SET_PROCESSING':
       return {
         ...state,
         isProcessing: action.payload
       };
-    
     case 'RESET':
       return initialState;
-    
     default:
       return state;
   }
