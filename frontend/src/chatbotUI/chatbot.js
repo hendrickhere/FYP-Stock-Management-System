@@ -10,6 +10,7 @@ import ChatLoader from './chatLoader';
 import ChatErrorBoundary from "./chatErrorBoundary";
 import ChatbotProcessing from './purchase_order_automation/chatbotProcessing';
 import { usePurchaseOrder } from './purchase_order_automation/purchaseOrderContext';
+import { PurchaseOrderProvider } from './purchase_order_automation/purchaseOrderContext';
 import axiosInstance from '../axiosConfig';
 import { Alert } from "../ui/alert";
 import { useToast } from '../ui/use-toast';
@@ -42,7 +43,9 @@ function ChatbotUI() {
       <div className="flex flex-row flex-grow">
         {!isMobile && <Sidebar/>}
         <ChatErrorBoundary>
-          <Chatbot isMobile={isMobile} />
+          <PurchaseOrderProvider>
+            <Chatbot isMobile={isMobile} />
+          </PurchaseOrderProvider>
         </ChatErrorBoundary>
       </div>
     </div>
@@ -79,26 +82,39 @@ function Chatbot({ isMobile }) {
       }
   });
 
-  const updateProgressWithMessage = (stage, current, total, message) => {
-      setAutomationState(prev => ({
-          ...prev,
-          progress: {
-              current,
-              total,
-              stage,
-              message
-          }
-      }));
+  const [automationProgress, setAutomationProgress] = useState({
+    totalSteps: 0,
+    completedSteps: 0,
+    currentStage: null,
+    stages: {
+      documentAnalysis: { status: 'pending' },
+      productAddition: { status: 'pending' },
+      stockUpdate: { status: 'pending' },
+      finalReview: { status: 'pending' }
+    }
+  });
 
-      // Add progress message to chat if significant
-      if (current === 0 || current === total || message) {
-          setMessages(prev => [...prev, {
-              type: 'bot',
-              text: message || `Processing ${stage}: ${Math.round((current/total) * 100)}%`,
-              isProgress: true,
-              timestamp: new Date().toISOString()
-          }]);
-      }
+  // Add progress update function
+  const updateAutomationProgress = (stage, status) => {
+    setAutomationProgress(prev => ({
+      ...prev,
+      stages: {
+        ...prev.stages,
+        [stage]: { status }
+      },
+      completedSteps: status === 'completed' 
+        ? prev.completedSteps + 1 
+        : prev.completedSteps,
+      currentStage: stage
+    }));
+
+    // Add progress message to chat
+    setMessages(prev => [...prev, {
+      type: 'bot',
+      text: `${status === 'completed' ? '✅' : '🔄'} ${getStageDescription(stage)}`,
+      isProgress: true,
+      timestamp: new Date().toISOString()
+    }]);
   };
 
   const [status, setStatus] = useState({
@@ -110,6 +126,48 @@ function Chatbot({ isMobile }) {
     isProcessingFile: false,
     isProcessing: false
   });
+
+  const determineRecoveryActions = (error, context) => {
+    const actions = [];
+
+    // Add retry action for recoverable errors
+    if (isRecoverableError(error)) {
+      actions.push({
+        label: "Try Again",
+        action: "retry",
+        variant: "default"
+      });
+    }
+
+    // Always add start over option
+    actions.push({
+      label: "Start Over",
+      action: "restart",
+      variant: "outline"
+    });
+
+    // Add cancel option
+    actions.push({
+      label: "Cancel",
+      action: "cancel",
+      variant: "outline"
+    });
+
+    return actions;
+  };
+
+  const getStageDescription = (stage) => {
+    const descriptions = {
+      documentAnalysis: "Analyzing purchase order document",
+      productAddition: "Adding new products to inventory",
+      stockUpdate: "Updating stock levels",
+      finalReview: "Reviewing final details",
+      processing: "Processing purchase order",
+      completed: "Purchase order processing completed"
+    };
+
+    return descriptions[stage] || stage;
+  };
 
   const startAutomation = () => {
     const welcomeMessage = {
@@ -134,43 +192,27 @@ Would you like to start by uploading your purchase order document?`,
     });
   };
 
-  const handleProcessingError = (error) => {
-      const errorState = {
-          state: AUTOMATION_STATES.ERROR,
-          error: {
-              code: error.code || 'UNKNOWN_ERROR',
-              message: error.message,
-              recoverable: isRecoverableError(error),
-              timestamp: new Date().toISOString()
-          }
-      };
+  const handleProcessingError = (error, context) => {
+    const errorMessage = {
+      type: 'bot',
+      text: generateErrorMessage(error, context),
+      isError: true,
+      actions: determineRecoveryActions(error, context),
+      timestamp: new Date().toISOString()
+    };
 
-      // Update automation state with error
-      setAutomationState(prev => ({
-          ...prev,
-          ...errorState,
-          lastValidState: prev.state // Store last valid state for recovery
-      }));
+    setMessages(prev => [...prev, errorMessage]);
+  };
 
-      // Show error message with recovery options
-      setMessages(prev => [...prev, {
-          type: 'bot',
-          text: `I encountered an error: ${error.message}\n\n${
-              errorState.error.recoverable 
-                  ? 'Would you like to:\n1. Try again\n2. Start over\n3. Cancel processing' 
-                  : 'Please try starting over or contact support if the issue persists.'
-          }`,
-          isError: true,
-          actions: errorState.error.recoverable ? [
-              { label: 'Try Again', action: 'retry', variant: 'default' },
-              { label: 'Start Over', action: 'restart', variant: 'outline' },
-              { label: 'Cancel', action: 'cancel', variant: 'outline' }
-          ] : [
-              { label: 'Start Over', action: 'restart', variant: 'default' },
-              { label: 'Cancel', action: 'cancel', variant: 'outline' }
-          ],
-          timestamp: new Date().toISOString()
-      }]);
+  const generateErrorMessage = (error, context) => {
+    switch (error.code) {
+      case 'PRODUCT_VALIDATION_ERROR':
+        return `There were some issues with the product details:\n${error.details.join('\n')}`;
+      case 'STOCK_UPDATE_ERROR':
+        return `Unable to update stock levels: ${error.message}\nCurrent stock levels will remain unchanged.`;
+      default:
+        return `An error occurred while ${context}: ${error.message}`;
+    }
   };
 
   const isRecoverableError = (error) => {
@@ -315,90 +357,63 @@ Would you like to start by uploading your purchase order document?`,
   };
 
   const handleFileUpload = async (file) => {
+    try {
       setStatus(prev => ({ ...prev, isProcessingFile: true }));
-      
-      try {
-          // Add uploading message with more detail
-          setMessages(prev => [...prev, {
-              type: 'user',
-              text: `Uploading purchase order: ${file.name}`,
-              timestamp: new Date().toISOString()
-          }]);
+      updateAutomationProgress('documentAnalysis', 'processing');
 
-          setMessages(prev => [...prev, {
-              type: 'bot',
-              text: "I'm analyzing your purchase order document. I'll check for:\n• Product details and pricing\n• Stock availability\n• Required actions\n\nThis will just take a moment...",
-              timestamp: new Date().toISOString()
-          }]);
+      const formData = new FormData();
+      formData.append('file', file);
 
-          const formData = new FormData();
-          formData.append('file', file);
+      // Send file to backend for processing
+      const response = await axiosInstance.post("/chatbot/process-file", formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data'
+        }
+      });
 
-          const response = await axiosInstance.post("/chatbot/process-file", formData);
-          const { analysisResult, message, nextSteps } = response.data;
+      // Get analysis result from response
+      const { analysisResult, message } = response.data;
 
-          // Check for products that need to be added
-          if (analysisResult.groupedItems.newProducts?.length > 0) {
-              const newProductsMessage = `I found ${analysisResult.groupedItems.newProducts.length} new products that need to be added to inventory:\n\n` +
-                  analysisResult.groupedItems.newProducts.map(product => 
-                      `• ${product.productName}\n  Quantity: ${product.quantity} units\n  Price: RM${product.price}`
-                  ).join('\n\n') +
-                  '\n\nWould you like me to help you add these products to inventory?';
+      // Add the initial analysis message
+      setMessages(prev => [...prev, {
+        type: 'bot',
+        text: message,
+        fileAnalysis: analysisResult,
+        analysisResult: analysisResult, // Add this to trigger automation
+        showPreview: true,
+        actions: determineAvailableActions(analysisResult),
+        timestamp: new Date().toISOString()
+      }]);
 
-              setMessages(prev => [...prev, {
-                  type: 'bot',
-                  text: newProductsMessage,
-                  fileAnalysis: analysisResult,
-                  actions: [
-                      {
-                          label: "Add Products",
-                          action: "add_products",
-                          variant: "default",
-                          handler: () => handleAddProducts(analysisResult.groupedItems.newProducts)
-                      },
-                      {
-                          label: "Review Details",
-                          action: "review",
-                          variant: "outline"
-                      }
-                  ],
-                  showPreview: true,
-                  timestamp: new Date().toISOString()
-              }]);
+      // Set automation state based on analysis
+      setAutomationState({
+        state: AUTOMATION_STATES.ANALYZING,
+        currentStep: getInitialStep(analysisResult),
+        processedData: analysisResult,
+        isActive: true,
+        error: null
+      });
 
-              setAutomationState({
-                  state: AUTOMATION_STATES.ANALYZING,
-                  currentStep: 'add_products',
-                  processedData: analysisResult,
-                  isActive: true
-              });
+      updateAutomationProgress('documentAnalysis', 'completed');
+      return analysisResult;
 
-              setMessageContext({
-              type: 'add_products',
-              data: analysisResult.groupedItems.newProducts,
-              awaitingResponse: true
-        });
-          } else {
-              // Handle case where all products exist
-              setMessages(prev => [...prev, {
-                  type: 'bot',
-                  text: message,
-                  fileAnalysis: analysisResult,
-                  actions: nextSteps,
-                  showPreview: true,
-                  timestamp: new Date().toISOString()
-              }]);
-          }
+    } catch (error) {
+      console.error('Purchase order processing error:', error);
+      handleProcessingError(error);
+    } finally {
+      setStatus(prev => ({ ...prev, isProcessingFile: false }));
+    }
+  };
 
-      } catch (error) {
-          console.error('File processing error:', error);
-          // Only show error for actual processing failures
-          if (error.code === 'PROCESSING_ERROR') {
-              handleProcessingError(error);
-          }
-      } finally {
-          setStatus(prev => ({ ...prev, isProcessingFile: false }));
-      }
+  // Helper function to determine initial step
+  const getInitialStep = (analysisResult) => {
+    if (analysisResult.groupedItems.newProducts.length > 0) {
+      return 'adding_products';
+    } else if (analysisResult.groupedItems.insufficientStock.length > 0) {
+      return 'reviewing_stock';
+    } else {
+      return 'final_review';
+    }
   };
 
   //helper function to validate state transitions
@@ -457,43 +472,37 @@ Would you like to start by uploading your purchase order document?`,
   };
 
   // Helper function to create analysis message
-  const createAnalysisMessage = (groupedItems, financials) => {
-    const { newProducts, insufficientStock, readyToProcess } = groupedItems;
-    
-    // Start with a welcoming introduction
+  const createInitialAnalysisMessage = (analysisResult) => {
     let message = "I've analyzed your purchase order document. Here's what I found:\n\n";
-
-    // Group the items by their status for better readability
-    if (newProducts.length > 0) {
-      message += "🆕 New Products that need to be added:\n";
-      newProducts.forEach(item => {
-        message += `• ${item.productName}\n`;
-        message += `  - Quantity: ${item.quantity} units\n`;
-        message += `  - Unit Price: RM${parseFloat(item.price).toFixed(2)}\n`;
-        message += `  - Total: RM${(item.quantity * item.price).toFixed(2)}\n`;
+    
+    // Add document metadata summary
+    message += `📄 Document Details:\n`;
+    message += `• PO Number: ${analysisResult.metadata.poNumber}\n`;
+    message += `• Date: ${analysisResult.metadata.poDate}\n`;
+    message += `• Vendor: ${analysisResult.metadata.vendorName}\n\n`;
+    
+    // Add inventory analysis
+    if (analysisResult.groupedItems.newProducts.length > 0) {
+      message += "🆕 New Products to Add:\n";
+      analysisResult.groupedItems.newProducts.forEach(product => {
+        message += `• ${product.productName}\n`;
+        message += `  - Suggested SKU: ${product.sku}\n`;
+        message += `  - Quantity: ${product.quantity} units\n`;
+        message += `  - Unit Price: RM${product.price}\n`;
       });
       message += "\n";
     }
 
-    // Show the financial summary in a clear format
-    message += "💰 Financial Summary:\n";
-    message += `• Subtotal: RM${financials.subtotal.toFixed(2)}\n`;
-    message += `• Tax (6%): RM${financials.tax.toFixed(2)}\n`;
-    message += `• Shipping: RM${financials.shipping.toFixed(2)}\n`;
-    message += `• Total: RM${financials.total.toFixed(2)}\n\n`;
-
-    // Provide clear next steps based on the analysis
-    if (newProducts.length > 0 || insufficientStock.length > 0) {
-      message += "Before we can process this purchase order, we need to:\n";
-      if (newProducts.length > 0) {
-        message += "1. Add the new products to your inventory system\n";
-      }
-      if (insufficientStock.length > 0) {
-        message += `${newProducts.length > 0 ? '2' : '1'}. Address the insufficient stock levels\n`;
-      }
-      message += "\nWould you like me to help you with these steps first?";
-    } else {
-      message += "✅ All products are verified and ready for processing. Would you like to review the details and proceed?";
+    // Add stock level warnings if any
+    if (analysisResult.groupedItems.insufficientStock.length > 0) {
+      message += "⚠️ Stock Level Warnings:\n";
+      analysisResult.groupedItems.insufficientStock.forEach(item => {
+        message += `• ${item.productName}\n`;
+        message += `  - Current Stock: ${item.currentStock} units\n`;
+        message += `  - Needed: ${item.quantity} units\n`;
+        message += `  - Shortage: ${item.quantity - item.currentStock} units\n`;
+      });
+      message += "\n";
     }
 
     return message;
@@ -536,23 +545,16 @@ Would you like to start by uploading your purchase order document?`,
   };
 
   const setAutomationStateWithValidation = (newState) => {
-      if (!validateStateTransition(automationState.state, newState.state)) {
-          console.warn(`Invalid state transition from ${automationState.state} to ${newState.state}`);
-          return false;
-      }
+    if (!validateStateTransition(automationState.state, newState.state)) {
+      console.warn(`Invalid state transition from ${automationState.state} to ${newState.state}`);
+      return false;
+    }
 
-      // Add transition message if significant state change
-      if (newState.state !== automationState.state) {
-          setMessages(prev => [...prev, {
-              type: 'bot',
-              text: getStateTransitionMessage(automationState.state, newState.state),
-              isTransition: true,
-              timestamp: new Date().toISOString()
-          }]);
-      }
+    // Update progress when state changes
+    updateAutomationProgress(newState.state, 'processing');
 
-      setAutomationState(newState);
-      return true;
+    setAutomationState(newState);
+    return true;
   };
 
   const getStateTransitionMessage = (fromState, toState) => {
@@ -720,114 +722,106 @@ Would you like to start by uploading your purchase order document?`,
     }]);
   };
 
-// Now we can properly implement determineAvailableActions
-  const determineAvailableActions = (groupedItems) => {
-    const { newProducts, insufficientStock, readyToProcess } = groupedItems;
-    
-    // When there are issues to resolve, provide problem-solving actions
-    if (newProducts.length > 0 || insufficientStock.length > 0) {
-      const actions = [];
+const determineAvailableActions = (analysisResult) => {
+  const actions = [];
+  
+  // Add products action
+  if (analysisResult.groupedItems.newProducts.length > 0) {
+    actions.push({
+      label: "Add New Products",
+      action: "add_products",
+      variant: "default",
+      description: `Add ${analysisResult.groupedItems.newProducts.length} new products to inventory`,
+      priority: "high"
+    });
+  }
+  
+  // Stock management action
+  if (analysisResult.groupedItems.insufficientStock.length > 0) {
+    actions.push({
+      label: "Update Stock Levels",
+      action: "review_stock",
+      variant: "default",
+      description: "Review and update insufficient stock levels",
+      priority: "high"
+    });
+  }
 
-      if (newProducts.length > 0) {
-        actions.push({
-          label: "Add Products to Inventory",
-          action: "add_products",
-          variant: "default",
-          primary: true,
-          handler: () => handleAddProducts(newProducts)
-        });
-      }
+  // Add review action if ready to process
+  if (analysisResult.groupedItems.readyToProcess.length > 0) {
+    actions.push({
+      label: "Review Order Details",
+      action: "review",
+      variant: analysisResult.groupedItems.newProducts.length === 0 ? "default" : "outline",
+      description: "Review the complete purchase order",
+      priority: "normal"
+    });
+  }
 
-      if (insufficientStock.length > 0) {
-        actions.push({
-          label: "Review Stock Levels",
-          action: "review_stock",
-          variant: "outline",
-          handler: () => handleReviewStock(insufficientStock)
-        });
-      }
-
-      actions.push({
-        label: "Save as Draft",
-        action: "save_draft",
-        variant: "outline",
-        handler: handleSaveDraft
-      });
-
-      actions.push({
-        label: "Modify Order",
-        action: "modify",
-        variant: "outline",
-        handler: handleModifyOrder
-      });
-
-      return actions;
-    }
-
-    // When everything is ready, provide processing actions
-    return [
-      {
-        label: "Confirm & Process",
-        action: "confirm",
-        variant: "default",
-        primary: true,
-        handler: handleConfirmOrder
-      },
-      {
-        label: "Edit Details",
-        action: "edit",
-        variant: "outline",
-        handler: handleEditOrder
-      }
-    ];
-  };
+  return actions;
+};
 
 // Add helper function to handle the next steps
-  const handleNextStep = async (action) => {
-    switch (action) {
+const handleNextStep = async (action) => {
+  // First validate the transition
+  const nextState = {
+    add_products: AUTOMATION_STATES.PROCESSING,
+    review_stock: AUTOMATION_STATES.PROCESSING,
+    confirm: AUTOMATION_STATES.PROCESSING,
+    cancel: AUTOMATION_STATES.IDLE
+  }[action.type];
+
+  if (!validateStateTransition(automationState.state, nextState)) {
+    console.error('Invalid state transition attempted');
+    return;
+  }
+
+  try {
+    switch (action.type) {
       case 'add_products':
-        setMessages(prev => [...prev, {
-          type: 'bot',
-          text: "Let's add the missing products to your inventory first. I'll guide you through the process for each product.",
-          timestamp: new Date().toISOString()
-        }]);
         setAutomationState(prev => ({
           ...prev,
-          step: 'adding_products'
+          state: AUTOMATION_STATES.PROCESSING,
+          currentStep: 'adding_products'
         }));
+        await handleAddProducts(automationState.processedData.groupedItems.newProducts);
         break;
         
-      case 'edit':
-        setMessages(prev => [...prev, {
-          type: 'bot',
-          text: "You can now edit any details of the purchase order. Click on the fields you want to modify.",
-          timestamp: new Date().toISOString()
-        }]);
+      case 'review_stock':
         setAutomationState(prev => ({
           ...prev,
-          step: 'editing'
+          state: AUTOMATION_STATES.PROCESSING,
+          currentStep: 'reviewing_stock'
         }));
+        await handleReviewStock(automationState.processedData.groupedItems.insufficientStock);
         break;
         
-      case 'proceed':
       case 'confirm':
-        await handleConfirmPO(automationState.data);
+        setAutomationState(prev => ({
+          ...prev,
+          state: AUTOMATION_STATES.PROCESSING,
+          currentStep: 'processing'
+        }));
+        await handleConfirmPO(automationState.processedData);
         break;
         
       case 'cancel':
-        setMessages(prev => [...prev, {
-          type: 'bot',
-          text: "I've cancelled the current process. Would you like to start over with a new purchase order?",
-          timestamp: new Date().toISOString()
-        }]);
-        setAutomationState({
-          isActive: false,
-          step: null,
-          data: null
-        });
+        handleProcessingCancel();
         break;
     }
-  };
+
+    // Update progress
+    updateAutomationProgress(automationState.currentStep, 'completed');
+
+  } catch (error) {
+    handleProcessingError(error, action.type);
+    setAutomationState(prev => ({
+      ...prev,
+      state: AUTOMATION_STATES.ERROR,
+      error
+    }));
+  }
+};
 
   const generatePreviewMessage = (metadata) => {
     const { extractedItems, subtotal, tax, shipping, grandTotal } = metadata;

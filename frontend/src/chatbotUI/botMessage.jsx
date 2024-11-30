@@ -11,6 +11,7 @@ import { Alert, AlertDescription, AlertTitle } from "../ui/alert";
 import { Card, CardContent, CardHeader, CardTitle } from "../ui/card";
 import { Button } from "../ui/button";
 import ChatbotProcessing from './purchase_order_automation/chatbotProcessing';
+import { PurchaseOrderProvider } from './purchase_order_automation/purchaseOrderContext';
 
 const BotMessage = ({ 
   text, 
@@ -24,18 +25,22 @@ const BotMessage = ({
   onProcessingComplete,
   onProcessingCancel
 }) => {
+
   // Function to render the appropriate analysis view based on the data
   const renderAnalysisView = () => {
     if (!fileAnalysis || !showPreview) return null;
 
-    // If we have analysis results and automated processing is active
+    // If automation is active and we have analysis results, show processing view
     if (analysisResult && analysisResult.groupedItems) {
       return (
-        <ChatbotProcessing
-          analysisResult={analysisResult}
-          onProcessingComplete={onProcessingComplete}
-          onProcessingCancel={onProcessingCancel}
-        />
+        <PurchaseOrderProvider>
+          <ChatbotProcessing
+            analysisResult={analysisResult}
+            onProcessingComplete={onProcessingComplete}
+            onProcessingCancel={onProcessingCancel}
+            onActionClick={onActionClick}
+          />
+        </PurchaseOrderProvider>
       );
     }
 
@@ -113,6 +118,7 @@ const BotMessage = ({
                   variant={action.variant || 'default'}
                   onClick={() => onActionClick?.(action)}
                   disabled={action.disabled}
+                  className={action.priority === 'high' ? 'bg-blue-600' : ''}
                 >
                   {action.label}
                 </Button>

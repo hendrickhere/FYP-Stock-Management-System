@@ -29,6 +29,7 @@ const ChatbotProcessing = ({
   const [processingData, setProcessingData] = useState(analysisResult);
   const [isProcessing, setIsProcessing] = useState(false);
   const { toast } = useToast();
+  const [errors, setErrors] = useState([]);
 
   // Initialize processing state when analysis result changes
   useEffect(() => {
@@ -38,13 +39,60 @@ const ChatbotProcessing = ({
       // Determine initial stage based on analysis
       if (analysisResult.groupedItems.newProducts.length > 0) {
         setCurrentStage(PROCESSING_STAGES.ADDING_PRODUCTS);
+        dispatch({ 
+          type: 'SET_PROCESSING_STAGE', 
+          payload: PROCESSING_STAGES.ADDING_PRODUCTS 
+        });
       } else if (analysisResult.groupedItems.insufficientStock.length > 0) {
         setCurrentStage(PROCESSING_STAGES.REVIEWING_STOCK);
+        dispatch({ 
+          type: 'SET_PROCESSING_STAGE', 
+          payload: PROCESSING_STAGES.REVIEWING_STOCK 
+        });
       } else {
         setCurrentStage(PROCESSING_STAGES.FINAL_REVIEW);
+        dispatch({ 
+          type: 'SET_PROCESSING_STAGE', 
+          payload: PROCESSING_STAGES.FINAL_REVIEW 
+        });
       }
     }
-  }, [analysisResult]);
+  }, [analysisResult, dispatch]);
+
+  const handleProcessingError = (error) => {
+    // Log the error for debugging
+    console.error('Processing error:', error);
+
+    // Update the error state
+    setErrors(prev => [...prev, {
+      id: Date.now(),
+      message: error.message,
+      type: error.code || 'PROCESSING_ERROR'
+    }]);
+
+    // Show error toast to user
+    toast({
+      title: "Processing Error",
+      description: error.message,
+      variant: "destructive",
+      duration: 5000
+    });
+
+    // If the error is critical, cancel processing
+    if (error.code === 'CRITICAL_ERROR') {
+      onProcessingCancel();
+    }
+  };
+
+  // Add support function for specific error types
+  const isRecoverableError = (error) => {
+    const recoverableErrors = [
+      'NETWORK_ERROR',
+      'VALIDATION_ERROR',
+      'STOCK_UPDATE_ERROR'
+    ];
+    return recoverableErrors.includes(error.code);
+  };
 
   // Handle new products being added
   const handleProductsAdded = async (newProducts) => {
@@ -118,6 +166,125 @@ const ChatbotProcessing = ({
       setIsProcessing(false);
     }
   };
+
+const processPurchaseOrder = async (analysisResult) => {
+  // Update UI state to show processing
+  updateProgressWithMessage('documentAnalysis', 'Analyzing purchase order details...');
+
+  try {
+    // Get the processed items and analysis
+    const { groupedItems, financials, warnings } = analysisResult;
+
+    // Process inventory status for each item
+    await handleInventoryChecks(groupedItems);
+
+    // Update progress
+    updateProgressWithMessage('stockValidation', 'Validating stock levels...');
+
+    // Generate appropriate UI components based on analysis
+    if (groupedItems.newProducts.length > 0) {
+      return renderNewProductsFlow(groupedItems.newProducts);
+    } else if (groupedItems.insufficientStock.length > 0) {
+      return renderStockUpdateFlow(groupedItems.insufficientStock);
+    } else {
+      return renderOrderReviewFlow(groupedItems.readyToProcess);
+    }
+
+  } catch (error) {
+    handleProcessingError(error);
+  }
+};
+
+const renderNewProductsFlow = (newProducts) => {
+  return (
+    <div className="space-y-4">
+      <h3 className="text-lg font-medium">New Products to Add</h3>
+      <AddProductsForm
+        products={newProducts}
+        onSubmit={handleProductsAdded}
+        onCancel={onProcessingCancel}
+        isProcessing={isProcessing}
+      />
+    </div>
+  );
+};
+
+const renderStockUpdateFlow = (insufficientStock) => {
+  return (
+    <div className="space-y-4">
+      <h3 className="text-lg font-medium">Stock Level Updates Required</h3>
+      <StockReviewForm
+        products={insufficientStock}
+        onSubmit={handleStockUpdate}
+        onCancel={onProcessingCancel}
+        isProcessing={isProcessing}
+      />
+    </div>
+  );
+};
+
+const renderOrderReviewFlow = (readyToProcess) => {
+  return (
+    <div className="space-y-4">
+      <h3 className="text-lg font-medium">Review Purchase Order</h3>
+      <PurchaseOrderPreview
+        items={readyToProcess}
+        metadata={processingData.metadata}
+        financials={processingData.financials}
+        onConfirm={handleProcessOrder}
+        onCancel={onProcessingCancel}
+        isProcessing={isProcessing}
+      />
+    </div>
+  );
+};
+
+const updateProgressWithMessage = (stage, message) => {
+  // This function updates the UI with progress messages
+  toast({
+    title: `Processing: ${stage}`,
+    description: message,
+    duration: 3000
+  });
+};
+
+const handleInventoryChecks = async (groupedItems) => {
+  const itemsToCheck = [
+    ...groupedItems.newProducts,
+    ...groupedItems.insufficientStock,
+    ...groupedItems.readyToProcess
+  ];
+
+  // Check inventory status for each item
+  for (const item of itemsToCheck) {
+    try {
+      const inventoryStatus = await instance.get(`/inventory/check/${item.sku}`);
+      item.inventoryDetails = inventoryStatus.data;
+    } catch (error) {
+      console.error(`Error checking inventory for ${item.sku}:`, error);
+    }
+  }
+
+  return groupedItems;
+};
+
+const ErrorDisplay = ({ errors }) => {
+  if (errors.length === 0) return null;
+
+  return (
+    <Alert variant="destructive">
+      <AlertCircle className="h-4 w-4" />
+      <AlertTitle>Processing Errors</AlertTitle>
+      <AlertDescription>
+        <ul className="list-disc pl-4">
+          {errors.map(error => (
+            <li key={error.id}>{error.message}</li>
+          ))}
+        </ul>
+      </AlertDescription>
+    </Alert>
+  );
+};
 
   // Handle final purchase order processing
   const handleProcessOrder = async () => {
@@ -249,8 +416,41 @@ const ChatbotProcessing = ({
 
   return (
     <div className="space-y-6">
+      <ErrorDisplay errors={errors} />
       {renderProgressSteps()}
-      {renderStageContent()}
+      
+      <div className="mt-4">
+        {currentStage === PROCESSING_STAGES.ADDING_PRODUCTS && (
+          <AddProductsForm
+            newProducts={processingData.groupedItems.newProducts}
+            onProductsAdded={handleProductsAdded}
+            onCancel={onProcessingCancel}
+            isProcessing={isProcessing}
+          />
+        )}
+        
+        {currentStage === PROCESSING_STAGES.REVIEWING_STOCK && (
+          <StockReviewForm
+            insufficientStock={processingData.groupedItems.insufficientStock}
+            onStockUpdate={handleStockUpdate}
+            onCancel={onProcessingCancel}
+            isProcessing={isProcessing}
+          />
+        )}
+        
+        {currentStage === PROCESSING_STAGES.FINAL_REVIEW && (
+          <PurchaseOrderPreview
+            extractedData={{
+              items: processingData.groupedItems.readyToProcess,
+              metadata: processingData.metadata,
+              financials: processingData.financials
+            }}
+            onConfirm={handleProcessOrder}
+            onCancel={onProcessingCancel}
+            isProcessing={isProcessing}
+          />
+        )}
+      </div>
     </div>
   );
 };

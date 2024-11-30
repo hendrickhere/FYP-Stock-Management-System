@@ -1,35 +1,43 @@
 const ChatbotService = require('./chatBotService');
 const { ChatbotIntelligence } = require('./chatBotIntelligence');
-const DocumentProcessor = require('./documentProcessor');
+const { DocumentProcessor, PurchaseOrderProcessor } = require('./documentProcessor');
 
-function createChatbotServices() {
-    console.log('Initializing chatbot services...');
+function createProcessors() {
+    // Create document processors
+    const baseProcessor = new DocumentProcessor();
+    const poProcessor = new PurchaseOrderProcessor();
 
-    const apiKey = process.env.OPENAI_API_KEY;
-    if (!apiKey) {
-        throw new Error('Missing OPENAI_API_KEY environment variable');
-    }
-    // Create services in dependency order
-    const documentProcessor = new DocumentProcessor();
-    
-    // Initialize base service
-    const chatbotService = new ChatbotService(apiKey, documentProcessor);
-
-    const chatbotIntelligence = new ChatbotIntelligence(chatbotService, apiKey);
-
-    // Create middleware to attach services to requests
-    const attachServices = (req, res, next) => {
-        req.services = {
-            documentProcessor,
-            chatbotService,
-            chatbotIntelligence
-        };
-        next();
+    return {
+        baseProcessor,
+        poProcessor
     };
-    
-    // Return all services
-    return { documentProcessor, chatbotService, chatbotIntelligence };
 }
 
-// Export the factory function
-module.exports = { createChatbotServices };
+function createChatbotServices() {
+    // Create processors first
+    const { baseProcessor, poProcessor } = createProcessors();
+    
+    // Create chatbot service with explicit processor injection
+    const chatbotService = new ChatbotService(
+        process.env.OPENAI_API_KEY,
+        baseProcessor,
+        poProcessor
+    );
+
+    // Create chatbot intelligence with chatbot service
+    const chatbotIntelligence = new ChatbotIntelligence(
+        chatbotService,
+        process.env.OPENAI_API_KEY
+    );
+
+    return {
+        documentProcessor: baseProcessor,  // Use baseProcessor as the main document processor
+        chatbotService,
+        chatbotIntelligence,
+        processors: { baseProcessor, poProcessor }  // Include processors in case needed elsewhere
+    };
+}
+
+module.exports = {
+    createChatbotServices
+};
