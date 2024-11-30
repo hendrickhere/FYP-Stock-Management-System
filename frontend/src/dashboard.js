@@ -56,6 +56,10 @@ const MainContent = ({ userRole }) => {
     totalCount: 0,
     newToday: 0
   });
+  const [appointmentCount, setAppointmentCount] = useState({
+    totalCount: 0,
+    newToday: 0
+  });
 
   const fetchTotalSalesWithTimeRange = async (timeRange) => {
     try{
@@ -78,6 +82,17 @@ const MainContent = ({ userRole }) => {
     }
   }
 
+  const fetchAppointmentCount = async (username) => {
+    try {
+      const total = await instance.get(
+        `/appointment/count?username=${username}`
+      );
+      setAppointmentCount(total.data.data);
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
   const fetchTotalProductCount = async (username) => {
     try {
       const total = await instance.get(`/user/inventory/count?username=${username}`);
@@ -90,6 +105,7 @@ const MainContent = ({ userRole }) => {
     fetchTotalSalesWithTimeRange(timeRange);
     fetchTotalCustomerCount(username);
     fetchTotalProductCount(username);
+    fetchAppointmentCount(username);
   }, [timeRange]);
 
   useEffect(() => {
@@ -103,14 +119,20 @@ const MainContent = ({ userRole }) => {
 
   return (
     <main className="flex-1">
-      <div className={`h-[calc(100vh-4rem)] overflow-y-auto ${isMobile ? 'w-full' : 'ml-[13rem]'}`}>
+      <div
+        className={`h-[calc(100vh-4rem)] overflow-y-auto ${
+          isMobile ? "w-full" : "ml-[13rem]"
+        }`}
+      >
         <div className="p-6">
           {/* Welcome Section */}
           <div className="mb-8">
             <h1 className="text-2xl font-bold text-gray-900">
-              Welcome back, {userRole === 'manager' ? 'Manager' : 'Staff'}
-              </h1>
-            <p className="text-gray-600 mt-1">Here's what's happening with your store today.</p>
+              Welcome back, {userRole === "manager" ? "Manager" : "Staff"}
+            </h1>
+            <p className="text-gray-600 mt-1">
+              Here's what's happening with your store today.
+            </p>
           </div>
 
           {/* Quick Stats Grid */}
@@ -140,10 +162,10 @@ const MainContent = ({ userRole }) => {
             />
             <QuickStatCard
               title="Daily Appointments"
-              value="15"
-              trend="+2"
+              value={appointmentCount.newToday}
+              //trend="+2"
               icon={<Calendar className="w-6 h-6" />}
-              trendUp={true}
+              //trendUp={true}
             />
           </div>
 
@@ -157,7 +179,7 @@ const MainContent = ({ userRole }) => {
             )}
 
             {/* Right Side Content */}
-            <div className={`${isManager ? 'lg:col-span-1' : 'lg:col-span-3'}`}>
+            <div className={`${isManager ? "lg:col-span-1" : "lg:col-span-3"}`}>
               <div className="space-y-6">
                 <LowStockAlert />
                 <FastMovingItems />
