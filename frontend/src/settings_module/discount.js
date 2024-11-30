@@ -4,6 +4,8 @@ import { MdDiscount } from "react-icons/md";
 import { Alert, AlertDescription } from "../ui/alert";
 import { GlobalContext } from '../globalContext';
 import instance from '../axiosConfig';
+import DiscountView from './view_discount';
+
 function DiscountSettings() {
   const [userData] = useState(() => {
     const cached = sessionStorage.getItem('userData');
@@ -13,6 +15,7 @@ function DiscountSettings() {
   const navigate = useNavigate();
   const [isMobile, setIsMobile] = useState(window.innerWidth < 1024);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isDiscountEnding, setIsDiscountEnding] = useState(false);
   const [apiError, setApiError] = useState("");
   const [formState, setFormState] = useState({
     discountRate: 0, 
@@ -45,11 +48,12 @@ function DiscountSettings() {
       setIsSubmitting(false);
       return;
     }
-    
+
     try {
       const submissionData = {
         ...formState,
-        discountRate: formState.discountRate / 100
+        discountRate: formState.discountRate / 100,
+        discountEnd: isDiscountEnding ? formState.discountEnd : null,
       };
       await instance.post(`/discount`, submissionData);
       navigate(-1);
@@ -81,16 +85,16 @@ function DiscountSettings() {
     if(!formState.discountStart){
       newErrors.discountStart = "Discount Start Date cannot be empty!";
     }
-    if(!formState.discountEnd){
-      newErrors.discountEnd = "Discount End Date cannot be empty!";
-    }
 
-    if(formState.discountEnd < formState.discountStart){
-      newErrors.discountEnd = "Discount End Date cannot be earlier than discount start!";
-    }
-
-    if (normalizeDate(formState.discountEnd) < normalizeDate(new Date())) {
-      newErrors.discountEnd = "Discount End Date cannot be earlier than today's date!";
+    if (isDiscountEnding) {
+      if (formState.discountEnd < formState.discountStart) {
+        newErrors.discountEnd =
+          "Discount End Date cannot be earlier than discount start!";
+      }
+      if (normalizeDate(formState.discountEnd) < normalizeDate(new Date())) {
+        newErrors.discountEnd =
+          "Discount End Date cannot be earlier than today's date!";
+      }
     }
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
@@ -158,7 +162,6 @@ function DiscountSettings() {
                   <p className="text-red-500 text-sm">{errors.discountRate}</p>
                 )}
               </div>
-
               <div>
                 <label className="block text-sm font-medium text-gray-700">
                   Discount Name
@@ -171,7 +174,7 @@ function DiscountSettings() {
                   className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
                   placeholder="Input Discount Name"
                 />
-                  {errors.discountName && (
+                {errors.discountName && (
                   <p className="text-red-500 text-sm">{errors.discountName}</p>
                 )}
               </div>
@@ -187,11 +190,10 @@ function DiscountSettings() {
                   className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
                   placeholder="Input Discount Start"
                 />
-                 {errors.discountStart && (
+                {errors.discountStart && (
                   <p className="text-red-500 text-sm">{errors.discountStart}</p>
                 )}
               </div>
-
               {/* <div>
               <label className="block text-sm font-medium text-gray-700">
                 Discount Type
@@ -202,7 +204,6 @@ function DiscountSettings() {
                 <option value="both">Both</option>
               </select>
             </div> */}
-
               {/* <div>
               <label className="block text-sm font-medium text-gray-700">
                 Discount Validity (Days)
@@ -213,23 +214,7 @@ function DiscountSettings() {
                 placeholder="30"
               />
             </div> */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700">
-                  Discount End Date
-                </label>
-                <input
-                  onChange={handleInputChange}
-                  name="discountEnd"
-                  value={formState.discountEnd}
-                  type="date"
-                  className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
-                  placeholder="Input Discount Name"
-                />
-                {errors.discountEnd && (
-                  <p className="text-red-500 text-sm">{errors.discountEnd}</p>
-                )}
-              </div>
-              <div>
+            <div>
                 <label className="block text-sm font-medium text-gray-700">
                   Discount Description
                 </label>
@@ -242,6 +227,40 @@ function DiscountSettings() {
                   placeholder="Input Discount Description"
                 />
               </div>
+                <div> {isDiscountEnding && (
+                    <div>
+                  <label className="block text-sm font-medium text-gray-700">
+                    Discount End Date
+                  </label>
+                  <input
+                    onChange={handleInputChange}
+                    name="discountEnd"
+                    value={formState.discountEnd}
+                    type="date"
+                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                    placeholder="Input Discount Name"
+                  />
+                  {errors.discountEnd && (
+                    <p className="text-red-500 text-sm">{errors.discountEnd}</p>
+                  )}
+                </div> )}
+                  <div className="flex items-center mt-4">
+                  <input
+                    type="checkbox"
+                    id="isDiscountEnding"
+                    checked={isDiscountEnding}
+                    onChange={(e) => setIsDiscountEnding(e.target.checked)}
+                    className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                  />
+                  <label
+                    htmlFor="requiresShipping"
+                    className="text-sm font-medium text-gray-700 ml-2"
+                  >
+                    This discount has an end date. 
+                  </label>
+                </div>
+                </div>
+        
               {/* 
             <div className="md:col-span-2">
               <label className="block text-sm font-medium text-gray-700">
@@ -257,7 +276,6 @@ function DiscountSettings() {
                 <option value="services">Services Only</option>
               </select>
             </div> */}
-
               <div className="md:col-span-2">
                 <div className="flex justify-end mt-6 space-x-3">
                   <button
@@ -268,6 +286,7 @@ function DiscountSettings() {
                   </button>
                   <button
                     type="submit"
+                    disabled={isSubmitting}
                     className="inline-flex justify-center px-4 py-2 text-sm font-medium text-white bg-[#38304C] border border-transparent rounded-md shadow-sm hover:bg-[#2A2338] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#38304C]"
                   >
                     Save Changes
@@ -276,6 +295,7 @@ function DiscountSettings() {
               </div>
             </div>
           </form>
+          <DiscountView/>
         </div>
       </div>
     </div>

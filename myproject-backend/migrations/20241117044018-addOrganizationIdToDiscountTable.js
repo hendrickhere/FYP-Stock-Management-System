@@ -6,7 +6,7 @@ module.exports = {
     await queryInterface.addColumn("discounts", "organization_id", {
       type: Sequelize.DataTypes.INTEGER,
       allowNull: false,
-      defaultValue: null,
+      defaultValue: 1,
       referenes: {
         model: "organizations",
         key: "organization_id",

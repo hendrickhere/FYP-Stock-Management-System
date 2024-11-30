@@ -87,7 +87,7 @@ exports.createDiscount = async (reqBody) => {
   }
 };
 
-exports.getDiscounts = async (organizationId) => {
+exports.getDiscounts = async (organizationId, includeExpire) => {
   const organization = await getOrganization(organizationId);
   if (!organization) {
     throw new DiscountError("Organization not found", "VALIDATION_ERROR", 400);
@@ -95,15 +95,23 @@ exports.getDiscounts = async (organizationId) => {
 
   try {
     const currentDate = new Date();
-    const discounts = await Discount.findAll({
-      where: {
-        organization_id: organizationId,
-        discount_status: 1,
+    let whereCondition = {
+      organization_id: organizationId,
+      discount_status: 1,
+    };
+
+    if (parseInt(includeExpire) === 0) {
+      whereCondition = {
+        ...whereCondition,
         [Op.or]: [
-          { discount_end: null },  
-          { discount_end: { [Op.gt]: currentDate } }  
+          { discount_end: null },
+          { discount_end: { [Op.gt]: currentDate } }
         ]
-      },
+      };
+    }
+
+    const discounts = await Discount.findAll({
+      where: whereCondition,
       attributes: [
         "discount_id",
         "discount_name",

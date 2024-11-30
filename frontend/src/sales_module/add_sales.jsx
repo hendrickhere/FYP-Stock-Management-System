@@ -103,7 +103,7 @@ const MainContent = ({ isMobile }) => {
       if (!organizationId) {
         throw new Error('Organization ID is missing');
       }
-      const response = await instance.get(`/discounts?organizationId=${organizationId}`);
+      const response = await instance.get(`/discounts?organizationId=${organizationId}&includeExpire=${0}`);
       setDiscounts(response.data.discounts);
     } catch (err) {
       console.error('Fetch discounts error:', err);

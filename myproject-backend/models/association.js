@@ -97,6 +97,7 @@ module.exports = (db) => {
     User.hasMany(Product, { foreignKey: "user_id" });
     console.log('✓ User <-> Product associations established');
 
+    
     // Purchase Order Associations
     console.log('\n--- Setting up Purchase Order Associations ---');
     // PurchaseOrder.belongsToMany(Product, {
@@ -160,6 +161,10 @@ module.exports = (db) => {
     Appointment.belongsTo(Customer, { foreignKey: 'customer_id', onDelete: "CASCADE" });
     Customer.hasMany(Appointment, { foreignKey: 'customer_id', onDelete: "CASCADE" });
     console.log('✓ Customer <-> Appointment associations established');
+
+    Appointment.belongsTo(User, {foreignKey: "user_id"});
+    User.hasMany(Appointment, {foreignKey: "user_id"});
+    console.log('✓ User <-> Appointment associations established');
 
     // Vendor Associations
     console.log('\n--- Setting up Vendor Associations ---');

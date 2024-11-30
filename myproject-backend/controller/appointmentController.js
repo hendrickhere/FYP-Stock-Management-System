@@ -1,3 +1,4 @@
+const AppointmentError = require("../errors/appointmentError");
 const AppointmentService = require("../service/appointmentService");
 
 exports.getAllAppointment = async (req, res) => {
@@ -35,9 +36,13 @@ exports.getAppointmentCount = async (req, res) => {
 
     res.status(200).json({message: "Appointment count retrieved successfully", data: totalCount});
   } catch(err) {
-    
+    if(err instanceof AppointmentError){
+      res.status(err.statusCode).json({message: err.message, type: err.type});
+    }
+    res.status(500).json({message: "Error in retrieving appointment count", type: "INTERNAL_SERVER_ERROR"});
   }
 }
+
 exports.insertAppointment = async (req, res) => {
   try {
     const result = await AppointmentService.insertAppointment(req.body);

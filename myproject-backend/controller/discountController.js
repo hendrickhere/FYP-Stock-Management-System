@@ -51,7 +51,7 @@ exports.createDiscount = async (req, res) => {
 };
 
 exports.getDiscounts = async (req, res) => {
-  const { organizationId } = req.query;
+  const { organizationId, includeExpire } = req.query;
   if (!organizationId) {
     return res.status(400).json({
       status: "error",
@@ -60,7 +60,7 @@ exports.getDiscounts = async (req, res) => {
   }
 
   try {
-    const discounts = await DiscountService.getDiscounts(organizationId);
+    const discounts = await DiscountService.getDiscounts(organizationId, includeExpire);
     return res.status(200).json({
       status: "success",
       message: "Discount successfully retrieved",

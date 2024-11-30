@@ -5,7 +5,7 @@ import instance from '../axiosConfig';
 import { GlobalContext } from '../globalContext';
 import { AlertCircle } from "lucide-react";
 import { Alert, AlertDescription } from "../ui/alert";
-
+import TaxView from './view_tax';
 function Tax() {
   const [userData] = useState(() => {
     const cached = sessionStorage.getItem('userData');
@@ -206,6 +206,10 @@ function Tax() {
               </div>
             </div>
           </form>
+        </div>
+        <div className='mt-8'>
+        <TaxView/>
+
         </div>
       </div>
     </div>
