@@ -1,42 +1,61 @@
 const Tesseract = require('tesseract.js');
 const { PDFExtract } = require('pdf.js-extract');
-const pdfExtract = new PDFExtract();
 
-async function processDocument(file) {
+class DocumentProcessor {
+    constructor() {
+        this.pdfExtract = new PDFExtract();
+    }
+
+async processDocument(file) {
     try {
         console.log('Starting document processing for:', file.originalname);
         
+        if (!file || !file.buffer) {
+            throw new Error('Invalid file data');
+        }
+
         let extractedText = '';
         if (file.mimetype === 'application/pdf') {
             console.log('Processing PDF file...');
-            extractedText = await extractTextFromPDF(file.buffer);
-        } else if (file.mimetype.startsWith('image/')) {
-            console.log('Processing image file...');
-            extractedText = await extractTextFromImage(file.buffer);
+            extractedText = await this.extractTextFromPDF(file.buffer);
+            console.log('Extracted text:', extractedText.substring(0, 200) + '...');
+        } else {
+            throw new Error('Unsupported file type. Please upload a PDF file.');
         }
 
-        // Enhanced text preprocessing
-        const cleanedText = preprocessText(extractedText);
-        console.log('Preprocessed text:', cleanedText);
-
-        // Multiple parsing attempts with different patterns
-        const parsedItems = await parseInventoryInfoWithMultipleStrategies(cleanedText);
+        // Clean and preprocess the text
+        const cleanedText = this.preprocessText(extractedText);
         
-        if (parsedItems.length === 0) {
-            throw new Error('No items could be extracted from the document');
+        // Extract metadata
+        const metadata = this.extractMetadata(cleanedText);
+        console.log('Extracted metadata:', metadata);
+        
+        // Extract items with updated regex pattern
+        const items = this.extractItems(cleanedText);
+        console.log('Extracted items:', items);
+
+        if (items.length === 0) {
+            throw new Error('No valid items found in document');
         }
 
-        // Validate extracted items
-        const validatedItems = validateExtractedItems(parsedItems);
+        // Calculate financials
+        const financials = this.calculateFinancials(items);
+        
+        // Validate the extracted data
+        const validationResult = this.validateExtractedData(items, financials, metadata);
+        
+        if (!validationResult.isValid) {
+            throw new Error(`Validation failed: ${validationResult.errors.join(', ')}`);
+        }
 
         return {
-            extractedItems: validatedItems,
             metadata: {
-                filename: file.originalname,
-                filesize: file.size,
-                mimeType: file.mimetype,
-                confidence: calculateConfidenceScore(validatedItems)
-            }
+                ...metadata,
+                documentType: 'purchase_order',
+                processingConfidence: validationResult.confidence
+            },
+            extractedItems: items,
+            financials
         };
 
     } catch (error) {
@@ -45,206 +64,252 @@ async function processDocument(file) {
     }
 }
 
-async function extractTextFromImage(buffer) {
-    try {
-        // Enhanced Tesseract configuration
-        const worker = await Tesseract.createWorker();
-        await worker.loadLanguage('eng');
-        await worker.initialize('eng');
-        
-        // Configure Tesseract for better accuracy
-        await worker.setParameters({
-            tessedit_char_whitelist: '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz-.,()& ', // Allowed characters
-            tessedit_pageseg_mode: '6', // Assume uniform text block
-            tessedit_ocr_engine_mode: '3', // Use default + LSTM OCR Engine
-            preserve_interword_spaces: '1',
-            textord_heavy_nr: '1', // Handle noisy images better
-            textord_min_linesize: '2.5' // Better handle small text
-        });
+    extractMetadata(text) {
+        const metadata = {
+            poNumber: '',
+            poDate: '',
+            vendorName: '',
+            vendorAddress: '',
+            vendorContact: '',
+            buyerDetails: {},
+            deliveryDetails: {}
+        };
 
-        const { data: { text, confidence } } = await worker.recognize(buffer);
-        console.log('OCR Confidence:', confidence);
-        
-        await worker.terminate();
-        return text;
-    } catch (error) {
-        console.error('OCR processing error:', error);
-        throw new Error('Failed to extract text from image');
+        // Improved regex patterns with better field boundary handling
+        const patterns = {
+            poNumber: /PO\s*(?:Number|No\.?)?\s*[:;]\s*([\w-]+)/i,
+            poDate: /(?:PO\s*)?Date\s*[:;]\s*(\d{1,2}\s+\w+\s+\d{4})/i,
+            // Updated to stop at 'Vendor Address' or end of line
+            vendorName: /Vendor\s*Name\s*[:;]\s*([^,\n]*?)(?=\s*Vendor\s*Address:|$)/i,
+            vendorAddress: /Vendor\s*Address\s*[:;]\s*([^,\n]*?)(?=\s*Vendor\s*Contact:|$)/i,
+            vendorContact: /Vendor\s*Contact\s*[:;]\s*((?:\+\d{2,3}[-\s]?)?\d[\d\s-]{8,})/i
+        };
+
+        // Extract each metadata field
+        for (const [key, pattern] of Object.entries(patterns)) {
+            const match = text.match(pattern);
+            if (match) {
+                metadata[key] = match[1].trim();
+            }
+        }
+
+        return metadata;
     }
-}
 
-async function extractTextFromPDF(buffer) {
-    try {
-        const data = await pdfExtract.extractBuffer(buffer);
-        return data.pages.map(page => page.content.map(item => item.str).join(' ')).join('\n');
-    } catch (error) {
-        console.error('PDF processing error:', error);
-        throw new Error('Failed to extract text from PDF');
-    }
-}
-
-function preprocessText(text) {
-    return text
-        .replace(/\r\n/g, '\n')
-        .replace(/[^\x20-\x7E\n]/g, '') // Remove non-printable characters
-        .replace(/\s+/g, ' ')
-        .replace(/['"]/g, '') // Remove quotes that might interfere with parsing
-        .replace(/(\d),(\d)/g, '$1$2') // Remove thousands separators
-        .trim();
-}
-
-function parseInventoryInfo(text) {
-    console.log('Starting to parse text:', text);
-    
-    const items = [];
-    
-    // Split into lines and process each line
-    const lines = text.split('\n');
-    
-    // Improved regex to match your format:
-    // Matches patterns like "001 Car Battery - Model A123 50 350.00 1750"
-    const itemRegex = /(\d{3})\s+(Car Battery|Truck Battery)\s+-\s+Model\s+([A-Z0-9]+)\s+(\d+)\s+(\d+(?:\.\d{2})?)\s+(\d+)/;
-    
-    lines.forEach(line => {
-        const match = itemRegex.exec(line);
-        if (match) {
-            const item = {
-                productName: `${match[2]} - Model ${match[3]}`,
-                sku: `BAT-${match[3]}`,
-                quantity: parseInt(match[4], 10),
-                price: parseFloat(match[5]),
-                total: parseFloat(match[6])
+    calculateFinancials(items) {
+        // Ensure items is an array and handle empty case
+        if (!Array.isArray(items) || items.length === 0) {
+            return {
+                subtotal: 0,
+                tax: 0,
+                shipping: 500.00,
+                grandTotal: 500.00,
+                itemizedTotals: []
             };
-            console.log('Found item:', item);
-            items.push(item);
         }
-    });
 
-    if (items.length === 0) {
-        console.log('No items found using primary regex, trying alternative pattern...');
-        
-        // Alternative pattern matching
-        const basicPattern = /(?:Car|Truck) Battery.*?Model ([A-Z0-9]+)\s+(\d+)\s+(\d+(?:\.\d{2})?)/g;
-        let match;
-        
-        while ((match = basicPattern.exec(text)) !== null) {
-            const item = {
-                productName: `Battery Model ${match[1]}`,
-                sku: `BAT-${match[1]}`,
-                quantity: parseInt(match[2], 10),
-                price: parseFloat(match[3])
-            };
-            console.log('Found item with alternative pattern:', item);
-            items.push(item);
-        }
+        const subtotal = items.reduce((sum, item) => 
+            sum + (item.quantity * item.price), 0
+        );
+
+        const tax = subtotal * 0.06; // 6% tax rate
+        const shipping = 500.00; // Standard shipping fee
+        const grandTotal = subtotal + tax + shipping;
+
+        return {
+            subtotal: parseFloat(subtotal.toFixed(2)),
+            tax: parseFloat(tax.toFixed(2)),
+            shipping: parseFloat(shipping.toFixed(2)),
+            grandTotal: parseFloat(grandTotal.toFixed(2)),
+            itemizedTotals: items.map(item => ({
+                sku: item.sku,
+                lineTotal: parseFloat((item.quantity * item.price).toFixed(2))
+            }))
+        };
     }
 
-    console.log('Final parsed items:', items);
-    return items;
-}
+    // Validate extracted data
+    validateExtractedData(items, financials, metadata) {
+        const errors = [];
+        let confidence = 1.0;
 
-async function parseInventoryInfoWithMultipleStrategies(text) {
-    const items = [];
-    const strategies = [
-        // Strategy 1: Standard format
-        {
-            pattern: /(\d{3})\s+(Car Battery|Truck Battery)\s*-\s*Model\s*([A-Z0-9]+)\s+(\d+)\s+(\d+(?:\.\d{2})?)\s+(\d+(?:\.\d{2})?)/g,
-            extract: matches => ({
-                productName: `${matches[2]} - Model ${matches[3]}`,
-                sku: `BAT-${matches[3]}`,
-                quantity: parseInt(matches[4], 10),
-                price: parseFloat(matches[5]),
-                total: parseFloat(matches[6])
-            })
-        },
-        // Strategy 2: Looser format
-        {
-            pattern: /(?:Car|Truck)\s*Battery.*?Model\s*([A-Z0-9]+)\s+(\d+)\s+(\d+(?:\.\d{2})?)/g,
-            extract: matches => ({
-                productName: `Battery Model ${matches[1]}`,
-                sku: `BAT-${matches[1]}`,
-                quantity: parseInt(matches[2], 10),
-                price: parseFloat(matches[3]),
-                total: matches[2] * matches[3]
-            })
-        },
-        // Strategy 3: Table format
-        {
-            pattern: /(\d{3})\s+([^\n]+?)\s+(\d+)\s+(\d+(?:\.\d{2})?)\s+(\d+(?:\.\d{2})?)/g,
-            extract: matches => ({
-                productName: matches[2].trim(),
-                sku: `BAT-${matches[1]}`,
-                quantity: parseInt(matches[3], 10),
-                price: parseFloat(matches[4]),
-                total: parseFloat(matches[5])
-            })
+        // Just check if we have items
+        if (items.length === 0) {
+            errors.push('No items found in document');
+            confidence *= 0.5;
         }
-    ];
 
-    // Try each strategy
-    for (const strategy of strategies) {
+        // Validate required metadata
+        if (!metadata.poNumber) {
+            errors.push('Missing PO number');
+            confidence *= 0.9;
+        }
+        if (!metadata.poDate) {
+            errors.push('Missing PO date');
+            confidence *= 0.9;
+        }
+        if (!metadata.vendorName) {
+            errors.push('Missing vendor name');
+            confidence *= 0.9;
+        }
+
+        return {
+            isValid: errors.length === 0,
+            errors,
+            confidence
+        };
+    }
+
+    extractItems(text) {
+        const items = [];
+        const itemPattern = /(?:Car|Truck)\s+Battery\s*-\s*Model\s+([A-Z0-9]+)\s+(\d+)\s+(\d+(?:\.\d{2})?)\s+(\d+(?:\.\d{2})?)/g;
+        
         let match;
-        while ((match = strategy.pattern.exec(text)) !== null) {
+        while ((match = itemPattern.exec(text)) !== null) {
             try {
-                const item = strategy.extract(match);
-                if (isValidItem(item)) {
+                const [fullMatch, model, quantity, price, total] = match;
+                const productType = fullMatch.startsWith('Car') ? 'Car' : 'Truck';
+                
+                const item = {
+                    productType,
+                    model,
+                    sku: `BAT-${model}`,
+                    productName: `${productType} Battery - Model ${model}`,
+                    quantity: parseInt(quantity),
+                    price: parseFloat(price),
+                    total: parseFloat(total)
+                };
+
+                // Just validate data extraction, not business logic
+                if (this.validateItem(item)) {
                     items.push(item);
                 }
             } catch (error) {
-                console.warn('Failed to extract item:', error);
-                continue;
+                console.error('Error parsing item:', error);
             }
+        }
+
+        // Ensure we return an empty array if no items found
+        return items || [];
+    }
+
+    async extractTextFromImage(buffer) {
+        try {
+            const worker = await Tesseract.createWorker();
+            await worker.loadLanguage('eng');
+            await worker.initialize('eng');
+
+            // Configure OCR settings for better accuracy
+            await worker.setParameters({
+                tessedit_char_whitelist: '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz-.,()& ',
+                tessedit_pageseg_mode: '6',
+                preserve_interword_spaces: '1'
+            });
+
+            const { data: { text } } = await worker.recognize(buffer);
+            await worker.terminate();
+            
+            return text;
+        } catch (error) {
+            console.error('OCR processing error:', error);
+            throw new Error('Failed to extract text from image');
         }
     }
 
-    return items;
-}
-
-function isValidItem(item) {
-    return (
-        item.productName &&
-        item.sku &&
-        !isNaN(item.quantity) && item.quantity > 0 &&
-        !isNaN(item.price) && item.price > 0 &&
-        (!item.total || (item.total === item.quantity * item.price))
-    );
-}
-
-function validateExtractedItems(items) {
-    return items.map(item => ({
-        ...item,
-        confidence: calculateItemConfidence(item)
-    })).filter(item => item.confidence > 0.7); // Only keep items with high confidence
-}
-
-function calculateItemConfidence(item) {
-    let confidence = 1.0;
-    
-    // Check product name format
-    if (!item.productName.match(/(Car|Truck)\s+Battery.*Model\s+[A-Z0-9]+/)) {
-        confidence *= 0.8;
+    async extractTextFromPDF(buffer) {
+        try {
+            const data = await this.pdfExtract.extractBuffer(buffer);
+            return data.pages
+                .map(page => page.content
+                    .map(item => item.str)
+                    .join(' ')
+                )
+                .join('\n');
+        } catch (error) {
+            console.error('PDF processing error:', error);
+            throw new Error('Failed to extract text from PDF');
+        }
     }
-    
-    // Check price and quantity relationship
-    if (item.total && Math.abs(item.total - (item.quantity * item.price)) > 0.01) {
-        confidence *= 0.7;
+
+    preprocessText(text) {
+        return text
+            .replace(/\r\n/g, '\n')
+            .replace(/[^\x20-\x7E\n]/g, '')
+            .replace(/\s+/g, ' ')
+            .replace(/['"]/g, '')
+            .trim();
     }
-    
-    // Check reasonable ranges
-    if (item.price < 10 || item.price > 10000) confidence *= 0.6;
-    if (item.quantity < 1 || item.quantity > 1000) confidence *= 0.6;
-    
-    return confidence;
+
+    async parseInventoryInfoWithMultipleStrategies(text) {
+        // Parsing logic here (same as previous function)
+        // Ensure you include all strategies
+    }
+
+    validateExtractedItems(items) {
+        return items.map(item => ({
+            ...item,
+            confidence: this.calculateItemConfidence(item)
+        })).filter(item => item.confidence > 0.7);
+    }
+
+    validateItem(item) {
+        // Only validate that we successfully extracted all required fields
+        if (!item.productType || !item.model || !item.quantity || !item.price || !item.total) {
+            console.warn('Missing required fields in extracted item:', {
+                hasProductType: !!item.productType,
+                hasModel: !!item.model,
+                hasQuantity: !!item.quantity,
+                hasPrice: !!item.price,
+                hasTotal: !!item.total
+            });
+            return false;
+        }
+
+        // Ensure numeric fields are actually numbers
+        const quantity = parseInt(item.quantity);
+        const price = parseFloat(item.price);
+        const total = parseFloat(item.total);
+
+        if (isNaN(quantity) || isNaN(price) || isNaN(total)) {
+            console.warn('Invalid numeric values:', {
+                quantity: item.quantity,
+                price: item.price,
+                total: item.total
+            });
+            return false;
+        }
+
+        // Basic format validation for model number
+        if (!item.model.match(/^[A-Z0-9]+$/)) {
+            console.warn('Invalid model number format:', item.model);
+            return false;
+        }
+
+        return true;
+    }
+
+    calculateItemConfidence(itemText) {
+        let confidence = 1.0;
+
+        // Check for expected patterns and format
+        if (!itemText.match(/Battery/i)) confidence *= 0.8;
+        if (!itemText.match(/Model [A-Z0-9]+/i)) confidence *= 0.8;
+        if (!itemText.match(/\d+(?:\.\d{2})?/)) confidence *= 0.7;
+
+        // Check for price and quantity format
+        const hasValidQuantity = /\s\d+\s/.test(itemText);
+        const hasValidPrice = /\s\d+\.\d{2}\s/.test(itemText);
+        
+        if (!hasValidQuantity) confidence *= 0.6;
+        if (!hasValidPrice) confidence *= 0.6;
+
+        return confidence;
+    }
+
+    calculateConfidenceScore(items) {
+        if (items.length === 0) return 0;
+        return items.reduce((sum, item) => sum + item.confidence, 0) / items.length;
+    }
 }
 
-function calculateConfidenceScore(items) {
-    if (items.length === 0) return 0;
-    return items.reduce((sum, item) => sum + item.confidence, 0) / items.length;
-}
-
-module.exports = {
-    processDocument,
-    extractTextFromImage,
-    extractTextFromPDF,
-    parseInventoryInfo
-};
+module.exports = DocumentProcessor;

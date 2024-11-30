@@ -634,6 +634,22 @@ exports.getInventory = async (username, inventoryUUID) => {
   return itemObj; 
 }
 
+exports.findProductBySku = async (sku) => {
+    try {
+        const product = await Product.findOne({
+            where: {
+                sku_number: sku,
+                status_id: 1  // Only find active products
+            }
+        });
+        
+        return product;
+    } catch (error) {
+        console.error('Database error in findProductBySku:', error);
+        throw new Error(`Database error while searching for product with SKU ${sku}`);
+    }
+};
+
 exports.getUserById = getUserById;
 exports.storeRefreshToken = storeRefreshToken;
 exports.getUserByRefreshToken = getUserByRefreshToken;

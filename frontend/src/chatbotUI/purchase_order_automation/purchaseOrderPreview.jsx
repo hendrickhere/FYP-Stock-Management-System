@@ -4,10 +4,10 @@ import {
   Alert,
   AlertTitle,
   AlertDescription,
-} from "../ui/alert";
-import { Input } from "../ui/input";
-import { Button } from "../ui/button";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "../ui/dialog";
+} from "../../ui/alert";
+import { Input } from "../../ui/input";
+import { Button } from "../../ui/button";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "../../ui/dialog";
 
 const PurchaseOrderPreview = ({ 
   extractedData,
@@ -24,6 +24,12 @@ const PurchaseOrderPreview = ({
     sku: '',
     quantity: '',
     price: ''
+  });
+  const [validationStatus, setValidationStatus] = useState({
+    vendor: false,
+    products: false,
+    warranties: false,
+    financials: false
   });
 
   // Helper function to calculate totals and validate data
