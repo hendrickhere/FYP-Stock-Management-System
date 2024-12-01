@@ -650,6 +650,56 @@ exports.findProductBySku = async (sku) => {
     }
 };
 
+exports.addInventoryBatch = async (userId, products) => {
+  // First get user info for the organization_id
+  const user = await User.findOne({
+    where: { user_id: userId }
+  });
+
+  if (!user) {
+    throw new Error("User not found");
+  }
+
+  const transaction = await sequelize.transaction();
+  
+  try {
+    const createdProducts = await Promise.all(
+      products.map(async (product) => {
+        const newProduct = await Product.create({
+          product_name: product.product_name,
+          product_stock: parseInt(product.product_stock),
+          sku_number: product.sku_number,
+          unit: product.unit,
+          brand: product.brand,
+          dimensions: product.dimensions,
+          dimensions_unit: product.dimensions_unit,
+          manufacturer: product.manufacturer,
+          weight: product.weight,
+          weight_unit: product.weight_unit,
+          is_expiry_goods: product.is_expiry_goods,
+          expiry_date: product.expiry_date,
+          status_id: product.status_id,
+          price: parseFloat(product.price),
+          cost: parseFloat(product.cost),
+          description: product.description,
+          user_id: userId,
+          organization_id: user.organization_id
+        }, { transaction });
+
+        return newProduct;
+      })
+    );
+
+    await transaction.commit();
+    return createdProducts;
+
+  } catch (error) {
+    await transaction.rollback();
+    console.error('Error in addInventoryBatch:', error);
+    throw new Error(error.message || "Failed to create products");
+  }
+};
+
 exports.getUserById = getUserById;
 exports.storeRefreshToken = storeRefreshToken;
 exports.getUserByRefreshToken = getUserByRefreshToken;
