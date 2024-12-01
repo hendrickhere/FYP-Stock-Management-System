@@ -94,6 +94,42 @@ exports.updatePurchaseOrder = async (req, res) => {
   }
 };
 
+exports.insertAutomatedPurchase = async (req, res) => {
+  try {
+    // Log the incoming data for debugging
+    console.log('Received automated purchase order data:', JSON.stringify(req.body, null, 2));
+
+    const result = await PurchaseService.insertAutomatedPurchase({
+      ...req.body,
+      username: req.params.username || req.body.username
+    });
+
+    res.status(200).json({
+      success: true,
+      purchaseOrder: result.purchaseOrder,
+      message: result.message
+    });
+  } catch (err) {
+    console.error('Automated purchase creation error:', err);
+    
+    // Enhanced error handling
+    const errorResponse = {
+      success: false,
+      error: err.message,
+      code: 'AUTOMATED_PURCHASE_ERROR'
+    };
+
+    // Add specific error handling for common cases
+    if (err.message.includes('Generic vendor')) {
+      errorResponse.code = 'GENERIC_VENDOR_ERROR';
+    } else if (err.message.includes('Product not found')) {
+      errorResponse.code = 'PRODUCT_NOT_FOUND';
+    }
+
+    res.status(500).json(errorResponse);
+  }
+};
+
 exports.updatePurchaseStatus = async (req, res) => {
   const { purchaseOrderId } = req.params;
   const { status, username } = req.body;

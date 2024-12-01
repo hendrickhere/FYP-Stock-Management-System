@@ -99,14 +99,24 @@ const ChatbotProcessing = ({
     setIsProcessing(true);
     try {
       // Add products to inventory
-      const response = await instance.post('/inventory/batch', { products: newProducts });
+      const response = await instance.post('/user/inventory/batch', { products: newProducts });
       
-      // Update processing data with new products
+      // Transform the created products to match the expected format
+      const transformedProducts = response.data.products.map(product => ({
+        productName: product.product_name,
+        sku: product.sku_number,
+        quantity: parseInt(product.product_stock),
+        price: parseFloat(product.price),
+        // Preserve original data for other operations if needed
+        originalData: product
+      }));
+
+      // Update processing data with transformed products
       setProcessingData(prev => ({
         ...prev,
         groupedItems: {
           ...prev.groupedItems,
-          readyToProcess: [...prev.groupedItems.readyToProcess, ...response.data.products],
+          readyToProcess: [...prev.groupedItems.readyToProcess, ...transformedProducts],
           newProducts: []
         }
       }));
@@ -116,7 +126,7 @@ const ChatbotProcessing = ({
         description: `Added ${newProducts.length} new products to inventory.`
       });
 
-      // Move to next stage
+      // Move to next stage with the correctly formatted data
       if (processingData.groupedItems.insufficientStock.length > 0) {
         setCurrentStage(PROCESSING_STAGES.REVIEWING_STOCK);
       } else {
@@ -288,35 +298,92 @@ const ErrorDisplay = ({ errors }) => {
 
   // Handle final purchase order processing
   const handleProcessOrder = async () => {
-    setIsProcessing(true);
-    try {
-      // Prepare purchase order data
-      const orderData = {
-        items: processingData.groupedItems.readyToProcess,
-        metadata: processingData.metadata,
-        financials: processingData.financials
-      };
+      setIsProcessing(true);
+      try {
+          // Get username from localStorage
+          const username = localStorage.getItem('username')?.trim();
+          if (!username) {
+              throw new Error('User not authenticated');
+          }
 
-      // Create purchase order
-      const response = await instance.post('/purchase/create', orderData);
+          // Get items from the ready-to-process group
+          const items = processingData.groupedItems.readyToProcess;
+          
+          // Calculate order totals
+          const totals = items.reduce((acc, item) => ({
+              subtotal: acc.subtotal + (parseFloat(item.price) * parseInt(item.quantity)),
+              itemCount: acc.itemCount + parseInt(item.quantity)
+          }), { subtotal: 0, itemCount: 0 });
 
-      toast({
-        title: "Purchase Order Created",
-        description: `Purchase order #${response.data.purchaseOrderId} has been created successfully.`
-      });
+          // Format items as expected by the automated endpoint
+          const formattedItems = items.map(item => ({
+              uuid: item.sku.startsWith('BAT-') ? item.sku.slice(4) : item.sku, // Remove BAT- prefix if present
+              quantity: parseInt(item.quantity),
+              price: parseFloat(item.price)
+          }));
 
-      setCurrentStage(PROCESSING_STAGES.COMPLETED);
-      onProcessingComplete(response.data);
-    } catch (error) {
-      toast({
-        title: "Error Creating Purchase Order",
-        description: error.message,
-        variant: "destructive"
-      });
-    } finally {
-      setIsProcessing(false);
-    }
+          // Construct data for automated purchase order
+          const purchaseOrderData = {
+              username: username,
+              orderDate: new Date().toISOString(),
+              deliveryMethod: "Standard Shipping",
+              paymentTerms: "Net 30",
+              totalAmount: totals.subtotal, // Backend will calculate tax and shipping
+              itemsList: formattedItems
+          };
+
+          // Log data being sent for debugging
+          console.log('Sending automated purchase order:', JSON.stringify(purchaseOrderData, null, 2));
+
+          // Use the automated purchase endpoint
+          const response = await instance.post(
+              `/purchases/automated/${username}`, 
+              purchaseOrderData
+          );
+
+          // Show success message
+          toast({
+              title: "Purchase Order Created",
+              description: `Purchase order #${response.data.purchaseOrder.purchase_order_id} has been created successfully.`
+          });
+
+          // Update state and notify parent
+          setCurrentStage(PROCESSING_STAGES.COMPLETED);
+          onProcessingComplete(response.data);
+
+      } catch (error) {
+          console.error('Purchase order creation error:', error);
+          
+          // Enhanced error handling
+          const errorMessage = error.response?.data?.message || 
+                            'There was a problem creating the purchase order. Please try again.';
+          
+          toast({
+              title: "Error Creating Purchase Order",
+              description: errorMessage,
+              variant: "destructive",
+              duration: 5000
+          });
+
+          handleProcessingError(error);
+      } finally {
+          setIsProcessing(false);
+      }
   };
+
+  const calculateTotals = (items) => {
+    const subtotal = items.reduce((sum, item) => 
+        sum + (parseFloat(item.price) * parseInt(item.quantity)), 0
+    );
+    const tax = subtotal * 0.06; // 6% tax rate
+    const shipping = 500; // Default shipping fee
+    return {
+        subtotal,
+        tax,
+        shipping,
+        total: subtotal + tax + shipping
+    };
+};
 
   // Render progress steps
   const renderProgressSteps = () => {

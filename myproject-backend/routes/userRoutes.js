@@ -16,6 +16,7 @@ router.get('/:username/inventories', UserController.getAllInventory);
 router.put('/:username/:inventoryuuid/editInventory', UserController.updateInventory);
 router.put('/:username/:inventoryuuid/delete', UserController.deleteInventory);
 router.get("/:username/:inventoryuuid", UserController.getInventory);
+router.post('/inventory/batch', authMiddleware, UserController.addInventoryBatch);
 
 
 router.get('/current', authMiddleware, UserController.getCurrentUser);

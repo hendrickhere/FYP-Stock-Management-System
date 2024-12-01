@@ -265,6 +265,32 @@ exports.getAllInventory = async (req, res) => {
   }
 };
 
+exports.addInventoryBatch = async (req, res) => {
+  try {
+    const { id: userId } = req.user; // Get user ID from JWT token
+    const { products } = req.body;
+
+    if (!Array.isArray(products)) {
+      return res.status(400).json({ message: "Products must be an array" });
+    }
+
+    const createdProducts = await UserService.addInventoryBatch(userId, products);
+    
+    res.status(200).json({
+      message: "Products added successfully",
+      products: createdProducts
+    });
+  } catch (err) {
+    console.error('Error in batch product creation:', err);
+    if (err.message === "User not found") {
+      return res.status(401).json({ message: err.message });
+    }
+    res.status(500).json({ 
+      message: err.message || "Error creating products" 
+    });
+  }
+};
+
 exports.addSalesOrder = async (req, res) => {
   const username = req.params.username;
   const salesOrderData = req.body;

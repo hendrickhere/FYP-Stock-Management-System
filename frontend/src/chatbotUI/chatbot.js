@@ -802,7 +802,7 @@ const handleNextStep = async (action) => {
           state: AUTOMATION_STATES.PROCESSING,
           currentStep: 'processing'
         }));
-        await handleConfirmPO(automationState.processedData);
+
         break;
         
       case 'cancel':
@@ -911,64 +911,6 @@ const handleNextStep = async (action) => {
   • Grand Total: RM${grandTotal}
 
   Please review and confirm to proceed.`;
-  };
-
-  const handleConfirmPO = async (data) => {
-    try {
-      setStatus(prev => ({ ...prev, isProcessing: true }));
-      
-      setMessages(prev => [...prev, {
-        type: 'bot',
-        text: "Processing your purchase order...",
-        timestamp: new Date().toISOString()
-      }]);
-
-      const response = await axiosInstance.post('/purchase/create', {
-        vendorSn: data.vendorName,
-        orderDate: data.poDate,
-        paymentTerms: "Net 30",
-        deliveryMethod: "Standard Shipping",
-        totalAmount: data.grandTotal,
-        itemsList: data.extractedItems.map(item => ({
-          sku: item.sku,
-          quantity: item.quantity,
-          price: item.price
-        }))
-      });
-
-      setMessages(prev => [...prev, {
-        type: 'bot',
-        text: `Purchase order has been successfully created!
-
-  Order Details:
-  • PO Number: ${response.data.purchase_order_id}
-  • Total Amount: RM${data.grandTotal.toFixed(2)}
-  • Items: ${data.extractedItems.length}
-
-  What would you like to do next?
-  1. View the purchase order details
-  2. Create another purchase order
-  3. Check inventory status`,
-        timestamp: new Date().toISOString()
-      }]);
-
-      setAutomationState({
-        isActive: false,
-        step: null,
-        data: null
-      });
-
-    } catch (error) {
-      console.error('Error creating purchase order:', error);
-      setMessages(prev => [...prev, {
-        type: 'bot',
-        text: 'Sorry, I encountered an error while processing the purchase order. Would you like to try again?',
-        isError: true,
-        timestamp: new Date().toISOString()
-      }]);
-    } finally {
-      setStatus(prev => ({ ...prev, isProcessing: false }));
-    }
   };
 
   const showVendorSelection = () => {
