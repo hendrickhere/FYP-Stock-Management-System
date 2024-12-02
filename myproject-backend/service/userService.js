@@ -67,11 +67,14 @@ async function getCustomerByUUID(uuid){
 async function getInventoryByUUID(uuid) {
   const inventory = await Product.findOne({
     where: {
-      status_id: 1, 
-      product_uuid: uuid,
+      product_uuid: uuid,  
+      status_id: 1,
     }
-  }); 
-  return inventory; 
+  });
+  if (!inventory) {
+    throw new Error(`Product with UUID ${uuid} not found`);
+  }
+  return inventory;
 }
 
 // Function to store refresh token in the database
@@ -569,56 +572,59 @@ exports.getSalesOrder = async (username) => {
   return salesOrdersWithTotalPrice;
 };
 
-
 exports.deleteInventory = async (username, inventoryuuid) => {
-  const user = await getUserByUsername(username);
-  const itemObj = await getInventoryByUUID(inventoryuuid);
   const transaction = await sequelize.transaction();
-  if(!user){
-    throw new Error("User not found");
-  }
-  try{
-    const inventory = await Product.update(
-      {status_id: 0},
+  
+  try {
+    // Get user and product first
+    const user = await getUserByUsername(username);
+    if (!user) {
+      throw new Error("User not found");
+    }
+
+    // Find product with status_id = 1 (active)
+    const product = await Product.findOne({
+      where: {
+        product_uuid: inventoryuuid,
+        status_id: 1
+      }
+    });
+
+    if (!product) {
+      throw new Error("Product not found or already deleted");
+    }
+
+    // Soft delete the product
+    await product.update(
+      { status_id: 0 },
+      { transaction }
+    );
+
+    // Update related sales order items
+    await SalesOrderInventory.update(
+      { status_id: 0 },
       {
-        where : {
-          product_id: itemObj.product_id,
-          status_id: 1
-        }, 
-        transaction,
-      }, 
-    )
-  
-    if(!inventory){
-      throw new Error("Inventory not found"); 
-    } 
-  
-    const salesOrderInventory = await SalesOrderInventory.findAll({
-      where: {product_id: itemObj.product_id},
-      transaction,
-    })
-  
-    for (const entry of salesOrderInventory) {
-      await SalesOrderInventory.update(
-        { status_id: 0 },
-        {
-          where: { product_id: entry.product_id, status_id: 1 },
-          transaction,
-        }
-      );
-    }
-  
-    if(!salesOrderInventory) {
-      throw new Error("Sales Order Inventory not found");
-    }
-    transaction.commit();
-    return inventory;
-    
-  } catch(err){
-    transaction.rollback();
-    throw new Error(err.message);
+        where: { 
+          product_id: product.product_id,
+          status_id: 1 
+        },
+        transaction
+      }
+    );
+
+    await transaction.commit();
+
+    return {
+      success: true,
+      message: "Product successfully deleted",
+      deletedProductUUID: inventoryuuid
+    };
+
+  } catch (error) {
+    await transaction.rollback();
+    throw error;
   }
-}
+};
 
 exports.getInventory = async (username, inventoryUUID) => {
   const user = await getUserByUsername(username);
