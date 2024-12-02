@@ -40,10 +40,13 @@ const PurchaseItemTable = ({ items, setItems }) => {
   };
 
   const calculateItemTotal = (item) => {
-    if (!item.cost || !item.quantity) return 0;
-    const subtotal = item.cost * item.quantity;
-    const discount = calculateItemDiscount(item);
-    return subtotal - discount;
+    if (!item.quantity || (item.cost === undefined && item.Product?.cost === undefined)) {
+      return 0;
+    }
+    const cost = item.cost || item.Product?.cost || 0;
+    const quantity = parseInt(item.quantity, 10) || 0;
+    const total = parseFloat(cost) * quantity;
+    return isNaN(total) ? 0 : total;
   };
 
   const calculateSubTotal = () => {
@@ -150,10 +153,11 @@ const PurchaseItemTable = ({ items, setItems }) => {
       product_name: product.product_name,
       sku_number: product.sku_number,
       quantity: 1,
-      cost: product.cost,
+      cost: parseFloat(product.cost) || 0, 
       current_stock: product.product_stock,
       brand: product.brand,
-      manufacturer: product.manufacturer
+      manufacturer: product.manufacturer,
+      Product: product 
     };
     
     console.log("Updated items:", newItems); 
@@ -209,7 +213,9 @@ const PurchaseItemTable = ({ items, setItems }) => {
               </div>
               <div className="text-right">
                 <div className="font-medium text-blue-600">
-                  Cost: MYR {product.cost?.toFixed(2)}
+                  Cost: MYR {typeof product.cost === 'number' ? 
+                    product.cost.toFixed(2) : 
+                    parseFloat(product.cost || 0).toFixed(2)}
                 </div>
               </div>
             </div>
@@ -308,7 +314,10 @@ const PurchaseItemTable = ({ items, setItems }) => {
                 {/* Cost Cell */}
                 <td className="px-6 py-4">
                   <div className="text-sm">
-                    {item.cost ? item.cost.toFixed(2) : '-'}
+                    {(item.cost !== undefined && item.cost !== null) ? 
+                      Number(item.cost).toFixed(2) : 
+                      (item.Product?.cost !== undefined && item.Product?.cost !== null) ?
+                      Number(item.Product.cost).toFixed(2) : '-'}
                   </div>
                 </td>
 

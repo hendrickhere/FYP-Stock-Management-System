@@ -371,20 +371,6 @@ const ErrorDisplay = ({ errors }) => {
       }
   };
 
-  const calculateTotals = (items) => {
-    const subtotal = items.reduce((sum, item) => 
-        sum + (parseFloat(item.price) * parseInt(item.quantity)), 0
-    );
-    const tax = subtotal * 0.06; // 6% tax rate
-    const shipping = 500; // Default shipping fee
-    return {
-        subtotal,
-        tax,
-        shipping,
-        total: subtotal + tax + shipping
-    };
-};
-
   // Render progress steps
   const renderProgressSteps = () => {
     const steps = [

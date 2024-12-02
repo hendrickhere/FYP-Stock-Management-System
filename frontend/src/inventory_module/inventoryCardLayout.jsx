@@ -56,6 +56,11 @@ const getImageUrl = (product) => {
 // ProductCard Component
 const ProductCard = ({ product, onAction, onClick, isFeatured, onUpdate }) => {
   const CardComponent = isFeatured ? FeaturedCard : StandardCard;
+
+  const handleDelete = (e) => {
+    e.stopPropagation();
+    onAction('delete', product.product_uuid); 
+  };
   
   return (
     <div 
@@ -155,7 +160,7 @@ const StandardCard = ({ product, onAction }) => {
             <button 
               onClick={(e) => {
                 e.stopPropagation();
-                onAction('delete');
+                onAction('delete', product.product_uuid);
               }} 
               className="p-1.5 hover:bg-gray-100 rounded"
             >
@@ -311,22 +316,42 @@ const InventoryLayout = ({
 
   // Sorting function
   const getSortedProducts = () => {
-    const sortFunctions = {
-      'name-asc': (a, b) => a.product_name.localeCompare(b.product_name),
-      'name-desc': (a, b) => b.product_name.localeCompare(a.product_name),
-      'price-asc': (a, b) => parseFloat(a.price) - parseFloat(b.price),
-      'price-desc': (a, b) => parseFloat(b.price) - parseFloat(a.price),
-      'stock-asc': (a, b) => a.product_stock - b.product_stock,
-      'stock-desc': (a, b) => b.product_stock - a.product_stock,
-      'sku-asc': (a, b) => a.sku_number.localeCompare(b.sku_number),
-      'sku-desc': (a, b) => b.sku_number.localeCompare(a.sku_number),
-      'brand-asc': (a, b) => (a.brand || '').localeCompare(b.brand || ''),
-      'brand-desc': (a, b) => (b.brand || '').localeCompare(a.brand || ''),
-      'date-asc': (a, b) => new Date(a.created_at) - new Date(b.created_at),
-      'date-desc': (a, b) => new Date(b.created_at) - new Date(a.created_at),
-    };
+    try {
+      // Safely filter active products
+      const activeProducts = inventories.filter(product => 
+        product && product.status_id === 1
+      );
 
-    return [...inventories].sort(sortFunctions[sortOption]);
+      const sortFunctions = {
+        'name-asc': (a, b) => a.product_name.localeCompare(b.product_name),
+        'name-desc': (a, b) => b.product_name.localeCompare(a.product_name),
+        'price-asc': (a, b) => parseFloat(a.price) - parseFloat(b.price),
+        'price-desc': (a, b) => parseFloat(b.price) - parseFloat(a.price),
+        'stock-asc': (a, b) => a.product_stock - b.product_stock,
+        'stock-desc': (a, b) => b.product_stock - a.product_stock,
+        'sku-asc': (a, b) => a.sku_number.localeCompare(b.sku_number),
+        'sku-desc': (a, b) => b.sku_number.localeCompare(a.sku_number),
+        'brand-asc': (a, b) => (a.brand || '').localeCompare(b.brand || ''),
+        'brand-desc': (a, b) => (b.brand || '').localeCompare(a.brand || ''),
+        'date-asc': (a, b) => new Date(a.created_at) - new Date(b.created_at),
+        'date-desc': (a, b) => new Date(b.created_at) - new Date(a.created_at),
+      };
+
+    // Add error handling for sort function
+    const sortFunction = sortFunctions[sortOption] || sortFunctions['name-asc'];
+      
+      return [...activeProducts].sort((a, b) => {
+        try {
+          return sortFunction(a, b);
+        } catch (error) {
+          console.error('Error sorting products:', error);
+          return 0; // Maintain original order if sort fails
+        }
+      });
+    } catch (error) {
+      console.error('Error processing products:', error);
+      return []; // Return empty array if processing fails
+    }
   };
 
   if (isLoading) {
@@ -356,11 +381,14 @@ const InventoryLayout = ({
             product={product}
             isFeatured={product.is_featured}
             onClick={() => onProductSelect(product)}
-            onAction={(action, isEdit) => {
+            onAction={(action, param) => {
               if (action === 'edit') {
-                onProductSelect(product, isEdit);
+                onProductSelect(product, param);
               }
-              if (action === 'delete') handleDeleteData(index);
+              if (action === 'delete') {
+                // Pass the product UUID directly
+                handleDeleteData(product.product_uuid);
+              }
             }}
             onUpdate={onProductUpdate}
           />
