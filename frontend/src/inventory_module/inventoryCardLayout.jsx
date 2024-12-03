@@ -16,6 +16,17 @@ import {
   ArrowUpDown,
   AlertCircle
 } from 'lucide-react';
+import { useToast } from "../ui/use-toast";
+import { 
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "../ui/alert-dialog";
 
 // Helper function to get image URL from different possible formats
 const getImageUrl = (product) => {
@@ -56,21 +67,71 @@ const getImageUrl = (product) => {
 // ProductCard Component
 const ProductCard = ({ product, onAction, onClick, isFeatured, onUpdate }) => {
   const CardComponent = isFeatured ? FeaturedCard : StandardCard;
+  const { toast } = useToast();
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
 
-  const handleDelete = (e) => {
-    e.stopPropagation();
-    onAction('delete', product.product_uuid); 
+  const handleDelete = (event) => {
+    // Check if event exists before calling stopPropagation
+    if (event) {
+      event.stopPropagation();
+    }
+    setShowDeleteDialog(true);
+  };
+
+  // Add function to handle confirmed deletion
+  const handleConfirmDelete = async () => {
+    try {
+      await onAction('delete', product.product_uuid);
+      setShowDeleteDialog(false);
+      toast({
+        description: "Product deleted successfully",
+      });
+    } catch (error) {
+      toast({
+        description: "Failed to delete product",
+        variant: "destructive",
+      });
+    }
   };
   
   return (
-    <div 
-      onClick={() => onClick(product)} 
-      className="h-full w-full cursor-pointer"
-    >
-      <div className="h-full transition-all duration-200 hover:shadow-xl hover:-translate-y-1">
-        <CardComponent product={product} onAction={onAction} onUpdate={onUpdate}/>
+    <>
+      <div 
+        onClick={() => onClick(product)} 
+        className="h-full w-full cursor-pointer"
+      >
+        <div className="h-full transition-all duration-200 hover:shadow-xl hover:-translate-y-1">
+          <CardComponent 
+            product={product} 
+            onAction={(action, event) => {
+              if (action === 'delete') {
+                handleDelete(event);
+              } else {
+                onAction(action);
+              }
+            }} 
+            onUpdate={onUpdate}
+          />
+        </div>
       </div>
-    </div>
+
+      <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+        <AlertDialogContent className="bg-white">
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Product</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete "{product.product_name}"? This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleConfirmDelete} className="bg-red-600 hover:bg-red-700">
+              Delete Product
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </>
   );
 };
 
@@ -151,7 +212,7 @@ const StandardCard = ({ product, onAction }) => {
             <button 
               onClick={(e) => {
                 e.stopPropagation();
-                onAction('edit', true);
+                onAction('edit');
               }} 
               className="p-1.5 hover:bg-gray-100 rounded"
             >
@@ -160,7 +221,7 @@ const StandardCard = ({ product, onAction }) => {
             <button 
               onClick={(e) => {
                 e.stopPropagation();
-                onAction('delete', product.product_uuid);
+                onAction('delete', e); 
               }} 
               className="p-1.5 hover:bg-gray-100 rounded"
             >
@@ -252,7 +313,7 @@ const FeaturedCard = ({ product, onAction }) => {
             <button 
               onClick={(e) => {
                 e.stopPropagation();
-                onAction('delete');
+                onAction('delete', e); 
               }}
               className="px-2 py-1 bg-red-50 text-red-600 hover:bg-red-100 rounded inline-flex items-center gap-1"
             >

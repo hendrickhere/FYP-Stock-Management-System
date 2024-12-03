@@ -33,7 +33,9 @@ class Organization extends Model {
             modelName: 'Organization',
             tableName: 'organizations',
             timestamps: true,
-            underscored: true
+            underscored: true,
+            createdAt: 'created_at',
+            updatedAt: 'updated_at'
         });
     }
 }

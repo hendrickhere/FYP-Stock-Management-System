@@ -136,28 +136,29 @@ function MainContent({ isMobile }) {
   }
 
   async function deleteInventory(productUUID) {
-    const confirm = window.confirm(
-      "Are you sure you want to delete this inventory?"
-    );
-    if (confirm) {
-      try {
-        await axiosInstance.put(
-          `http://localhost:3002/api/user/${username}/${productUUID}/delete`
-        );
-        // Update local state to remove the deleted item
-        setData(prevData => ({
-          ...prevData,
-          inventories: prevData.inventories.filter(item => 
-            item.product_uuid !== productUUID
-          )
-        }));
-        toast.success("Inventory successfully deleted");
-      } catch (error) {
-        console.error('Delete error:', error);
-        toast.error("Failed to delete inventory");
-      }
+
+    try {
+      await axiosInstance.put(
+        `http://localhost:3002/api/user/${username}/${productUUID}/delete`
+      );
+      // Update local state to remove the deleted item
+      setData(prevData => ({
+        ...prevData,
+        inventories: prevData.inventories.filter(item => 
+          item.product_uuid !== productUUID
+        )
+      }));
+      toast({
+        description: "Product deleted successfully",
+      });
+    } catch (error) {
+      console.error('Delete error:', error);
+      toast({
+        description: "Failed to delete product",
+        variant: "destructive",
+      });
     }
-  }
+}
 
   useEffect(() => {
     fetchInventories();

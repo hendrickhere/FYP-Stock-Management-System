@@ -27,8 +27,8 @@ class Product extends Model {
                 allowNull: true,
                 validate: {
                     isValidSKU(value) {
-                        if (value && !value.match(/^(BAT|PO)-[A-Z0-9]+$/)) {
-                            throw new Error('Invalid SKU format');
+                        if (value && !value.match(/^[A-Za-z0-9-_]+$/)) {
+                            throw new Error('SKU can only contain letters, numbers, hyphens and underscores');
                         }
                     }
                 }
