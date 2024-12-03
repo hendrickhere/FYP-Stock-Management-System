@@ -1,3 +1,5 @@
+const { ProductNotFoundException } = require("../errors/notFoundException");
+const {ValidationException} = require("../errors/validationError");
 const db = require("../models");
 const { Warranty, Product } = db;
 const { Op } = require('sequelize');
@@ -10,7 +12,7 @@ class WarrantyService {
       // Check if product exists
       const product = await Product.findByPk(warrantyData.product_id);
       if (!product) {
-        throw new Error("Product not found");
+        throw new ProductNotFoundException("Product not found");
       }
 
       // Create warranty record with user information
@@ -197,6 +199,59 @@ class WarrantyService {
       };
     } catch (error) {
       throw error;
+    }
+  }
+
+  async getProductWarrantyAvailability(productId) {
+    try {
+      if (!productId) {
+        throw new ValidationException('Product ID is required');
+      }
+  
+      const warranties = await Warranty.findAll({
+        where: {
+          product_id: productId,
+          status_id: 1 // Active warranties only
+        },
+        attributes: ['warranty_type'],
+        raw: true
+      });
+  
+      // Create a map of warranty types and their availability
+      const warrantyStatus = {
+        1: { // Consumer
+          exists: false,
+          available: true,
+          message: "Can add consumer warranty"
+        },
+        2: { // Manufacturer
+          exists: false,
+          available: true,
+          message: "Can add manufacturer warranty"
+        }
+      };
+  
+      // Check existing warranties
+      warranties.forEach(warranty => {
+        if (warranty.warranty_type in warrantyStatus) {
+          warrantyStatus[warranty.warranty_type].exists = true;
+          warrantyStatus[warranty.warranty_type].available = false;
+          warrantyStatus[warranty.warranty_type].message = 
+            `${warranty.warranty_type === 1 ? 'Consumer' : 'Manufacturer'} warranty already exists`;
+        }
+      });
+  
+      return {
+        success: true,
+        warrantyStatus
+      };
+  
+    } catch (err) {
+      console.error('Error in getProductWarrantyAvailability:', err);
+      if (err instanceof ValidationException) {
+        throw err;
+      }
+      throw new DatabaseOperationException('Failed to check warranty availability', err);
     }
   }
 }

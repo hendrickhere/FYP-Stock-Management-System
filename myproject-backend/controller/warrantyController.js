@@ -1,6 +1,50 @@
 const WarrantyService = require("../service/warrantyService");
 const { TYPE, CLAIM_STATUS } = require("../models/warrantyConstants");
 
+exports.getProductWarrantyAvailability = async (req, res) => {
+  const { productId } = req.params;
+ 
+  try {
+    // Validate productId
+    if (!productId) {
+      return res.status(400).json({
+        success: false,
+        message: "Product ID is required"
+      });
+    }
+ 
+    const result = await WarrantyService.getProductWarrantyAvailability(productId);
+ 
+    return res.status(200).json({
+      success: true,
+      ...result
+    });
+ 
+  } catch (err) {
+    console.error('Error in getProductWarrantyAvailability:', err);
+ 
+    if (err instanceof ValidationException) {
+      return res.status(400).json({
+        success: false,
+        message: err.message
+      });
+    }
+ 
+    if (err instanceof DatabaseOperationException) {
+      return res.status(500).json({
+        success: false,
+        message: "Failed to check warranty availability"
+      });
+    }
+ 
+    // Generic error handler
+    return res.status(500).json({
+      success: false,
+      message: "Internal server error"
+    });
+  }
+ };
+
 exports.createWarranty = async (req, res) => {
   try {
     const warrantyData = {
@@ -13,6 +57,7 @@ exports.createWarranty = async (req, res) => {
       warranty_number: req.body.warranty_number,
       description: req.body.description,
       notification_sent: false,
+      duration: req.body.duration, 
       created_by: req.user.id
     };
 

@@ -48,10 +48,6 @@ class Warranty extends Model {
                     isIn: [[1, 2]], // 1 for consumer, 2 for manufacturer
                 }
             },
-            warranty_number: {
-                type: DataTypes.STRING,
-                allowNull: true
-            },
             notification_sent: {
                 type: DataTypes.BOOLEAN,
                 defaultValue: false
@@ -60,33 +56,14 @@ class Warranty extends Model {
                 type: DataTypes.STRING,
                 allowNull: true
             },
-            start_date: {
-                type: DataTypes.DATE,
-                allowNull: false,
-                validate: {
-                    isDate: true,
-                    isNotPast(value) {
-                        if (new Date(value) < new Date()) {
-                            throw new Error('Start date cannot be in the past');
-                        }
-                    }
-                }
-            },
-            end_date: {
-                type: DataTypes.DATE,
-                allowNull: false,
-                validate: {
-                    isDate: true,
-                    isAfterStartDate(value) {
-                        if (new Date(value) <= new Date(this.start_date)) {
-                            throw new Error('End date must be after start date');
-                        }
-                    }
-                }
-            },
             terms: {
                 type: DataTypes.STRING(255),
                 allowNull: true
+            },
+            duration: {
+                type: DataTypes.INTEGER, 
+                allowNull: false, 
+                defaultValue: 12, 
             }
         }, {
             sequelize,
@@ -94,20 +71,6 @@ class Warranty extends Model {
             tableName: 'warranties',
             timestamps: true,
             underscored: true,
-            indexes: [  
-                {
-                    name: 'idx_warranties_organization',
-                    fields: ['organization_id']
-                },
-                {
-                    name: 'idx_warranties_product',
-                    fields: ['product_id']
-                },
-                {
-                    name: 'idx_warranties_dates',
-                    fields: ['start_date', 'end_date']
-                }
-            ]
         });
     }
 

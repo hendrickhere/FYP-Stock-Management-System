@@ -19,11 +19,13 @@ import AddStaff from './staff_module/add_staff';
 import AddAppointment from './appointments_module/add_appointment';
 import Profile from './profile';
 import Settings from './settings_module/settings';
+import WarrantyMain from './warranty_module/warranty_main';
 import { GlobalProvider } from './globalContext';
 import Chatbot from './chatbotUI/chatbot';
 import { ProtectedRoute } from './token_expiration_module/protectedRoute';
 import './styles/tailwind.css';
 import './styles/index.css';
+import AddWarranty from './warranty_module/add_warranty';
 
 ReactDOM.render(
   <React.StrictMode>
@@ -117,6 +119,16 @@ ReactDOM.render(
               <Profile/>
             </ProtectedRoute>
           } />
+          <Route path="/warranty" element={
+            <ProtectedRoute>
+              <WarrantyMain/>
+            </ProtectedRoute>
+          }/>
+          <Route path="/warranty/add_warranty" element={
+            <ProtectedRoute>
+              <AddWarranty/>
+            </ProtectedRoute>
+          }/>
           <Route path="/settings/*" element={
             <ProtectedRoute>
              <Settings />

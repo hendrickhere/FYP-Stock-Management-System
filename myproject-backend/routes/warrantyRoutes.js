@@ -13,6 +13,7 @@ router.get("/warranties", WarrantyController.getWarranties);
 router.get("/warranties/:id", WarrantyController.getWarrantyById);
 router.post("/warranties/create", WarrantyController.createWarranty);
 router.put("/warranties/:id", WarrantyController.updateWarranty);
+router.get("/warranties/product/:productId", WarrantyController.getProductWarrantyAvailability);
 
 // Warranty claim routes - using only available methods
 router.post("/warranty-claims/create", WarrantyClaimController.createClaim);

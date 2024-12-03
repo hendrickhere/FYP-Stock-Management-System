@@ -419,22 +419,34 @@ exports.updateInventory = async (username, inventoryUUID, updateData) => {
   }
 };
 
-exports.getAllInventory = async (username) => {
+exports.getAllInventory = async (username, searchTerm) => {
   const user = await getUserByUsername(username);
   if (!user) {
     throw new Error("User not found");
   };
+
+  const whereClause = {
+    organization_id: user.organization_id,
+    status_id: 1
+  };
+
+  if (searchTerm) {
+    whereClause[Op.or] = [
+      { product_name: { [Op.iLike]: `%${searchTerm}%` } },
+      { sku_number: { [Op.iLike]: `%${searchTerm}%` } }
+    ];
+  }
+
   const inventories = await Product.findAll({
-    where: {
-      organization_id: user.organization_id, 
-      status_id: 1,
-    }
+    where: whereClause
   }); 
+
   if(!inventories){
     throw new Error("No inventories found");
   }
+
   return inventories; 
-}
+};
 
 exports.addSalesOrder = async (username, salesOrderData) => {
   const user = await getUserByUsername(username);
