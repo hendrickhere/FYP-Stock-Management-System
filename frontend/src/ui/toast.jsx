@@ -93,9 +93,3 @@ export {
   ToastClose,
   ToastAction,
 }
-
-// Export the toast function separately
-export const toast = ({ title, description, variant = "default" }) => {
-  console.log({ title, description, variant });
-  // You would typically use a toast library or custom implementation here
-};

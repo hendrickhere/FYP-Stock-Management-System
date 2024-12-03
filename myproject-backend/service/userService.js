@@ -397,28 +397,30 @@ exports.updateInventory = async (username, inventoryUUID, updateData) => {
   }
 
   try {
-    const [updateCount, [updatedRecord]] = await Product.update(dbData, {
-      where: {
-        product_uuid: inventoryUUID,
-        user_id: user.user_id,
-      },
-      returning: true
-    });
+      const [updateCount, [updatedRecord]] = await Product.update(dbData, {
+          where: {
+              product_uuid: inventoryUUID,
+              user_id: user.user_id,
+          },
+          returning: true
+      });
 
-    if (updateCount === 0) {
-      throw new Error("Inventory not found");
-    }
-
-    const updatedInventory = await Product.findOne({
-      where: {
-        product_uuid: inventoryUUID,
+      if (updateCount === 0) {
+          throw new Error("Inventory not found");
       }
-    });
 
-    return updatedInventory;
+      const updatedInventory = await Product.findOne({
+          where: {
+              product_uuid: inventoryUUID,
+          }
+      });
+
+      return updatedInventory;
   } catch (error) {
-    console.error('Update Error:', error);
-    throw error;
+      console.error('Update Error:', error);
+      console.error('Update Data:', dbData); 
+      console.error('Update Query:', {inventoryUUID, user_id: user.user_id}); 
+      throw error;
   }
 };
 

@@ -372,3 +372,54 @@ exports.calculateSalesOrderTotal = async (req, res) => {
         });
     }
 };
+
+exports.getFastMovingItems = async (req, res) => {
+    try {
+        // Get username from query params or auth middleware
+        const username = req.query.username || req.user.username;
+        
+        console.log('Processing analytics request for username:', username);
+        
+        // Input validation
+        const timeRange = parseInt(req.query.timeRange) || 30;
+        const sortBy = req.query.sortBy || 'quantity';
+        const limit = parseInt(req.query.limit) || 5;
+        
+        if (!username) {
+            return res.status(400).json({
+                success: false,
+                error: 'VALIDATION_ERROR',
+                message: 'Username is required'
+            });
+        }
+
+        // Get analytics with all parameters
+        const analyticsResult = await SalesService.getFastMovingItemsAnalytics(
+            username,
+            {
+                timeRange,
+                category: req.query.category,
+                minSales: parseInt(req.query.minSales) || 0,
+                sortBy,
+                limit
+            }
+        );
+
+        return res.status(200).json(analyticsResult);
+
+    } catch (error) {
+        // Enhanced error logging
+        console.error('Error in getFastMovingItems controller:', {
+            error: error.message,
+            stack: error.stack,
+            username: req.query.username,
+            params: req.query
+        });
+
+        return res.status(error.statusCode || 500).json({
+            success: false,
+            error: error.code || 'INTERNAL_SERVER_ERROR',
+            message: error.message || 'Failed to get fast-moving items analytics'
+        });
+    }
+};

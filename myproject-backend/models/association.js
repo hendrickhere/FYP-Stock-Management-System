@@ -30,6 +30,15 @@ module.exports = (db) => {
     Customer.hasMany(SalesOrder, { foreignKey: "customer_id" });
     console.log('✓ Customer <-> SalesOrder associations established');
 
+    SalesOrderInventory.belongsTo(Product, {
+        foreignKey: 'product_id',
+        as: 'Product'  // This alias must match what we use in our queries
+    });
+    Product.hasMany(SalesOrderInventory, {
+        foreignKey: 'product_id',
+        as: 'salesOrderItems'
+    });
+
     SalesOrder.hasMany(SalesOrderInventory, {
         foreignKey: 'sales_order_id',
         as: 'items'
@@ -77,11 +86,13 @@ module.exports = (db) => {
     console.log('\n--- Setting up Product Associations ---');
     SalesOrder.belongsToMany(Product, {
         through: SalesOrderInventory,
-        foreignKey: "sales_order_id",
+        foreignKey: 'sales_order_id',
+        otherKey: 'product_id'
     });
     Product.belongsToMany(SalesOrder, {
         through: SalesOrderInventory,
-        foreignKey: "product_id",
+        foreignKey: 'product_id',
+        otherKey: 'sales_order_id'
     });
     console.log('✓ Product <-> SalesOrder many-to-many association established');
 
@@ -152,8 +163,15 @@ module.exports = (db) => {
     Customer.belongsTo(User, { foreignKey: 'user_id', onDelete: 'CASCADE' });
     console.log('✓ User <-> Customer associations established');
 
-    User.belongsTo(Organization, { foreignKey: 'organization_id', as: 'organization' });
-    Organization.hasMany(User, { foreignKey: 'organization_id' });
+    User.belongsTo(Organization, { 
+        foreignKey: 'organization_id', 
+        as: 'organization',
+        timestamps: true
+    });
+    Organization.hasMany(User, { 
+        foreignKey: 'organization_id',
+        timestamps: true
+    });
     console.log('✓ Organization <-> User associations established');
 
     // Appointment Associations
