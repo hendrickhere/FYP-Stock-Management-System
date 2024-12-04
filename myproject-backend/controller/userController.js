@@ -1,6 +1,7 @@
 const UserService = require("../service/userService");
 const jwt = require('jsonwebtoken');
 const { JWT_CONFIG } = require('../config/app.config');
+const InventoryAnalyticsService = require('../service/inventoryAnalyticsService');
 
 const generateAccessToken = (user) => {
   return jwt.sign(
@@ -24,6 +25,76 @@ const generateRefreshToken = (user) => {
     JWT_CONFIG.REFRESH_TOKEN_SECRET,
     { expiresIn: JWT_CONFIG.REFRESH_TOKEN_EXPIRY }
   );
+};
+
+exports.getStockReport = async (req, res) => {
+    try {
+        const username = decodeURIComponent(req.params.username);
+        console.log('Processing stock report request:', {
+            username,
+            timeRange: req.query.timeRange,
+            params: req.params,
+            query: req.query
+        });
+        
+        // Validate username exists
+        const user = await UserService.getUserByUsernameAsync(username);
+        
+        if (!user) {
+            return res.status(404).json({
+                success: false,
+                error: {
+                    message: `User not found: ${username}`
+                }
+            });
+        }
+
+        // Log user data to help debug
+        console.log('Found user:', {
+            userId: user.user_id,
+            organizationId: user.organization_id,
+            hasOrg: !!user.organization_id
+        });
+
+        if (!user.organization_id) {
+            return res.status(400).json({
+                success: false,
+                error: {
+                    message: 'User has no associated organization'
+                }
+            });
+        }
+
+        // Parse timeRange with a default value
+        const timeRange = parseInt(req.query.timeRange) || 30;
+        
+        // Get the stock report
+        const report = await InventoryAnalyticsService.getStockReport(
+            user.organization_id,
+            timeRange
+        );
+
+        return res.status(200).json({
+            success: true,
+            data: report
+        });
+        
+    } catch (error) {
+        console.error('Stock report error:', {
+            error: error.message,
+            stack: error.stack,
+            params: req.params,
+            query: req.query
+        });
+
+        return res.status(500).json({
+            success: false,
+            error: {
+                message: 'Failed to generate stock report',
+                details: error.message
+            }
+        });
+    }
 };
 
 exports.getCurrentUser = async (req, res) => {
