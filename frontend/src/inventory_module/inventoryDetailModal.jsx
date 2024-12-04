@@ -127,6 +127,17 @@ const ProductDetailModal = ({
     const newErrors = { ...errors };
     
     switch (name) {
+    case 'sku_number':
+      if (!value?.trim()) {
+        newErrors[name] = 'SKU is required';
+      } else if (!/^[A-Za-z0-9]+$/.test(value)) {
+        newErrors[name] = 'SKU can only contain letters and numbers';
+      } else if (value.length > 20) { // Optional: add a max length check
+        newErrors[name] = 'SKU cannot be longer than 20 characters';
+      } else {
+        delete newErrors[name];
+      }
+      break;
       case 'product_stock':
         if (value < 0) {
           newErrors[name] = 'Stock cannot be negative';
@@ -178,7 +189,16 @@ const ProductDetailModal = ({
 
   const handleInputChange = (e) => {
     const { name, value, type, checked } = e.target;
-    const newValue = type === 'checkbox' ? checked : value;
+    let newValue;
+
+    if (type === 'checkbox') {
+      newValue = checked;
+    } else if (name === 'sku_number') {
+      // Allow alphanumeric characters, remove spaces and special characters
+      newValue = value.replace(/[^A-Za-z0-9]/g, '');
+    } else {
+      newValue = value;
+    }
     
     validateField(name, newValue);
     

@@ -283,6 +283,32 @@ exports.getAllInventory = async (req, res) => {
   }
 };
 
+exports.addInventoryBatch = async (req, res) => {
+  try {
+    const { id: userId } = req.user; // Get user ID from JWT token
+    const { products } = req.body;
+
+    if (!Array.isArray(products)) {
+      return res.status(400).json({ message: "Products must be an array" });
+    }
+
+    const createdProducts = await UserService.addInventoryBatch(userId, products);
+    
+    res.status(200).json({
+      message: "Products added successfully",
+      products: createdProducts
+    });
+  } catch (err) {
+    console.error('Error in batch product creation:', err);
+    if (err.message === "User not found") {
+      return res.status(401).json({ message: err.message });
+    }
+    res.status(500).json({ 
+      message: err.message || "Error creating products" 
+    });
+  }
+};
+
 exports.addSalesOrder = async (req, res) => {
   const username = req.params.username;
   const salesOrderData = req.body;
@@ -337,17 +363,27 @@ exports.deleteInventory = async (req, res) => {
   const inventoryUUID = req.params.inventoryuuid;
 
   try {
-    const status = await UserService.deleteInventory(username, inventoryUUID);
-    res
-      .status(200)
-      .send({ status: status, message: "Inventory deleted successfully" });
+    const result = await UserService.deleteInventory(username, inventoryUUID);
+    res.status(200).json({
+      success: true,
+      deletedProductUUID: result.deletedProduct,
+      message: "Product successfully deleted"
+    });
   } catch (err) {
-    if (err.message === "User not found") {
-      res.status(401).send({ message: err.message });
-    } else if (err.message === "Inventory not found.") {
-      res.status(404).send({ message: err.message });
-    } else {
-      res.status(500).send({ message: err.message });
+    console.error('Delete inventory error:', err);
+    
+    switch(err.message) {
+      case "User not found":
+        return res.status(401).json({ message: err.message });
+      case "Product not found":
+        return res.status(404).json({ message: err.message });
+      case "No products were updated":
+        return res.status(400).json({ message: "Failed to delete product" });
+      default:
+        return res.status(500).json({ 
+          message: "An error occurred while deleting the product",
+          error: err.message 
+        });
     }
   }
 };

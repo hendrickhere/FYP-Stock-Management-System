@@ -12,6 +12,7 @@ import { useScrollDirection } from '../useScrollDirection';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Button } from "../ui/button";
 import { Plus } from 'lucide-react';
+import { toast } from "../ui/use-toast";
 
 const springTransition = {
   type: "spring",
@@ -134,22 +135,30 @@ function MainContent({ isMobile }) {
       });
   }
 
-  async function deleteInventory(index) {
-    const confirm = window.confirm(
-      "Are you sure you want to delete this inventory?"
-    );
-    if (confirm) {
-      await axiosInstance
-        .put(
-          `http://localhost:3002/api/user/${username}/${data.inventories[index].product_uuid}/delete`
+  async function deleteInventory(productUUID) {
+
+    try {
+      await axiosInstance.put(
+        `http://localhost:3002/api/user/${username}/${productUUID}/delete`
+      );
+      // Update local state to remove the deleted item
+      setData(prevData => ({
+        ...prevData,
+        inventories: prevData.inventories.filter(item => 
+          item.product_uuid !== productUUID
         )
-        .then(() => {
-          window.alert("Inventory successfully deleted");
-          setRender(() => !render);
-        });
+      }));
+      toast({
+        description: "Product deleted successfully",
+      });
+    } catch (error) {
+      console.error('Delete error:', error);
+      toast({
+        description: "Failed to delete product",
+        variant: "destructive",
+      });
     }
-    return; 
-  }
+}
 
   useEffect(() => {
     fetchInventories();
@@ -186,8 +195,8 @@ function MainContent({ isMobile }) {
     });
   }
 
-  function handleDeleteData(index){
-    deleteInventory(index);
+  function handleDeleteData(productUUID) {
+    deleteInventory(productUUID);
   }
   
   function handleFilterChange(event){

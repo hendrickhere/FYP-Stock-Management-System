@@ -4,7 +4,16 @@ import Loader from './loader';
 import BotMessage from './botMessage';  
 import UserMessage from './userMessage';
 
-export default function Messages({ messages, isTyping, isMobile }) {
+export default function Messages({ 
+  messages, 
+  isTyping, 
+  isMobile,
+  automationState,
+  onProcessingComplete,
+  onProcessingCancel,
+  onActionClick 
+}) {
+
   const scrollContainerRef = useRef(null);
   const messagesEndRef = useRef(null);
 
@@ -21,10 +30,8 @@ export default function Messages({ messages, isTyping, isMobile }) {
 
   return (
     <div 
-      className={`
-        absolute inset-0 overflow-y-auto overflow-x-hidden scroll-smooth
-        ${isMobile ? 'px-2' : 'px-4'}
-      `}
+      className={`absolute inset-0 overflow-y-auto overflow-x-hidden scroll-smooth
+        ${isMobile ? 'px-2' : 'px-4'}`}
       ref={scrollContainerRef}
     >
       <div className="py-4 lg:py-6 space-y-3 lg:space-y-4">
@@ -34,29 +41,29 @@ export default function Messages({ messages, isTyping, isMobile }) {
           </div>
         )}
         
-      {Array.isArray(messages) && messages.map((message, index) => {
-        const key = message.timestamp || `message-${index}`;
-        return (
-          <div 
-            key={key} 
-            className={`animate-fade-in ${message.type === 'user' ? 'flex justify-end' : ''}`}
-          >
-            {message.type === 'bot' ? (
-              <BotMessage 
-                text={message.text} 
-                data={message.data} 
-                isError={message.isError} 
-              />
-            ) : (
-              <UserMessage 
-                text={message.text}
-                timestamp={message.timestamp}
-                isMobile={isMobile}
-              />
-            )}
-          </div>
-        );
-      })}
+        {Array.isArray(messages) && messages.map((message, index) => {
+          const key = message.timestamp || `message-${index}`;
+          return (
+            <div 
+              key={key} 
+              className={`animate-fade-in ${message.type === 'user' ? 'flex justify-end' : ''}`}
+            >
+              {message.type === 'bot' ? (
+                <BotMessage 
+                  {...message} 
+                  onProcessingComplete={onProcessingComplete}
+                  onProcessingCancel={onProcessingCancel}
+                  onActionClick={onActionClick}
+                />
+              ) : (
+                <UserMessage 
+                  {...message}
+                  isMobile={isMobile}
+                />
+              )}
+            </div>
+          );
+        })}
         
         {isTyping && (
           <div className="flex items-start gap-2 animate-fade-in">

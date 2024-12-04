@@ -61,6 +61,11 @@ const MainContent = ({ userRole }) => {
     newToday: 0
   });
 
+  const [userData, setUserData] = useState(() => {
+  const storedData = sessionStorage.getItem('userData');
+    return storedData ? JSON.parse(storedData) : { username: '', role: '' };
+  });
+
   const fetchTotalSalesWithTimeRange = async (timeRange) => {
     try{
       const total = await instance.get(`/sales/${username}/salesOrderTotal?range=${timeRange}`)
@@ -128,10 +133,12 @@ const MainContent = ({ userRole }) => {
           {/* Welcome Section */}
           <div className="mb-8">
             <h1 className="text-2xl font-bold text-gray-900">
-              Welcome back, {userRole === "manager" ? "Manager" : "Staff"}
+              Welcome back, {userData.role}
             </h1>
-            <p className="text-gray-600 mt-1">
-              Here's what's happening with your store today.
+            <p className="text-gray-600 mt-1">  
+              {userData.role === 'Manager' 
+                ? "Here's your management overview for today"
+                : "Here's your overview for today"}
             </p>
           </div>
 
@@ -478,6 +485,37 @@ const StockReport = () => {
 };
 
 const LowStockAlert = () => {
+  const [lowStockItems, setLowStockItems] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const { username } = useContext(GlobalContext);
+
+  useEffect(() => {
+    const fetchLowStockItems = async () => {
+      try {
+        // Get all inventory items
+        const response = await instance.get(`/user/${username}/inventories`);
+        
+        const items = response.data.inventories.filter(item => 
+
+          item.product_stock < 10
+        ).map(item => ({
+          name: item.product_name,
+          stock: item.product_stock,
+          threshold: 10, 
+          sku: item.sku_number
+        })).slice(0, 5); // Show top 5 low stock items
+
+        setLowStockItems(items);
+      } catch (error) {
+        console.error('Error fetching low stock items:', error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchLowStockItems();
+  }, [username]);
+
   return (
     <div className="bg-white rounded-xl shadow-sm p-6">
       <div className="flex items-center justify-between mb-4">
@@ -485,43 +523,143 @@ const LowStockAlert = () => {
         <AlertTriangle className="text-amber-500 w-5 h-5" />
       </div>
       <div className="space-y-4">
-        {[
-          { name: 'Battery Type A', stock: 5, threshold: 10 },
-          { name: 'Battery Type B', stock: 3, threshold: 10 },
-          { name: 'Battery Type C', stock: 4, threshold: 10 },
-        ].map((item) => (
-          <div key={item.name} className="flex items-center justify-between">
-            <span className="text-sm text-gray-600">{item.name}</span>
-            <span className="text-sm font-medium text-amber-600">
-              {item.stock} left
-            </span>
+        {isLoading ? (
+          <div className="flex justify-center py-4">
+            <span className="text-sm text-gray-500">Loading...</span>
           </div>
-        ))}
+        ) : lowStockItems.length > 0 ? (
+          lowStockItems.map((item) => (
+            <div key={item.sku} className="flex items-center justify-between">
+              <div className="flex flex-col">
+                <span className="text-sm text-gray-600">{item.name}</span>
+                <span className="text-xs text-gray-400">SKU: {item.sku}</span>
+              </div>
+              <span className={`text-sm font-medium ${
+                item.stock <= item.threshold/2 ? 'text-red-600' : 'text-amber-600'
+              }`}>
+                {item.stock} left
+              </span>
+            </div>
+          ))
+        ) : (
+          <div className="text-center py-4">
+            <span className="text-sm text-gray-500">All stock levels are healthy</span>
+          </div>
+        )}
       </div>
     </div>
   );
 };
 
 const FastMovingItems = () => {
+  const [fastMovingData, setFastMovingData] = useState(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [timeRange, setTimeRange] = useState(30);
+  const [sortBy, setSortBy] = useState('velocity');
+  const { username } = useContext(GlobalContext);
+
+  useEffect(() => {
+    const fetchFastMovingItems = async () => {
+      try {
+        setIsLoading(true);
+        const response = await instance.get('/sales/analytics/fast-moving', {
+          params: {
+            username,  
+            timeRange,
+            sortBy,
+            limit: 3
+          }
+        });
+
+        if (response.data?.success && response.data?.data) {
+          setFastMovingData(response.data.data);
+        }
+      } catch (error) {
+        console.error('Error fetching fast-moving items:', error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchFastMovingItems();
+  }, [timeRange, sortBy, username]);
+
   return (
-    <div className="bg-white rounded-xl shadow-sm p-6">
-      <div className="flex items-center justify-between mb-4">
-        <h2 className="text-lg font-semibold text-gray-900">Fast Moving Items</h2>
-        <TrendingUp className="text-green-500 w-5 h-5" />
+    <div className="bg-white rounded-xl shadow-sm p-4">
+      {/* Header Section - Stacked on mobile */}
+      <div className="flex flex-col space-y-4">
+        <div>
+          <h2 className="text-lg font-semibold text-gray-900">Fast Moving Items</h2>
+          <p className="text-sm text-gray-500">Top selling products by volume</p>
+        </div>
+        
+        {/* Controls - Full width on mobile, flex on desktop */}
+        <div className="flex flex-col space-y-2 sm:flex-row sm:space-y-0 sm:space-x-2 sm:items-center">
+          <select
+            value={timeRange}
+            onChange={(e) => setTimeRange(Number(e.target.value))}
+            className="w-full sm:w-auto text-sm border rounded-lg px-3 py-2 bg-white hover:bg-gray-50"
+          >
+            <option value={7}>Last 7 days</option>
+            <option value={30}>Last 30 days</option>
+            <option value={90}>Last 90 days</option>
+          </select>
+          <select
+            value={sortBy}
+            onChange={(e) => setSortBy(e.target.value)}
+            className="w-full sm:w-auto text-sm border rounded-lg px-3 py-2 bg-white hover:bg-gray-50"
+          >
+            <option value="velocity">By Velocity</option>
+            <option value="quantity">By Quantity</option>
+            <option value="turnover">By Turnover</option>
+          </select>
+        </div>
       </div>
-      <div className="space-y-4">
-        {[
-          { name: 'Battery 1', sales: 150 },
-          { name: 'Battery 2', sales: 120 },
-          { name: 'Battery 3', sales: 100 },
-        ].map((item) => (
-          <div key={item.name} className="flex items-center justify-between">
-            <span className="text-sm text-gray-600">{item.name}</span>
-            <span className="text-sm font-medium text-green-600">
-              {item.sales} units
-            </span>
+
+      {/* Products List Section */}
+      <div className="mt-6 space-y-4">
+        {isLoading ? (
+          <div className="flex justify-center py-6">
+            <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-purple-600" />
           </div>
-        ))}
+        ) : fastMovingData?.fastMovingItems?.length > 0 ? (
+          fastMovingData.fastMovingItems.map((item, index) => (
+            <div key={index} className="border rounded-lg p-4">
+              {/* Product Header */}
+              <div className="flex justify-between items-start mb-4">
+                <div>
+                  <h3 className="text-sm font-medium">{item.productName || 'Unknown Product'}</h3>
+                  <p className="text-xs text-gray-500">SKU: {item.skuNumber || 'N/A'}</p>
+                </div>
+                <div className="text-right">
+                  <span className="text-lg font-semibold">{item.totalQuantity || 0}</span>
+                  <p className="text-xs text-gray-500">units sold</p>
+                </div>
+              </div>
+
+              {/* Metrics - Grid layout that stacks on smaller screens */}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-4 border-t">
+                <div>
+                  <p className="text-xs text-gray-500">Daily Sales</p>
+                  <p className="text-sm font-medium">{(item.dailyVelocity || 0).toFixed(1)} units</p>
+                </div>
+                <div>
+                  <p className="text-xs text-gray-500">Turnover</p>
+                  <p className="text-sm font-medium">{(item.turnoverRate || 0).toFixed(2)}x</p>
+                </div>
+                <div>
+                  <p className="text-xs text-gray-500">Current Stock</p>
+                  <p className="text-sm font-medium">{item.currentStock || 0} units</p>
+                </div>
+              </div>
+            </div>
+          ))
+        ) : (
+          <div className="text-center py-6">
+            <Package className="mx-auto h-8 w-8 text-gray-400" />
+            <p className="mt-2 text-sm text-gray-500">No fast-moving items found</p>
+          </div>
+        )}
       </div>
     </div>
   );

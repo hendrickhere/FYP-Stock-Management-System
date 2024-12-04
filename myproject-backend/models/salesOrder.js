@@ -17,6 +17,7 @@ class SalesOrder extends Model {
             order_date_time: {
                 type: DataTypes.DATE,
                 allowNull: false,
+                defaultValue: Sequelize.literal('CURRENT_TIMESTAMP')
             },
             expected_shipment_date: {
                 type: DataTypes.DATE,
@@ -54,8 +55,19 @@ class SalesOrder extends Model {
             sequelize,
             modelName: 'SalesOrder',
             tableName: 'sales_orders',
-            timestamps: false,
-            underscored: true
+            // Add timestamps for better tracking
+            timestamps: true,
+            createdAt: 'created_at',
+            updatedAt: 'updated_at',
+            underscored: true,
+            // Add index configuration
+            indexes: [
+                {
+                    name: 'idx_sales_orders_date',
+                    fields: ['order_date_time'],
+                    using: 'BRIN'
+                }
+            ]
         });
     }
 }

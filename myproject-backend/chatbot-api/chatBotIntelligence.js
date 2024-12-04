@@ -1,10 +1,8 @@
-require('dotenv').config();
 const { OpenAI } = require("openai");
 const { Op } = require("sequelize");
 const db = require("../models");
 const path = require('path');
-const fs = require('fs');
-const envPath = path.join(__dirname, '.env');
+const ChatbotService = require('./chatBotService');
 const { 
     processDocument,
     extractTextFromImage,
@@ -12,30 +10,34 @@ const {
     parseInventoryInfo 
 } = require('./documentProcessor');
 
-if (fs.existsSync(envPath)) {
-    const envConfig = require('dotenv').parse(fs.readFileSync(envPath));
-    for (const k in envConfig) {
-        process.env[k] = envConfig[k];
-    }
-}
-
-console.log('Environment loaded from:', envPath);
-console.log('API Key present:', !!process.env.OPENAI_API_KEY);
-
 class ChatbotIntelligence {
 
     // Define private fields for the class
     #warrantyRules;
     #conversationTimeouts;
+    #conversations;
 
-    constructor() {
-        // Initialize OpenAI with API key
-        this.openai = new OpenAI({
-            apiKey: process.env.OPENAI_API_KEY
-        });
+    constructor(chatBotService, apiKey) {
+        if (!apiKey) {
+            throw new Error('API key is required for ChatbotIntelligence');
+        }
+        if (!chatBotService) {
+            throw new Error('ChatbotService is required for ChatbotIntelligence');
+        }
+
+        this.chatBotService = chatBotService;
+        this.openai = new OpenAI({ apiKey });
+
+        this.errorTemplates = {
+            DOCUMENT_PROCESSING_ERROR: 'Error processing document: {message}',
+            VALIDATION_ERROR: 'Validation failed: {message}',
+            EXTRACTION_ERROR: 'Could not extract required information: {message}',
+            ANALYSIS_ERROR: 'Analysis failed: {message}',
+            DEFAULT_ERROR: 'An unexpected error occurred: {message}'
+        };
         
         // Initialize conversation store with session management
-        this.conversations = new Map();
+        this.#conversations = new Map();
         this.#conversationTimeouts = new Map();
         
         // Initialize warranty rules
@@ -65,6 +67,32 @@ class ChatbotIntelligence {
                 }
             }
         };
+    }
+
+    generateErrorExplanation(error) {
+        // Get the error template based on error type or use default
+        const template = this.errorTemplates[error.code] || this.errorTemplates.DEFAULT_ERROR;
+        
+        // Create user-friendly error message
+        const explanation = template.replace('{message}', error.message);
+        
+        // Add suggestions for resolution if available
+        let resolution = '';
+        switch (error.code) {
+            case 'DOCUMENT_PROCESSING_ERROR':
+                resolution = '\nPlease ensure your document is a valid PDF or image file and try again.';
+                break;
+            case 'VALIDATION_ERROR':
+                resolution = '\nPlease review the document contents and ensure all required information is present.';
+                break;
+            case 'EXTRACTION_ERROR':
+                resolution = '\nPlease check if the document follows the expected format and contains all required fields.';
+                break;
+            default:
+                resolution = '\nPlease try again or contact support if the issue persists.';
+        }
+
+        return explanation + resolution;
     }
 
     async analyzeVendorPurchaseOrder(data) {
@@ -155,89 +183,52 @@ class ChatbotIntelligence {
     }
 
     async analyzeDocument(file, conversationId) {
-        console.log('Starting document analysis for conversation:', conversationId);
-        const conversation = this.getOrCreateConversation(conversationId);
-        
         try {
-            // Step 1: Process the document using imported processor
+            const conversation = this.getOrCreateConversation(conversationId);
             console.log('Processing document:', file.originalname);
-            const documentResults = await processDocument(file);
-
-            // If it's a purchase order, analyze it as such
-            if (documentResults.metadata?.documentType === 'purchase_order') {
-                const poAnalysis = await this.analyzeVendorPurchaseOrder({
-                    items: documentResults.extractedItems,
-                    vendorName: documentResults.metadata.vendorName,
-                    subtotal: documentResults.metadata.subtotal,
-                    tax: documentResults.metadata.tax,
-                    grandTotal: documentResults.metadata.grandTotal,
-                    shippingFee: documentResults.metadata.shippingFee
-                });
-
-                return {
-                    success: true,
-                    analysis: poAnalysis,
-                    explanation: this.generatePurchaseOrderResponse(poAnalysis),
-                    fileAnalysis: documentResults
-                };
-            }
             
-            if (!documentResults || !documentResults.extractedItems) {
-                throw new Error('Document processing failed to return valid results');
+            // Use the document processor through chatbot service
+            const documentResults = await this.chatBotService.processDocument(file);
+            
+            // Check if it's a purchase order and handle accordingly
+            if (documentResults.metadata?.documentType === 'purchase_order') {
+                return await this.analyzePurchaseOrder(documentResults, conversation);
             }
 
-            console.log('Document processing successful. Found items:', documentResults.extractedItems.length);
-
-            // Step 2: Perform complete analysis
+            // Perform complete analysis for other document types
             const analysis = await this.performCompleteAnalysis({
                 extractedItems: documentResults.extractedItems,
                 metadata: documentResults.metadata
             });
 
-            // Step 3: Generate user-friendly explanation
-            const explanation = this.generateAnalysisExplanation(analysis);
-
-            // Step 4: Update conversation context
+            // Update conversation context
             conversation.currentDocument = {
                 extractedItems: documentResults.extractedItems,
                 analysis,
                 status: analysis.isValid ? 'pending_confirmation' : 'needs_review'
             };
 
-            console.log('Analysis complete. Status:', conversation.currentDocument.status);
-
             return {
                 success: true,
                 analysis,
-                explanation,
-                fileAnalysis: {
-                    metadata: documentResults.metadata,
-                    extractedItems: documentResults.extractedItems
-                },
-                suggestedActions: this.determineSuggestedActions(analysis)
+                explanation: this.chatBotService.generateAnalysisExplanation(analysis),
+                fileAnalysis: documentResults
             };
 
         } catch (error) {
             console.error('Document analysis error:', error);
-            
-            // Update conversation to reflect error state
-            conversation.currentDocument = {
-                error: error.message,
-                status: 'error'
-            };
-
-            const errorExplanation = this.generateErrorExplanation(error);
-            console.log('Generated error explanation:', errorExplanation);
-
             return {
                 success: false,
                 error: error.message,
-                explanation: errorExplanation
+                explanation: this.generateErrorExplanation({
+                    code: error.code || 'PROCESSING_ERROR',
+                    message: error.message
+                })
             };
         }
     }
 
-        processDocument(file) {
+    processDocument(file) {
         return require('./documentProcessor').processDocument(file);
     }
 
@@ -269,123 +260,6 @@ class ChatbotIntelligence {
         });
 
         return actions;
-    }
-
-    generateAnalysisExplanation(analysis) {
-        try {
-            let explanation = `I've analyzed your document and here's what I found:\n\n`;
-
-            // Add product analysis summary
-            if (analysis.products && analysis.products.length > 0) {
-                explanation += `1. Product Analysis:\n`;
-                let validProducts = 0;
-                analysis.products.forEach(product => {
-                    if (product.found) validProducts++;
-                    explanation += `   • ${product.productName}: ${product.found ? 'Found in inventory' : 'Not found'}\n`;
-                    if (product.isStockSufficient === false) {
-                        explanation += `     (Warning: Insufficient stock - ${product.currentStock} available)\n`;
-                    }
-                });
-                explanation += `   Total Valid Products: ${validProducts}/${analysis.products.length}\n\n`;
-            }
-
-            // Add financial summary
-            if (analysis.financials?.calculations) {
-                const fin = analysis.financials.calculations;
-                explanation += `2. Financial Summary:\n`;
-                explanation += `   • Subtotal: RM${fin.subtotal.toFixed(2)}\n`;
-                explanation += `   • Tax (6%): RM${fin.tax.toFixed(2)}\n`;
-                explanation += `   • Shipping: RM${fin.shipping.toFixed(2)}\n`;
-                explanation += `   • Total: RM${fin.total.toFixed(2)}\n\n`;
-            }
-
-            // Add warranty analysis if applicable
-            if (analysis.warranties?.applicableProducts.length > 0) {
-                explanation += `3. Warranty Requirements:\n`;
-                analysis.warranties.applicableProducts.forEach(product => {
-                    explanation += `   • ${product.productName}:\n`;
-                    explanation += `     - Manufacturer warranty: ${product.suggestedTerms.manufacturer.suggestedDuration} days\n`;
-                    explanation += `     - Consumer warranty: ${product.suggestedTerms.consumer.suggestedDuration} days\n`;
-                });
-                explanation += '\n';
-            }
-
-            // Add validation summary and next steps
-            if (analysis.isValid) {
-                explanation += `This document appears to be valid and can be processed. Would you like to proceed with creating the purchase order?`;
-            } else {
-                explanation += `Some issues need attention before proceeding:\n`;
-                if (analysis.products.some(p => !p.found)) {
-                    explanation += `• Some products are not in the inventory system\n`;
-                }
-                if (analysis.products.some(p => !p.isStockSufficient)) {
-                    explanation += `• Some products have insufficient stock\n`;
-                }
-                if (analysis.financials?.warnings?.length > 0) {
-                    explanation += `• There are financial calculation warnings\n`;
-                }
-            }
-
-            return explanation;
-
-        } catch (error) {
-            console.error('Error generating analysis explanation:', error);
-            return 'Sorry, I encountered an error while preparing the analysis explanation. Please try again.';
-        }
-    }
-
-    generateErrorExplanation(error) {
-        const errorMessages = {
-            'DOCUMENT_PROCESSING_ERROR': 'I had trouble processing the document. Please ensure it\'s a valid purchase order in PDF or image format.',
-            'NO_ITEMS_FOUND': 'I couldn\'t find any valid items in the document. Please check the format and try again.',
-            'VALIDATION_ERROR': 'Some items in the document couldn\'t be validated against our inventory system.',
-            'DEFAULT': 'There was an error processing your document. Please try again or contact support.'
-        };
-
-        return errorMessages[error.code] || errorMessages.DEFAULT;
-    }
-
-    // Document Analysis and Processing Methods
-    async analyzeDocument(file, conversationId) {
-        const conversation = this.getOrCreateConversation(conversationId);
-        
-        try {
-            // Use the documentProcessor to extract information
-            const documentResults = await processDocument(file);
-            
-            // Perform our complete analysis
-            const analysis = await this.performCompleteAnalysis({
-                extractedItems: documentResults.extractedItems,
-                metadata: documentResults.metadata
-            });
-            
-            // Generate a user-friendly explanation
-            const explanation = this.generateAnalysisExplanation(analysis);
-            
-            // Update conversation context
-            conversation.currentDocument = {
-                extractedItems: documentResults.extractedItems,
-                analysis,
-                status: 'pending_validation'
-            };
-
-            return {
-                success: true,
-                analysis,
-                explanation,
-                fileAnalysis: {
-                    metadata: documentResults.metadata,
-                    extractedItems: documentResults.extractedItems
-                }
-            };
-        } catch (error) {
-            console.error('Document analysis error:', error);
-            return {
-                success: false,
-                error: error.message,
-                explanation: this.generateErrorExplanation(error)
-            };
-        }
     }
 
     buildConversationContext(conversation) {
@@ -530,8 +404,8 @@ class ChatbotIntelligence {
             clearTimeout(this.#conversationTimeouts.get(id));
         }
 
-        if (!this.conversations.has(id)) {
-            this.conversations.set(id, {
+        if (!this.#conversations.has(id)) {
+            this.#conversations.set(id, {
                 history: [],
                 currentDocument: null,
                 context: {
@@ -545,12 +419,12 @@ class ChatbotIntelligence {
 
         // Set new timeout for conversation cleanup
         const timeout = setTimeout(() => {
-            this.conversations.delete(id);
+            this.#conversations.delete(id);
             this.#conversationTimeouts.delete(id);
         }, 30 * 60 * 1000); // 30 minutes timeout
 
         this.#conversationTimeouts.set(id, timeout);
-        return this.conversations.get(id);
+        return this.#conversations.get(id);
     }
 
     async handleUserResponse(conversationId, message) {
@@ -621,6 +495,65 @@ class ChatbotIntelligence {
           throw error;
       }
   }
+
+    generatePurchaseOrderResponse(poAnalysis) {
+        // Generate AI-enhanced insights
+        const enhancedInsights = this.generateEnhancedInsights(poAnalysis);
+        
+        // Use the chatBotService to generate the base response with our enhanced insights
+        return this.chatBotService.generatePurchaseOrderResponse(poAnalysis, {
+            enhancedAnalysis: enhancedInsights
+        });
+    }
+
+    generateEnhancedInsights(poAnalysis) {
+        try {
+            let insights = '';
+            
+            // Analyze purchase patterns
+            if (poAnalysis.existingProducts.length > 0) {
+                const priceChanges = poAnalysis.existingProducts.filter(p => p.priceChanged);
+                if (priceChanges.length > 0) {
+                    insights += "📊 Price Trend Analysis:\n";
+                    insights += `• ${priceChanges.length} products have price changes\n`;
+                    const avgChange = priceChanges.reduce((acc, p) => 
+                        acc + ((p.newPrice - p.product.price) / p.product.price) * 100, 0
+                    ) / priceChanges.length;
+                    insights += `• Average price change: ${avgChange.toFixed(1)}%\n\n`;
+                }
+            }
+
+            // Stock optimization suggestions
+            if (poAnalysis.newProducts.length > 0) {
+                insights += "📈 Stock Optimization Suggestions:\n";
+                poAnalysis.newProducts.forEach(product => {
+                    const recommendedStock = Math.ceil(product.initialStock * 1.2); // 20% buffer
+                    insights += `• Consider stocking ${recommendedStock} units of ${product.productName} `;
+                    insights += `to maintain optimal inventory levels\n`;
+                });
+                insights += "\n";
+            }
+
+            // Financial efficiency analysis
+            const fin = poAnalysis.financialValidation;
+            if (fin.calculations) {
+                insights += "💡 Financial Efficiency Analysis:\n";
+                const profitMargin = ((fin.calculations.calculatedTotal - fin.calculations.calculatedSubtotal) / 
+                    fin.calculations.calculatedSubtotal * 100).toFixed(1);
+                insights += `• Current profit margin: ${profitMargin}%\n`;
+                
+                if (fin.calculations.calculatedSubtotal > 10000) {
+                    insights += "• Order qualifies for bulk purchase discounts\n";
+                }
+            }
+
+            return insights;
+
+        } catch (error) {
+            console.error('Error generating enhanced insights:', error);
+            return 'Unable to generate enhanced insights at this time.';
+        }
+    }
 
   calculateFinancials(extractedItems) {
         try {
@@ -764,4 +697,7 @@ class ChatbotIntelligence {
     }
 }
 
-module.exports = new ChatbotIntelligence();
+module.exports = {
+    ChatbotService,
+    ChatbotIntelligence
+};

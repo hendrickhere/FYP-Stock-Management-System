@@ -23,4 +23,19 @@ router.get('/:purchaseOrderId/details', authMiddleware, purchaseController.getPu
 
 router.delete('/user/:username/:purchaseOrderId', authMiddleware, purchaseController.deletePurchaseOrder);
 
+router.post('/automated/:username', authMiddleware, purchaseController.insertAutomatedPurchase);
+
+router.post('/debug', authMiddleware, (req, res) => {
+    console.log('Received PO data:', JSON.stringify(req.body, null, 2));
+    res.json({ 
+        received: true, 
+        data: req.body,
+        validation: {
+            hasUsername: !!req.body.username,
+            hasVendor: !!req.body.vendorSn,
+            itemsCount: req.body.itemsList?.length || 0
+        }
+    });
+});
+
 module.exports = router;

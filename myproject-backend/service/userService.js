@@ -67,11 +67,14 @@ async function getCustomerByUUID(uuid){
 async function getInventoryByUUID(uuid) {
   const inventory = await Product.findOne({
     where: {
-      status_id: 1, 
-      product_uuid: uuid,
+      product_uuid: uuid,  
+      status_id: 1,
     }
-  }); 
-  return inventory; 
+  });
+  if (!inventory) {
+    throw new Error(`Product with UUID ${uuid} not found`);
+  }
+  return inventory;
 }
 
 // Function to store refresh token in the database
@@ -394,28 +397,30 @@ exports.updateInventory = async (username, inventoryUUID, updateData) => {
   }
 
   try {
-    const [updateCount, [updatedRecord]] = await Product.update(dbData, {
-      where: {
-        product_uuid: inventoryUUID,
-        user_id: user.user_id,
-      },
-      returning: true
-    });
+      const [updateCount, [updatedRecord]] = await Product.update(dbData, {
+          where: {
+              product_uuid: inventoryUUID,
+              user_id: user.user_id,
+          },
+          returning: true
+      });
 
-    if (updateCount === 0) {
-      throw new Error("Inventory not found");
-    }
-
-    const updatedInventory = await Product.findOne({
-      where: {
-        product_uuid: inventoryUUID,
+      if (updateCount === 0) {
+          throw new Error("Inventory not found");
       }
-    });
 
-    return updatedInventory;
+      const updatedInventory = await Product.findOne({
+          where: {
+              product_uuid: inventoryUUID,
+          }
+      });
+
+      return updatedInventory;
   } catch (error) {
-    console.error('Update Error:', error);
-    throw error;
+      console.error('Update Error:', error);
+      console.error('Update Data:', dbData); 
+      console.error('Update Query:', {inventoryUUID, user_id: user.user_id}); 
+      throw error;
   }
 };
 
@@ -581,56 +586,59 @@ exports.getSalesOrder = async (username) => {
   return salesOrdersWithTotalPrice;
 };
 
-
 exports.deleteInventory = async (username, inventoryuuid) => {
-  const user = await getUserByUsername(username);
-  const itemObj = await getInventoryByUUID(inventoryuuid);
   const transaction = await sequelize.transaction();
-  if(!user){
-    throw new Error("User not found");
-  }
-  try{
-    const inventory = await Product.update(
-      {status_id: 0},
+  
+  try {
+    // Get user and product first
+    const user = await getUserByUsername(username);
+    if (!user) {
+      throw new Error("User not found");
+    }
+
+    // Find product with status_id = 1 (active)
+    const product = await Product.findOne({
+      where: {
+        product_uuid: inventoryuuid,
+        status_id: 1
+      }
+    });
+
+    if (!product) {
+      throw new Error("Product not found or already deleted");
+    }
+
+    // Soft delete the product
+    await product.update(
+      { status_id: 0 },
+      { transaction }
+    );
+
+    // Update related sales order items
+    await SalesOrderInventory.update(
+      { status_id: 0 },
       {
-        where : {
-          product_id: itemObj.product_id,
-          status_id: 1
-        }, 
-        transaction,
-      }, 
-    )
-  
-    if(!inventory){
-      throw new Error("Inventory not found"); 
-    } 
-  
-    const salesOrderInventory = await SalesOrderInventory.findAll({
-      where: {product_id: itemObj.product_id},
-      transaction,
-    })
-  
-    for (const entry of salesOrderInventory) {
-      await SalesOrderInventory.update(
-        { status_id: 0 },
-        {
-          where: { product_id: entry.product_id, status_id: 1 },
-          transaction,
-        }
-      );
-    }
-  
-    if(!salesOrderInventory) {
-      throw new Error("Sales Order Inventory not found");
-    }
-    transaction.commit();
-    return inventory;
-    
-  } catch(err){
-    transaction.rollback();
-    throw new Error(err.message);
+        where: { 
+          product_id: product.product_id,
+          status_id: 1 
+        },
+        transaction
+      }
+    );
+
+    await transaction.commit();
+
+    return {
+      success: true,
+      message: "Product successfully deleted",
+      deletedProductUUID: inventoryuuid
+    };
+
+  } catch (error) {
+    await transaction.rollback();
+    throw error;
   }
-}
+};
 
 exports.getInventory = async (username, inventoryUUID) => {
   const user = await getUserByUsername(username);
@@ -645,6 +653,72 @@ exports.getInventory = async (username, inventoryUUID) => {
   }
   return itemObj; 
 }
+
+exports.findProductBySku = async (sku) => {
+    try {
+        const product = await Product.findOne({
+            where: {
+                sku_number: sku,
+                status_id: 1  // Only find active products
+            }
+        });
+        
+        return product;
+    } catch (error) {
+        console.error('Database error in findProductBySku:', error);
+        throw new Error(`Database error while searching for product with SKU ${sku}`);
+    }
+};
+
+exports.addInventoryBatch = async (userId, products) => {
+  // First get user info for the organization_id
+  const user = await User.findOne({
+    where: { user_id: userId }
+  });
+
+  if (!user) {
+    throw new Error("User not found");
+  }
+
+  const transaction = await sequelize.transaction();
+  
+  try {
+    const createdProducts = await Promise.all(
+      products.map(async (product) => {
+        const newProduct = await Product.create({
+          product_name: product.product_name,
+          product_stock: parseInt(product.product_stock),
+          sku_number: product.sku_number,
+          unit: product.unit,
+          brand: product.brand,
+          dimensions: product.dimensions,
+          dimensions_unit: product.dimensions_unit,
+          manufacturer: product.manufacturer,
+          weight: product.weight,
+          weight_unit: product.weight_unit,
+          is_expiry_goods: product.is_expiry_goods,
+          expiry_date: product.expiry_date,
+          status_id: product.status_id,
+          price: parseFloat(product.price),
+          cost: parseFloat(product.cost),
+          description: product.description,
+          user_id: userId,
+          organization_id: user.organization_id
+        }, { transaction });
+
+        return newProduct;
+      })
+    );
+
+    await transaction.commit();
+    return createdProducts;
+
+  } catch (error) {
+    await transaction.rollback();
+    console.error('Error in addInventoryBatch:', error);
+    throw new Error(error.message || "Failed to create products");
+  }
+};
 
 exports.getUserById = getUserById;
 exports.storeRefreshToken = storeRefreshToken;

@@ -28,6 +28,21 @@ async function getVendorByVendorUuid(vendorUuid) {
   return vendor.dataValues;
 }
 
+async function getGenericVendor() {
+  const genericVendor = await Vendor.findOne({
+    where: {
+      vendor_name: 'Generic Supplier'
+    },
+    attributes: ['vendor_id', 'vendor_name', 'vendor_sn']
+  });
+
+  if (!genericVendor) {
+    throw new Error('Generic vendor not configured. Please ensure the Generic Supplier is set up in the database.');
+  }
+
+  return genericVendor;
+}
+
 async function getInventoryByUUID(uuid) {
   const inventory = await Product.findOne({
     where: {
@@ -216,6 +231,106 @@ exports.insertPurchase = async (purchaseData) => {
 
   } catch (err) {
     console.error('Error in insertPurchase:', err);
+    await transaction.rollback();
+    throw err;
+  }
+};
+
+exports.insertAutomatedPurchase = async (purchaseData) => {
+  const transaction = await sequelize.transaction();
+  
+  try {
+    console.log('Starting automated purchase creation with data:', purchaseData);
+
+    // Validate total amount
+    if (!purchaseData.totalAmount || purchaseData.totalAmount <= 0) {
+      throw new Error('Total amount must be greater than 0');
+    }
+
+    // Get user
+    const user = await getUserByUsername(purchaseData.username);
+    if (!user) {
+      throw new Error("User not found");
+    }
+
+    // Get generic vendor instead of looking up by vendor_sn
+    const vendor = await getGenericVendor();
+    if (!vendor) {
+      throw new Error("Generic vendor not configured");
+    }
+
+    // Create purchase order with generic vendor
+    const purchaseOrder = await PurchaseOrder.create({
+      vendor_id: vendor.vendor_id,
+      order_date: purchaseData.orderDate,
+      delivery_method: purchaseData.deliveryMethod || "Standard Shipping",
+      payment_terms: purchaseData.paymentTerms || "Net 30",
+      total_amount: purchaseData.totalAmount,
+      status_id: 1, // Always start as pending for automated orders
+      user_id: user.user_id,
+      subtotal: purchaseData.totalAmount,
+      total_tax: purchaseData.totalAmount * 0.06, // 6% tax
+      grand_total: purchaseData.totalAmount * 1.06 + 500 // Including shipping
+    }, { transaction });
+
+    console.log('Created automated purchase order:', purchaseOrder.purchase_order_id);
+
+    // Process each item, handling the BAT- prefix in SKUs
+    for (const item of purchaseData.itemsList) {
+      const itemSku = item.uuid.startsWith('BAT-') ? item.uuid : `BAT-${item.uuid}`;
+      const itemObj = await Product.findOne({
+        where: {
+          sku_number: itemSku,
+          status_id: 1
+        }
+      });
+
+      if (!itemObj) {
+        throw new Error(`Product not found for SKU: ${itemSku}`);
+      }
+
+      // Create purchase order item
+      await PurchaseOrderItem.create({
+        purchase_order_id: purchaseOrder.purchase_order_id,
+        product_id: itemObj.product_id,
+        quantity: item.quantity,
+        total_price: item.price * item.quantity,
+        tax: (item.price * item.quantity) * 0.06, // 6% tax per item
+        discount: 0 // No discount for automated orders
+      }, { transaction });
+    }
+
+    await transaction.commit();
+    console.log('Automated purchase order transaction completed successfully');
+
+    // Get complete purchase order with items for response
+    const completePurchaseOrder = await PurchaseOrder.findOne({
+      where: { purchase_order_id: purchaseOrder.purchase_order_id },
+      include: [
+        {
+          model: PurchaseOrderItem,
+          as: 'PurchaseOrderItems',
+          include: [{
+            model: Product,
+            as: 'Product',
+            attributes: ['product_name', 'sku_number']
+          }]
+        },
+        {
+          model: Vendor,
+          attributes: ['vendor_name']
+        }
+      ]
+    });
+
+    return {
+      success: true,
+      purchaseOrder: completePurchaseOrder,
+      message: "Automated purchase order created successfully"
+    };
+
+  } catch (err) {
+    console.error('Error in automated purchase creation:', err);
     await transaction.rollback();
     throw err;
   }

@@ -570,14 +570,16 @@ exports.createSalesOrder = async (username, salesData) => {
     }
 
     //discount validation
-    for (const discount of salesData.discounts) {
-      const currentDiscount = await getDiscountByIdAsync(discount.discount_id);
-      const currentDate = new Date();
-      if (new Date(currentDiscount.discount_start) > currentDate) {
-        throw new SalesError("Discount hasn't started yet", "VALIDATION_ERROR", "400");
-      }
-      if (currentDiscount.discount_end && new Date(currentDiscount.discount_end) < currentDate) {
-        throw new SalesError("Discount has expired", "VALIDATION_ERROR", "400");
+    if (salesData.discounts && Array.isArray(salesData.discounts) && salesData.discounts.length > 0) {
+      for (const discount of salesData.discounts) {
+        const currentDiscount = await getDiscountByIdAsync(discount.discount_id);
+        const currentDate = new Date();
+        if (new Date(currentDiscount.discount_start) > currentDate) {
+          throw new SalesError("Discount hasn't started yet", "VALIDATION_ERROR", "400");
+        }
+        if (currentDiscount.discount_end && new Date(currentDiscount.discount_end) < currentDate) {
+          throw new SalesError("Discount has expired", "VALIDATION_ERROR", "400");
+        }
       }
     }
 
@@ -954,3 +956,221 @@ exports.deleteSalesOrder = async (username, salesOrderUUID, managerPassword) => 
     );
   }
 };
+
+async function getFastMovingItems(username, timeRange = 30) {
+    // This will aggregate sales data over the specified time range
+    // Default to last 30 days if not specified
+    const startDate = new Date();
+    startDate.setDate(startDate.getDate() - timeRange);
+    
+    try {
+        // Get user's organization
+        const user = await User.findOne({ where: { username } });
+        
+        // Join sales_order_items with products and aggregate quantities
+        const fastMovingItems = await SalesOrderInventory.findAll({
+            attributes: [
+                'product_id',
+                [sequelize.fn('SUM', sequelize.col('quantity')), 'total_quantity'],
+                [sequelize.fn('COUNT', sequelize.col('sales_order_id')), 'order_count'],
+                [sequelize.literal('SUM(quantity) / ' + timeRange), 'daily_velocity']
+            ],
+            include: [{
+                model: SalesOrder,
+                where: {
+                    order_date_time: {
+                        [Op.gte]: startDate
+                    },
+                    organization_id: user.organization_id
+                },
+                attributes: []
+            }, {
+                model: Product,
+                attributes: ['product_name', 'sku_number', 'product_stock']
+            }],
+            group: ['product_id', 'Product.product_name', 'Product.sku_number', 'Product.product_stock'],
+            having: sequelize.literal('COUNT(sales_order_id) > 0'),
+            order: [[sequelize.literal('total_quantity'), 'DESC']],
+            limit: 5
+        });
+
+        return fastMovingItems;
+    } catch (error) {
+        throw new Error('Error calculating fast-moving items: ' + error.message);
+    }
+}
+
+exports.getFastMovingItemsAnalytics = async (username, options) => {
+    try {
+        const user = await User.findOne({ 
+            where: { username }
+        });
+
+        if (!user) {
+            throw new SalesError('User not found', 'AUTH_ERROR', 401);
+        }
+
+        // Base query using the correct association
+        const baseQuery = {
+            attributes: [
+                'product_id',
+                [sequelize.fn('SUM', sequelize.col('SalesOrderInventory.quantity')), 'total_quantity'],
+                [sequelize.fn('COUNT', sequelize.fn('DISTINCT', sequelize.col('SalesOrder.sales_order_id'))), 'order_count']
+            ],
+            include: [
+                {
+                    model: Product,  
+                    as: 'Product',  
+                    required: true,
+                    attributes: ['product_name', 'sku_number', 'product_stock']
+                },
+                {
+                    model: SalesOrder,
+                    required: true,
+                    attributes: [],
+                    where: {
+                        organization_id: user.organization_id,
+                        // Add date range filter if needed
+                        order_date_time: {
+                            [Op.gte]: sequelize.literal(`CURRENT_DATE - INTERVAL '${options.timeRange} days'`)
+                        }
+                    }
+                }
+            ],
+            group: [
+                'SalesOrderInventory.product_id',
+                'Product.product_id',
+                'Product.product_name',
+                'Product.sku_number',
+                'Product.product_stock'
+            ],
+            order: [[sequelize.literal('total_quantity'), 'DESC']],
+            limit: options.limit || 5
+        };
+
+        // Execute query with proper error handling
+        const results = await SalesOrderInventory.findAll(baseQuery);
+
+        // Transform results into a cleaner format
+        const transformedResults = results.map(result => ({
+            productId: result.product_id,
+            productName: result.Product.product_name,
+            skuNumber: result.Product.sku_number,
+            totalQuantity: parseInt(result.getDataValue('total_quantity')),
+            orderCount: parseInt(result.getDataValue('order_count')),
+            currentStock: result.Product.product_stock
+        }));
+
+        return {
+            success: true,
+            data: {
+                fastMovingItems: transformedResults,
+                analyzedAt: new Date(),
+                timeRange: options.timeRange
+            }
+        };
+
+    } catch (error) {
+        console.error('Analytics service error:', error);
+        throw error;
+    }
+};
+
+// Helper functions
+function getSortExpression(sortBy) {
+    const expressions = {
+        quantity: 'SUM(quantity)',
+        velocity: 'SUM(quantity)::float / ${timeRange}',
+        turnover: 'SUM(quantity)::float / NULLIF("Product"."product_stock", 0)',
+        value: 'SUM(quantity * price)'
+    };
+    return expressions[sortBy] || expressions.quantity;
+}
+
+async function getPreviousPeriodData(baseQuery, startDate, endDate) {
+    const query = {
+        ...baseQuery,
+        include: [{
+            ...baseQuery.include[0],
+            where: {
+                ...baseQuery.include[0].where,
+                order_date_time: {
+                    [Op.between]: [startDate, endDate]
+                }
+            }
+        },
+        baseQuery.include[1]]
+    };
+    return await SalesOrderInventory.findAll(query);
+}
+
+async function getCategoryBreakdown(organizationId, startDate, endDate) {
+    return await SalesOrderInventory.findAll({
+        attributes: [
+            [sequelize.col('Product.category'), 'category'],
+            [sequelize.fn('SUM', sequelize.col('quantity')), 'total_quantity'],
+            [sequelize.fn('COUNT', sequelize.fn('DISTINCT', sequelize.col('product_id'))), 'unique_products']
+        ],
+        include: [{
+            model: SalesOrder,
+            where: {
+                order_date_time: { [Op.between]: [startDate, endDate] },
+                organization_id: organizationId
+            },
+            attributes: []
+        }, {
+            model: Product,
+            attributes: []
+        }],
+        group: [sequelize.col('Product.category')]
+    });
+}
+
+async function enrichAnalyticsData(currentData, previousData, timeRange) {
+    const items = currentData.map(item => {
+        const plainItem = item.get({ plain: true });
+        const previousItem = previousData.find(p => p.product_id === item.product_id);
+        
+        // Calculate period-over-period changes
+        const previousQuantity = previousItem?.total_quantity || 0;
+        const quantityChange = ((plainItem.total_quantity - previousQuantity) / previousQuantity) * 100;
+        
+        // Calculate velocity and momentum
+        const velocity = plainItem.total_quantity / timeRange;
+        const previousVelocity = previousQuantity / timeRange;
+        const velocityChange = ((velocity - previousVelocity) / previousVelocity) * 100;
+        
+        // Calculate turnover rate
+        const turnoverRate = plainItem.total_quantity / (plainItem.Product.product_stock || 1);
+        
+        return {
+            ...plainItem,
+            metrics: {
+                quantityChange: parseFloat(quantityChange.toFixed(2)),
+                velocityChange: parseFloat(velocityChange.toFixed(2)),
+                turnoverRate: parseFloat(turnoverRate.toFixed(2)),
+                velocity: parseFloat(velocity.toFixed(2)),
+                reorderPoint: calculateReorderPoint(plainItem, velocity)
+            }
+        };
+    });
+
+    // Calculate overall trends
+    const trends = calculateOverallTrends(items);
+
+    return { items, trends };
+}
+
+function calculateReorderPoint(item, velocity) {
+    const leadTime = 7; // Assumed 7 days lead time
+    const safetyStock = Math.ceil(velocity * 3); // 3 days safety stock
+    return Math.ceil(velocity * leadTime + safetyStock);
+}
+
+function calculateOverallTrends(items) {
+    return {
+        averageVelocity: items.reduce((acc, item) => acc + item.metrics.velocity, 0) / items.length,
+        averageTurnover: items.reduce((acc, item) => acc + item.metrics.turnoverRate, 0) / items.length,
+        totalQuantityChange: items.reduce((acc, item) => acc + item.metrics.quantityChange, 0) / items.length
+    };
+}
