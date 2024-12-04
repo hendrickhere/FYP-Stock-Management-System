@@ -47,7 +47,14 @@ class SalesOrderInventory extends Model {
             modelName: 'SalesOrderInventory',
             tableName: 'sales_order_items',
             timestamps: false,
-            underscored: true
+            underscored: true,
+            indexes: [
+                        {
+                            name: 'idx_sales_order_items_composite',
+                            fields: ['sales_order_id', 'product_id'],
+                            using: 'BTREE'
+                        }
+                    ]
         });
     }
 }

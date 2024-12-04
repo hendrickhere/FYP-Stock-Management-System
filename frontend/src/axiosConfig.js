@@ -1,5 +1,4 @@
 import axios from 'axios';
-import axiosRetry from 'axios-retry';
 
 const instance = axios.create({
   baseURL: 'http://localhost:3002/api',
@@ -7,7 +6,6 @@ const instance = axios.create({
   maxBodyLength: 50000000,
 });
 
-let isRefreshing = false;
 let failedQueue = [];
 
 const processQueue = (error, token = null) => {
@@ -22,9 +20,21 @@ const processQueue = (error, token = null) => {
 };
 
 instance.interceptors.response.use(
-  (response) => response,
+  (response) => {
+      // Log successful responses
+      console.log('Response received:', {
+          status: response.status,
+          data: response.data
+      });
+      return response;
+  },
   async (error) => {
     const originalRequest = error.config;
+    console.error('Response error:', {
+        message: error.message,
+        response: error.response?.data,
+        status: error.response?.status
+    });
     
     // Check if this is an invalid manager password error
     if (error.response?.status === 401 && error.response?.data?.code === 'INVALID_MANAGER_PASSWORD') {
@@ -62,16 +72,26 @@ instance.interceptors.response.use(
 );
 
 instance.interceptors.request.use(
-  async (config) => {
-    const token = localStorage.getItem('accessToken');
-    if (token) {
-      config.headers['Authorization'] = `Bearer ${token}`;
+    async (config) => {
+        const token = localStorage.getItem('accessToken');
+        if (token) {
+            config.headers['Authorization'] = `Bearer ${token}`;
+        }
+        
+        // Log outgoing requests
+        console.log('Outgoing request:', {
+            url: config.url,
+            method: config.method,
+            params: config.params,
+            headers: config.headers
+        });
+        
+        return config;
+    },
+    (error) => {
+        console.error('Request interceptor error:', error);
+        return Promise.reject(error);
     }
-    return config;
-  },
-  (error) => {
-    return Promise.reject(error);
-  }
 );
 
 export default instance;

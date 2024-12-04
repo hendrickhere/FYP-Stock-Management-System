@@ -61,6 +61,17 @@ sequelize.sync()
     console.error('Error syncing database:', err);
   });
 
+app.use((req, res, next) => {
+    console.log('Incoming request:', {
+        method: req.method,
+        path: req.path,
+        params: req.params,
+        query: req.query,
+        body: req.method === 'POST' ? req.body : undefined
+    });
+    next();
+});
+
 // Routes
 app.post('/api/token/refresh', userController.refreshToken);
 app.post('/api/user/login', userController.login);
@@ -76,6 +87,23 @@ app.use("/api/sales", salesRoutes);
 app.use('/api', taxRoutes);
 app.use('/api', discountRoutes);
 app.use('/api', warrantyRoutes);
+
+app.use((err, req, res, next) => {
+    console.error('Global error handler:', {
+        error: err.message,
+        stack: err.stack,
+        path: req.path,
+        params: req.params
+    });
+    
+    res.status(500).json({
+        success: false,
+        error: {
+            message: 'An unexpected error occurred',
+            details: process.env.NODE_ENV === 'development' ? err.message : undefined
+        }
+    });
+});
 
 // Start server
 app.listen(PORT, () => {
