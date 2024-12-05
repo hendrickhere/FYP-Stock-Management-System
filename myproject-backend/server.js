@@ -34,6 +34,7 @@ const authMiddleware = require('./backend-middleware/authMiddleware');
 const warrantyRoutes = require('./routes/warrantyRoutes');
 const taxRoutes = require('./routes/taxesRoutes.js')
 const discountRoutes = require("./routes/discountRoutes.js");
+const staffRoutes = require('./routes/staffRoutes.js');
 
 console.log('\nAfter loading all routes');
 console.log('Final model state:', Object.keys(db).filter(key => key !== 'sequelize' && key !== 'Sequelize'));
@@ -87,6 +88,7 @@ app.use("/api/sales", salesRoutes);
 app.use('/api', taxRoutes);
 app.use('/api', discountRoutes);
 app.use('/api', warrantyRoutes);
+app.use('/api/staff', staffRoutes);
 
 app.use((err, req, res, next) => {
     console.error('Global error handler:', {
