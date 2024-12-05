@@ -15,7 +15,6 @@ import AddInventory from './inventory_module/add_inventory';
 import AddPurchases from './purchases_module/add_purchases';
 import AddVendor from './vendor_module/add_vendor';
 import AddCustomer from './customer_module/add_customer';
-import AddStaff from './staff_module/add_staff';
 import AddAppointment from './appointments_module/add_appointment';
 import Profile from './profile';
 import Settings from './settings_module/settings';
@@ -95,11 +94,6 @@ ReactDOM.render(
           <Route path="/vendors/add_vendor" element={
             <ProtectedRoute>
              <AddVendor/>
-            </ProtectedRoute>
-          } />
-          <Route path="/staff/add_staff" element={
-            <ProtectedRoute>
-             <AddStaff/>
             </ProtectedRoute>
           } />
           <Route path="/customers/add_customer" element={
