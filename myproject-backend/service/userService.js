@@ -18,15 +18,39 @@ console.log('Customer model:', !!Customer);
 console.log('SalesOrder model:', !!SalesOrder);
 console.log('Product model:', !!Product);
 
-
 exports.getUserByUsernameAsync = async (username) => {
   const user = await User.findOne({
     where: {
       username: username,
     },
+    include: [{
+      model: db.Organization,
+      as: 'organization',
+      attributes: ['organization_id', 'organization_name']
+    }],
+    attributes: [
+      'user_id', 
+      'username', 
+      'organization_id',
+      'role'
+    ]
   });
-  return user.dataValues;
+  
+  if (!user) {
+    return null;
+  }
+
+  // Add logging to help debug
+  console.log('Found user with organization:', {
+    userId: user.user_id,
+    username: user.username,
+    organizationId: user.organization_id,
+    hasOrganization: !!user.organization
+  });
+
+  return user;
 }
+
 async function getUserByUsername(username) {
   const user = await User.findOne({
     where: {

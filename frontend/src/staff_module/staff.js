@@ -1,14 +1,14 @@
-import React, { useState, useEffect, useContext, useRef } from "react";
+import React, { useState, useEffect, useContext } from "react";
 import Header from '../header';
 import Sidebar from '../sidebar';
-import { useNavigate } from 'react-router-dom';
 import axiosInstance from '../axiosConfig';
-import { Plus } from 'lucide-react';
-import CustomerTable from './staffTable';
+import StaffTable from './staffTable';
 import { GlobalContext } from "../globalContext";
 import { useScrollDirection } from '../useScrollDirection';
 import { motion } from 'framer-motion';
-import { Button } from "../ui/button";
+import StaffSearch from './staffSearch';
+import { useToast } from '../ui/use-toast';
+import { FaLock } from 'react-icons/fa';
 
 const springTransition = {
   type: "spring",
@@ -19,6 +19,7 @@ const springTransition = {
 };
 
 function Staff() {
+  const userRole = JSON.parse(sessionStorage.getItem('userData'))?.role;
   const [isMobile, setIsMobile] = useState(window.innerWidth < 1024);
   const { scrollDirection, isAtTop } = useScrollDirection();
 
@@ -30,6 +31,25 @@ function Staff() {
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
   }, []);
+  
+  // If Staff role, show access denied
+  if (userRole == 'Staff') {
+    return (
+      <div className="flex flex-col h-screen w-full">
+        <Header />
+        <div className="flex flex-grow items-center justify-center">
+          <Sidebar scrollDirection={scrollDirection} isAtTop={isAtTop} />
+          <div className="text-center p-8 max-w-md ">
+            <FaLock className="w-16 h-16 mx-auto text-gray-400 mb-4" />
+            <h2 className="text-2xl font-bold text-gray-800 mb-2">Access Restricted</h2>
+            <p className="text-gray-600">
+              You don't have permission to view this page. This section is only accessible to managers.
+            </p>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-col h-screen w-full">
@@ -45,110 +65,128 @@ function Staff() {
 function MainContent({ isMobile, scrollDirection, isAtTop }) {
   const { username } = useContext(GlobalContext);
   const [loading, setLoading] = useState(false);
-  const [customers, setCustomers] = useState(null);
-  const [filter, setFilter] = useState("");
-  const navigate = useNavigate();
-  const [isTopButtonsVisible, setIsTopButtonsVisible] = useState(true);
-  const topButtonsRef = useRef(null);
+  const [staffMembers, setStaffMembers] = useState(null);
   const [searchConfig, setSearchConfig] = useState({
-  term: '',
-  activeFilters: ['name', 'email', 'company', 'contact', 'address']
+    term: '',
+    activeFilters: ['username', 'email', 'role']
   });
+  const { toast } = useToast();
 
+  // Fetch staff data when component mounts
   useEffect(() => {
-    const observer = new IntersectionObserver(
-      ([entry]) => {
-        setIsTopButtonsVisible(entry.isIntersecting);
-      },
-      { 
-        root: null,
-        threshold: 0.1 
-      }
-    );
+    fetchStaffData();
+  }, [username]);
 
-    if (topButtonsRef.current) {
-      observer.observe(topButtonsRef.current);
+  // Function to fetch staff data
+  const fetchStaffData = async () => {
+    try {
+      setLoading(true);
+      const response = await axiosInstance.get(`/staff/staffs`, {
+        params: { username }
+      });
+
+      if (response.data.success) {
+        setStaffMembers(response.data.staffMembers);
+      } else {
+        toast({
+          title: "Error",
+          description: response.data.message || "Failed to fetch staff data",
+          variant: "destructive"
+        });
+      }
+    } catch (error) {
+      console.error("Error fetching staff data:", error);
+      toast({
+        title: "Error",
+        description: "Failed to fetch staff data",
+        variant: "destructive"
+      });
+      setStaffMembers([]);
+    } finally {
+      setLoading(false);
     }
+  };
 
-    return () => {
-      if (topButtonsRef.current) {
-        observer.unobserve(topButtonsRef.current);
+  // Handle search filter changes
+  const handleSearchFilter = async (config) => {
+    setSearchConfig(config);
+    try {
+      setLoading(true);
+      // Changed from /staff/staffs/search to /staffs/search
+      const response = await axiosInstance.post(`/staff/staffs/search`, 
+        { term: config.term },
+        { params: { username } }
+      );
+
+      if (response.data.success) {
+        setStaffMembers(response.data.staffMembers);
+      } else {
+        toast({
+          title: "Error",
+          description: response.data.message || "Failed to search staff",
+          variant: "destructive"
+        });
       }
-    };
-  }, []);
+    } catch (error) {
+      console.error("Error searching staff:", error);
+      toast({
+        title: "Error",
+        description: "Failed to search staff",
+        variant: "destructive"
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
 
-  // return (
-  //   <div className="flex-1 overflow-hidden">
-  //     <div className="h-full overflow-y-auto">
-  //       <motion.div 
-  //         className="p-6"
-  //         animate={{ 
-  //           marginLeft: isMobile ? '0' : (scrollDirection === 'down' && !isAtTop ? '4rem' : '13rem'),
-  //         }}
-  //         transition={springTransition}
-  //       >
-  //         {/* Title and Search Section */}
-  //         <div className="mb-6">
-  //           <div className="flex flex-col lg:flex-row lg:items-center gap-4">
-  //             <h1 className="text-2xl font-bold">Customers</h1>
-  //             <div className="lg:w-auto lg:ml-20 flex-1">
-  //                 {/* <CustomerSearch 
-  //                   onFilterChange={handleSearchFilter}
-  //                   initialFilters={{
-  //                     name: true,
-  //                     email: true,
-  //                     company: true,
-  //                     contact: true,
-  //                     address: true
-  //                   }}
-  //                 /> */}
-  //             </div>
-  //           </div>
-  //         </div>
+  const handleStaffDeleted = () => {
+    // Refresh the staff list
+    fetchStaffData();
+  };
 
-  //         {/* Buttons Section */}
-  //         <div ref={topButtonsRef} className="flex flex-row gap-4 mb-6">
-          // <Button
-          //   variant="default"
-          //   className="flex items-center space-x-2 px-4 py-2 bg-white text-green-700 font-medium rounded-lg shadow hover:bg-green-600 hover:text-white focus:outline-none focus:ring-2 focus:ring-green-400 focus:ring-opacity-75"
-          //   onClick={() => navigate('/staff/add_staff')}
-          // >
-          //     <Plus className="w-4 h-4 mr-2" />
-          //   Add Staff
-          // </Button>
-  //         </div>
+  return (
+    <div className="flex-1 overflow-hidden">
+      <div className="h-full overflow-y-auto">
+        <motion.div 
+          className="p-6"
+          animate={{ 
+            marginLeft: isMobile ? '0' : (scrollDirection === 'down' && !isAtTop ? '4rem' : '13rem'),
+          }}
+          transition={springTransition}
+        >
+          {/* Title and Search Section */}
+          <div className="mb-6">
+            <div className="flex flex-col lg:flex-row lg:items-center gap-4">
+              <h1 className="text-2xl font-bold">Staffs</h1>
+              <div className="lg:w-auto lg:ml-20 flex-1">
+                <StaffSearch 
+                  onFilterChange={handleSearchFilter}
+                  initialFilters={{
+                    username: true,
+                    email: true,
+                    role: true
+                  }}
+                />
+              </div>
+            </div>
+          </div>
 
-  //         {/* Content Area
-  //         {loading ? (
-  //           <div className="flex justify-center items-center py-8">
-  //             <p>Loading...</p>
-  //           </div>
-  //         // ) : (
-  //         //   // <CustomerTable
-  //         //   //   customers={customers}
-  //         //   //   handleDeleteData={handleDeleteData}
-  //         //   //   handleEditData={handleEditData}
-  //         //   //   searchConfig={searchConfig}
-  //         //   // />
-  //         // )}
-  //       </motion.div>
-  //     </div> */}
-
-  //     {/* Floating Action Button */}
-  //     {isMobile && !isTopButtonsVisible && (
-  //       <motion.button
-  //         initial={{ scale: 0, opacity: 0 }}
-  //         animate={{ scale: 1, opacity: 1 }}
-  //         exit={{ scale: 0, opacity: 0 }}
-  //         transition={springTransition}
-  //         onClick={() => navigate('/customers/add_customer')}
-  //         className="fixed bottom-6 right-6 w-14 h-14 bg-green-600 text-white rounded-full shadow-lg flex items-center justify-center hover:bg-green-700 transition-colors z-50"
-  //       >
-  //         <Plus className="w-6 h-6" />
-  //       </motion.button>
-  //     )}
-  //   </div>
-  // );
+          {/* Content Area */}
+          {loading ? (
+            <div className="flex justify-center items-center py-8">
+              <p>Loading...</p>
+            </div>
+          ) : (
+            <StaffTable
+              staffs={staffMembers}
+              searchConfig={searchConfig}
+              onStaffDeleted={handleStaffDeleted}
+            />
+          )}
+        </motion.div>
+      </div>
+    </div>
+  );
 }
 
 export default Staff;

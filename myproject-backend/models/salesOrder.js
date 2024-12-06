@@ -31,6 +31,14 @@ class SalesOrder extends Model {
                 type: DataTypes.STRING,
                 allowNull: true,
             },
+            organization_id: {
+                type: DataTypes.INTEGER,
+                allowNull: false,
+                references: {
+                    model: "organizations",
+                    key: "organization_id"
+                }
+            },
             status_id: {
                 type: DataTypes.INTEGER,
                 allowNull: false,
@@ -55,17 +63,15 @@ class SalesOrder extends Model {
             sequelize,
             modelName: 'SalesOrder',
             tableName: 'sales_orders',
-            // Add timestamps for better tracking
             timestamps: true,
             createdAt: 'created_at',
             updatedAt: 'updated_at',
             underscored: true,
-            // Add index configuration
             indexes: [
                 {
-                    name: 'idx_sales_orders_date',
-                    fields: ['order_date_time'],
-                    using: 'BRIN'
+                    name: 'idx_sales_orders_date_org',
+                    fields: ['order_date_time', 'organization_id'],
+                    using: 'BTREE'
                 }
             ]
         });

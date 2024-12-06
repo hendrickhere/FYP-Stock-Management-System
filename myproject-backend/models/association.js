@@ -43,10 +43,12 @@ module.exports = (db) => {
 
     SalesOrder.hasMany(SalesOrderInventory, {
         foreignKey: 'sales_order_id',
-        as: 'items'
+        as: 'items',
+        sourceKey: 'sales_order_id'
     });
     SalesOrderInventory.belongsTo(SalesOrder, {
-        foreignKey: 'sales_order_id'
+        foreignKey: 'sales_order_id',
+        targetKey: 'sales_order_id'
     });
     console.log('✓ SalesOrder <-> SalesOrderInventory associations established');
 
