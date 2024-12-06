@@ -53,6 +53,15 @@ async function getInventoryByUUID(uuid) {
   return inventory;
 }
 
+exports.getPurchaseOrderItem = async (purchaseOrderId, productId) => {
+  const purchaseOrderItem = await PurchaseOrderItem.findOne({
+    where:{
+      purchase_order_id: purchaseOrderId, 
+      product_id: productId
+    }
+  });
+  return purchaseOrderItem;
+}
 
 async function verifyManagerPassword(managerPassword) {
   try {
@@ -205,6 +214,7 @@ exports.insertPurchase = async (purchaseData) => {
         purchase_order_id: purchaseOrder.purchase_order_id,
         product_id: itemObj.product_id,
         quantity: item.quantity,
+        unregistered_quantity: item.quantity, 
         total_price: itemObj.cost * item.quantity, 
       }, { transaction });
 
@@ -294,6 +304,7 @@ exports.insertAutomatedPurchase = async (purchaseData) => {
         purchase_order_id: purchaseOrder.purchase_order_id,
         product_id: itemObj.product_id,
         quantity: item.quantity,
+        unregistered_quantity: item.quantity, 
         total_price: item.price * item.quantity,
         tax: (item.price * item.quantity) * 0.06, // 6% tax per item
         discount: 0 // No discount for automated orders

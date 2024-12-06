@@ -13,7 +13,6 @@ class ProductUnit extends Model {
                 serial_number: {
                     type: DataTypes.STRING,
                     allowNull: false,
-                    unique: true,
                 },
                 product_id: {
                     type: DataTypes.INTEGER,
@@ -34,6 +33,14 @@ class ProductUnit extends Model {
                     references: {
                         model: "warranties",
                         key: "warranty_id",
+                    },
+                },
+                purchase_order_item_id: {  
+                    type: DataTypes.INTEGER,
+                    allowNull: false,
+                    references: {
+                        model: "purchase_order_items",
+                        key: "purchase_order_item_id",
                     },
                 },
                 created_at: {

@@ -39,6 +39,11 @@ class WarrantyUnit extends Model {
                     allowNull: false,
                     defaultValue: 'ACTIVE',
                 },
+                notification_sent: {
+                    type: DataTypes.BOOLEAN, 
+                    allowNull: false, 
+                    defaultValue: false
+                },
                 created_at: {
                     type: DataTypes.DATE,
                     allowNull: false,

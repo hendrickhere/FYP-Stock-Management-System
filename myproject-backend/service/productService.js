@@ -14,30 +14,37 @@ const {
 const { Op, sequelize } = require("sequelize");
 const bcrypt = require("bcryptjs");
 const WarrantyService = require("./warrantyService");
+const PurchaseService = require("./purchaseService");
 const { WarrantyNotFoundException } = require("../errors/notFoundException");
 const { DatabaseOperationException } = require("../errors/operationError");
 
-exports.addProductUnit = async (purchaseOrderId, products) => {
+exports.addProductUnit = async (purchaseOrderId, products, username) => {
   const transaction = await db.sequelize.transaction();
   try {
     await Promise.all(
       products.map(async (product) => {
+        const purchaseOrder = await PurchaseService.getPurchaseOrderDetails(purchaseOrderId, username);
         const warranty = await WarrantyService.getWarrantiesByProduct(
-          product.productId
+          product.product_id
         );
-        if (!warranty) {
-          throw new WarrantyNotFoundException(product.productId);
-        }
+        const purchaseOrderItem = await PurchaseService.getPurchaseOrderItem(
+          purchaseOrderId,
+          product.product_id
+        );
 
         const purchaseDate = new Date();
+        
+        if (product.units.length > purchaseOrderItem.unregistered_quantity) {
+          throw new Error(`Cannot register more units than available unregistered quantity for product ${product.product_id}`);
+        }
 
         await Promise.all(
           product.units.map(async (unit) => {
             try {
               const productUnit = await ProductUnit.create(
                 {
-                  warranty_id: warranty.warranty_id,
-                  purchase_order_id: purchaseOrderId,
+                  warranty_id: warranty?.warranty_id || null, 
+                  purchase_order_item_id: purchaseOrderItem.purchase_order_item_id,
                   product_id: product.productId,
                   serial_number: unit.serialNumber,
                   date_of_purchase: purchaseDate,
@@ -45,22 +52,31 @@ exports.addProductUnit = async (purchaseOrderId, products) => {
                 { transaction }
               );
 
-              const warrantyStartDate = new Date(purchaseDate);
-              const warrantyEndDate = new Date(purchaseDate);
-              warrantyEndDate.setMonth(
-                warrantyEndDate.getMonth() + warranty.duration
-              );
+              if (warranty) {
+                const warrantyStartDate = new Date(purchaseDate);
+                const warrantyEndDate = new Date(purchaseDate);
+                warrantyEndDate.setMonth(
+                  warrantyEndDate.getMonth() + warranty.duration
+                );
 
-              await WarrantyUnit.create(
-                {
-                  product_unit_id: productUnit.product_unit_id,
-                  warranty_id: warranty.warranty_id,
-                  warranty_start: warrantyStartDate,
-                  warranty_end: warrantyEndDate,
-                  status: "ACTIVE",
-                },
-                { transaction }
-              );
+                await WarrantyUnit.create(
+                  {
+                    product_unit_id: productUnit.product_unit_id,
+                    warranty_id: warranty.warranty_id,
+                    warranty_start: warrantyStartDate,
+                    warranty_end: warrantyEndDate,
+                    status: "ACTIVE",
+                  },
+                  { transaction }
+                );
+              }
+
+              await PurchaseOrderItem.decrement('unregistered_quantity', {
+                by: 1,
+                where: { purchase_order_item_id: purchaseOrderItem.purchase_order_item_id },
+                transaction
+              });
+
             } catch (error) {
               throw new DatabaseOperationException(
                 `Failed to create product unit for serial number: ${unit.serialNumber}`,
@@ -78,10 +94,7 @@ exports.addProductUnit = async (purchaseOrderId, products) => {
     await transaction.rollback();
     console.error("Error adding product units:", err);
 
-    if (
-      err instanceof WarrantyNotFoundException ||
-      err instanceof DatabaseOperationException
-    ) {
+    if (err instanceof DatabaseOperationException) {
       throw err;
     }
 

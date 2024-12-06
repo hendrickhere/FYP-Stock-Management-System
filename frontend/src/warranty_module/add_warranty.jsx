@@ -43,7 +43,7 @@ const AddWarranty = () => {
 
 const MainContent = ({ isMobile }) => {
   const navigate = useNavigate();
-  const { username } = useContext(GlobalContext);
+  const { username, organizationId } = useContext(GlobalContext);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [apiError, setApiError] = useState(null);
   const [showCancelDialog, setShowCancelDialog] = useState(false);
@@ -51,6 +51,7 @@ const MainContent = ({ isMobile }) => {
   const [showProductDropdown, setShowProductDropdown] = useState(false);
   const [productSearch, setProductSearch] = useState("");
   const searchContainerRef = useRef(null);
+  const [showSuccess, setShowSuccess] = useState(false);
 
   const [productData, setProductData] = useState([
     // Sample product data - replace with API data
@@ -95,12 +96,13 @@ const MainContent = ({ isMobile }) => {
 
   const [formState, setFormState] = useState({
     warranty_type: "",
-    start_date: "",
-    end_date: "",
     terms: "",
     warranty_number: "",
+    product_id: selectedProduct?.product_id ?? 0,
+    organization_id: organizationId,
     description: "",
     duration: "",
+    username: username,
   });
 
   const [errors, setErrors] = useState({});
@@ -123,12 +125,6 @@ const MainContent = ({ isMobile }) => {
     if (!formState.warranty_type) {
       newErrors.warranty_type = "Warranty type is required";
     }
-    if (!formState.start_date) {
-      newErrors.start_date = "Start date is required";
-    }
-    if (!formState.end_date) {
-      newErrors.end_date = "End date is required";
-    }
     if (!formState.warranty_number) {
       newErrors.warranty_number = "Warranty number is required";
     }
@@ -139,6 +135,10 @@ const MainContent = ({ isMobile }) => {
 
   const handleProductSelect = (product) => {
     setSelectedProduct(product);
+    setFormState((prevState) => ({
+      ...prevState,
+      product_id: product.product_id,
+    }));
     setShowProductDropdown(false);
     if (errors.product) {
       setErrors((prev) => ({ ...prev, product: undefined }));
@@ -148,7 +148,7 @@ const MainContent = ({ isMobile }) => {
   const fetchExistingWarrantyInfo = async (product) => {
     try {
       const warrantyInfo = await instance.get(
-        `/warranties/product/${product.product_id}`
+        `/warranties/availability/${product.product_id}`
       );
       return warrantyInfo;
     } catch (err) {
@@ -158,21 +158,21 @@ const MainContent = ({ isMobile }) => {
 
   useEffect(() => {
     const checkWarrantyAvailability = async () => {
-      if (!selectedProduct?.id) return;
+      if (!selectedProduct?.product_id) return;
 
       try {
-        const response = await fetchExistingWarrantyInfo();
-
+        const response = await fetchExistingWarrantyInfo(selectedProduct);
+        console.log(response);
         const updatedWarrantyTypes = {
           1: {
             label: "Consumer Warranty",
-            disabled: !response.data.data[1].available,
-            message: response.data.data[1].message,
+            disabled: !response.data.warrantyStatus[1].available,
+            message: response.data.warrantyStatus[1].message,
           },
           2: {
             label: "Manufacturer Warranty",
-            disabled: !response.data.data[2].available,
-            message: response.data.data[2].message,
+            disabled: !response.data.warrantyStatus[2].available,
+            message: response.data.warrantyStatus[2].message,
           },
         };
 
@@ -213,17 +213,36 @@ const MainContent = ({ isMobile }) => {
     e.preventDefault();
     setIsSubmitting(true);
     setApiError(null);
+    setShowSuccess(false);
 
     if (!validateForm()) {
       setIsSubmitting(false);
       return;
     }
 
-    // Simulate API call
-    setTimeout(() => {
+    try {
+      const submitData = {
+        ...formState,
+        warranty_type: parseInt(formState.warranty_type, 10),
+      };
+      console.log(submitData);
+      const warranty = await instance.post("/warranties/create", submitData);
+
+      if (warranty.data) {
+        setShowSuccess(true);
+        setTimeout(() => {
+          navigate(-1);
+        }, 2000);
+      }
+    } catch (err) {
+      console.error(err);
+      setApiError(
+        err.response?.data?.message ||
+          "An error occurred while creating the warranty. Please try again."
+      );
       setIsSubmitting(false);
-      navigate(-1);
-    }, 1000);
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    }
   };
 
   return (
@@ -257,10 +276,40 @@ const MainContent = ({ isMobile }) => {
               <h1 className="text-2xl font-bold pl-6">Add New Warranty</h1>
             </div>
 
+            {showSuccess && (
+              <Alert className="mb-6 bg-green-50 border-green-200">
+                <div className="flex items-center gap-2">
+                  <svg
+                    className="h-4 w-4 text-green-600"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      d="M5 13l4 4L19 7"
+                    />
+                  </svg>
+                  <AlertDescription className="text-green-700">
+                    Warranty was successfully created!
+                  </AlertDescription>
+                </div>
+              </Alert>
+            )}
+
             {apiError && (
-              <Alert variant="destructive" className="mb-6">
-                <AlertCircle className="h-4 w-4" />
-                <AlertDescription>{apiError}</AlertDescription>
+              <Alert
+                variant="destructive"
+                className="mb-6 bg-red-50 border-red-200"
+              >
+                <div className="flex items-center gap-2">
+                  <AlertCircle className="h-4 w-4 text-red-600" />
+                  <AlertDescription className="text-red-700">
+                    {apiError}
+                  </AlertDescription>
+                </div>
               </Alert>
             )}
 
@@ -415,7 +464,7 @@ const MainContent = ({ isMobile }) => {
                   </div>
 
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    <div className="space-y-2">
+                    {/* <div className="space-y-2">
                       <label className="text-sm font-medium text-gray-700 required-field">
                         Start Date
                       </label>
@@ -435,9 +484,9 @@ const MainContent = ({ isMobile }) => {
                           {errors.start_date}
                         </p>
                       )}
-                    </div>
+                    </div> */}
 
-                    <div className="space-y-2">
+                    {/* <div className="space-y-2">
                       <label className="text-sm font-medium text-gray-700 required-field">
                         End Date
                       </label>
@@ -455,7 +504,7 @@ const MainContent = ({ isMobile }) => {
                           {errors.end_date}
                         </p>
                       )}
-                    </div>
+                    </div> */}
 
                     <div className="space-y-2">
                       <label className="text-sm font-medium text-gray-700">

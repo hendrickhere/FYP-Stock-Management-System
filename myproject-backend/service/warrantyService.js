@@ -1,5 +1,6 @@
 const { ProductNotFoundException } = require("../errors/notFoundException");
 const {ValidationException} = require("../errors/validationError");
+const {DatabaseOperationException} = require("../errors/operationError");
 const db = require("../models");
 const { Warranty, Product } = db;
 const { Op } = require('sequelize');
@@ -7,7 +8,7 @@ const { Op } = require('sequelize');
 class WarrantyService {
   async createWarranty(warrantyData) {
     const transaction = await db.sequelize.transaction();
-    
+
     try {
       // Check if product exists
       const product = await Product.findByPk(warrantyData.product_id);
@@ -16,17 +17,22 @@ class WarrantyService {
       }
 
       // Create warranty record with user information
-      const warranty = await Warranty.create({
-        ...warrantyData,
-        created_at: new Date(),
-        updated_at: new Date()
-      }, { 
-        transaction,
-        include: [{
-          model: Product,
-          as: 'product'
-        }]
-      });
+      const warranty = await Warranty.create(
+        {
+          ...warrantyData,
+          created_at: new Date(),
+          updated_at: new Date(),
+        },
+        {
+          transaction,
+          include: [
+            {
+              model: Product,
+              as: "product",
+            },
+          ],
+        }
+      );
 
       await transaction.commit();
       return warranty;
@@ -36,48 +42,49 @@ class WarrantyService {
     }
   }
 
-  async getAllWarranties(filters = {}) {
+  // async getAllWarranties(filters = {}) {
+  //   try {
+  //     const whereClause = {};
+
+  //     if (filters.product_id) {
+  //       whereClause.product_id = filters.product_id;
+  //     }
+
+  //     if (filters.warranty_type) {
+  //       whereClause.warranty_type = filters.warranty_type;
+  //     }
+
+  //     if (filters.userId) {
+  //       whereClause.created_by = filters.userId;
+  //     }
+
+  //     return await Warranty.findAll({
+  //       where: whereClause,
+  //       include: [
+  //         {
+  //           model: Product,
+  //           as: "product",
+  //         },
+  //       ],
+  //       order: [["created_at", "DESC"]],
+  //     });
+  //   } catch (error) {
+  //     throw error;
+  //   }
+  // }
+
+  async getAllWarranties(organizationId) {
     try {
-      const whereClause = {};
-
-      if (filters.product_id) {
-        whereClause.product_id = filters.product_id;
-      }
-
-      if (filters.warranty_type) {
-        whereClause.warranty_type = filters.warranty_type;
-      }
-
-      if (filters.userId) {
-        whereClause.created_by = filters.userId;
-      }
-
-      return await Warranty.findAll({
-        where: whereClause,
-        include: [{
-          model: Product,
-          as: 'product'
-        }],
-        order: [['created_at', 'DESC']]
-      });
-    } catch (error) {
-      throw error;
-    }
-  }
-
-  async getActiveWarranties(userId) {
-    try {
-      const currentDate = new Date();
       return await Warranty.findAll({
         where: {
-          created_by: userId,
-          start_date: { [Op.lte]: currentDate },
-          end_date: { [Op.gte]: currentDate }
+          organization_id: organizationId,
         },
-        include: [{
-          model: Product,
-          as: 'product'
-        }]
+        include: [
+          {
+            model: Product,
+            as: "product",
+          },
+        ],
       });
     } catch (error) {
       throw error;
@@ -94,13 +101,15 @@ class WarrantyService {
         where: {
           created_by: userId,
           end_date: {
-            [Op.between]: [currentDate, futureDate]
-          }
+            [Op.between]: [currentDate, futureDate],
+          },
         },
-        include: [{
-          model: Product,
-          as: 'product'
-        }]
+        include: [
+          {
+            model: Product,
+            as: "product",
+          },
+        ],
       });
     } catch (error) {
       throw error;
@@ -110,10 +119,12 @@ class WarrantyService {
   async getWarrantyById(warrantyId) {
     try {
       return await Warranty.findByPk(warrantyId, {
-        include: [{
-          model: Product,
-          as: 'product'
-        }]
+        include: [
+          {
+            model: Product,
+            as: "product",
+          },
+        ],
       });
     } catch (error) {
       throw error;
@@ -124,13 +135,15 @@ class WarrantyService {
     try {
       return await Warranty.findAll({
         where: {
-          product_id: productId
+          product_id: productId,
         },
-        include: [{
-          model: Product,
-          as: 'product'
-        }],
-        order: [['created_at', 'DESC']]
+        include: [
+          {
+            model: Product,
+            as: "product",
+          },
+        ],
+        order: [["created_at", "DESC"]],
       });
     } catch (error) {
       throw error;
@@ -142,13 +155,16 @@ class WarrantyService {
     try {
       const warranty = await Warranty.findByPk(warrantyId);
       if (!warranty) {
-        throw new Error('Warranty not found');
+        throw new Error("Warranty not found");
       }
 
-      await warranty.update({
-        ...updateData,
-        updated_at: new Date()
-      }, { transaction });
+      await warranty.update(
+        {
+          ...updateData,
+          updated_at: new Date(),
+        },
+        { transaction }
+      );
 
       await transaction.commit();
       return warranty;
@@ -167,8 +183,8 @@ class WarrantyService {
           where: {
             created_by: userId,
             start_date: { [Op.lte]: currentDate },
-            end_date: { [Op.gte]: currentDate }
-          }
+            end_date: { [Op.gte]: currentDate },
+          },
         }),
         // Expiring in next 30 days count
         Warranty.count({
@@ -177,17 +193,17 @@ class WarrantyService {
             end_date: {
               [Op.between]: [
                 currentDate,
-                new Date(currentDate.getTime() + (30 * 24 * 60 * 60 * 1000))
-              ]
-            }
-          }
+                new Date(currentDate.getTime() + 30 * 24 * 60 * 60 * 1000),
+              ],
+            },
+          },
         }),
         // Total warranties count
         Warranty.count({
           where: {
-            created_by: userId
-          }
-        })
+            created_by: userId,
+          },
+        }),
       ]);
 
       return {
@@ -195,7 +211,7 @@ class WarrantyService {
         expiring,
         total,
         activePercentage: ((active / total) * 100).toFixed(2),
-        expiringPercentage: ((expiring / total) * 100).toFixed(2)
+        expiringPercentage: ((expiring / total) * 100).toFixed(2),
       };
     } catch (error) {
       throw error;
@@ -205,53 +221,57 @@ class WarrantyService {
   async getProductWarrantyAvailability(productId) {
     try {
       if (!productId) {
-        throw new ValidationException('Product ID is required');
+        throw new ValidationException("Product ID is required");
       }
-  
+
       const warranties = await Warranty.findAll({
         where: {
           product_id: productId,
-          status_id: 1 // Active warranties only
         },
-        attributes: ['warranty_type'],
-        raw: true
+        attributes: ["warranty_type"],
+        raw: true,
       });
-  
+
       // Create a map of warranty types and their availability
       const warrantyStatus = {
-        1: { // Consumer
+        1: {
+          // Consumer
           exists: false,
           available: true,
-          message: "Can add consumer warranty"
+          message: "Can add consumer warranty",
         },
-        2: { // Manufacturer
+        2: {
+          // Manufacturer
           exists: false,
           available: true,
-          message: "Can add manufacturer warranty"
-        }
+          message: "Can add manufacturer warranty",
+        },
       };
-  
+
       // Check existing warranties
-      warranties.forEach(warranty => {
+      warranties.forEach((warranty) => {
         if (warranty.warranty_type in warrantyStatus) {
           warrantyStatus[warranty.warranty_type].exists = true;
           warrantyStatus[warranty.warranty_type].available = false;
-          warrantyStatus[warranty.warranty_type].message = 
-            `${warranty.warranty_type === 1 ? 'Consumer' : 'Manufacturer'} warranty already exists`;
+          warrantyStatus[warranty.warranty_type].message = `${
+            warranty.warranty_type === 1 ? "Consumer" : "Manufacturer"
+          } warranty already exists`;
         }
       });
-  
+
       return {
         success: true,
-        warrantyStatus
+        warrantyStatus,
       };
-  
     } catch (err) {
-      console.error('Error in getProductWarrantyAvailability:', err);
+      console.error("Error in getProductWarrantyAvailability:", err);
       if (err instanceof ValidationException) {
         throw err;
       }
-      throw new DatabaseOperationException('Failed to check warranty availability', err);
+      throw new DatabaseOperationException(
+        "Failed to check warranty availability",
+        err
+      );
     }
   }
 }

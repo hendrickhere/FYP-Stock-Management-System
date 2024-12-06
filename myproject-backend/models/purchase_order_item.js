@@ -27,6 +27,10 @@ class PurchaseOrderItem extends Model {
                 type: DataTypes.INTEGER,
                 allowNull: false
             },
+            unregistered_quantity: {
+                type: DataTypes.INTEGER, 
+                allowNull: false, 
+            }, 
             tax: {
                 type: DataTypes.DECIMAL(10,2),  
                 allowNull: true,

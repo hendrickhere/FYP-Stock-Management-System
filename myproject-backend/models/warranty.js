@@ -48,10 +48,6 @@ class Warranty extends Model {
                     isIn: [[1, 2]], // 1 for consumer, 2 for manufacturer
                 }
             },
-            notification_sent: {
-                type: DataTypes.BOOLEAN,
-                defaultValue: false
-            },
             description: {
                 type: DataTypes.STRING,
                 allowNull: true
@@ -75,49 +71,49 @@ class Warranty extends Model {
     }
 
     // Instance methods
-    isActive() {
-        const currentDate = new Date();
-        return currentDate >= this.start_date && currentDate <= this.end_date;
-    }
+    // isActive() {
+    //     const currentDate = new Date();
+    //     return currentDate >= this.start_date && currentDate <= this.end_date;
+    // }
 
-    isExpiringSoon(days = 30) {
-        const currentDate = new Date();
-        const expiryThreshold = new Date();
-        expiryThreshold.setDate(currentDate.getDate() + days);
-        return this.end_date <= expiryThreshold && this.end_date > currentDate;
-    }
+    // isExpiringSoon(days = 30) {
+    //     const currentDate = new Date();
+    //     const expiryThreshold = new Date();
+    //     expiryThreshold.setDate(currentDate.getDate() + days);
+    //     return this.end_date <= expiryThreshold && this.end_date > currentDate;
+    // }
 
-    // Static methods
-    static async findActiveWarranties() {
-        const currentDate = new Date();
-        return this.findAll({
-            where: {
-                start_date: {
-                    [Sequelize.Op.lte]: currentDate
-                },
-                end_date: {
-                    [Sequelize.Op.gte]: currentDate
-                }
-            },
-            include: ['product']
-        });
-    }
+    // // Static methods
+    // static async findActiveWarranties() {
+    //     const currentDate = new Date();
+    //     return this.findAll({
+    //         where: {
+    //             start_date: {
+    //                 [Sequelize.Op.lte]: currentDate
+    //             },
+    //             end_date: {
+    //                 [Sequelize.Op.gte]: currentDate
+    //             }
+    //         },
+    //         include: ['product']
+    //     });
+    // }
 
-    static async findExpiringSoon(days = 30) {
-        const currentDate = new Date();
-        const expiryThreshold = new Date();
-        expiryThreshold.setDate(currentDate.getDate() + days);
+    // static async findExpiringSoon(days = 30) {
+    //     const currentDate = new Date();
+    //     const expiryThreshold = new Date();
+    //     expiryThreshold.setDate(currentDate.getDate() + days);
         
-        return this.findAll({
-            where: {
-                end_date: {
-                    [Sequelize.Op.lte]: expiryThreshold,
-                    [Sequelize.Op.gt]: currentDate
-                }
-            },
-            include: ['product']
-        });
-    }
+    //     return this.findAll({
+    //         where: {
+    //             end_date: {
+    //                 [Sequelize.Op.lte]: expiryThreshold,
+    //                 [Sequelize.Op.gt]: currentDate
+    //             }
+    //         },
+    //         include: ['product']
+    //     });
+    // }
 }
 
 module.exports = Warranty;
