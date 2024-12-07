@@ -10,6 +10,7 @@ const User = db.User;
 const Customer = db.Customer;
 const SalesOrder = db.SalesOrder;
 const Product = db.Product;
+const Warranty = db.Warranty; 
 const Organization = db.Organization;
 const SalesOrderInventory = db.SalesOrderInventory;
 
@@ -448,22 +449,45 @@ exports.updateInventory = async (username, inventoryUUID, updateData) => {
   }
 };
 
-exports.getAllInventory = async (username) => {
+exports.getAllInventory = async (username, searchTerm) => {
   const user = await getUserByUsername(username);
   if (!user) {
     throw new Error("User not found");
   };
+
+  const whereClause = {
+    organization_id: user.organization_id,
+    status_id: 1
+  };
+
+  if (searchTerm) {
+    whereClause[Op.or] = [
+      { product_name: { [Op.iLike]: `%${searchTerm}%` } },
+      { sku_number: { [Op.iLike]: `%${searchTerm}%` } }
+    ];
+  }
+
   const inventories = await Product.findAll({
-    where: {
-      organization_id: user.organization_id, 
-      status_id: 1,
-    }
-  }); 
+    where: whereClause,
+    include: [{
+      model: Warranty,
+      as: 'warranties'
+    }]
+  }).then(products => products.map(individualProduct => {
+    const products = individualProduct.get({ plain: true });
+    const warranties = {
+      consumer: individualProduct.warranties.find(w => w.warranty_type === 1),
+      manufacturer: individualProduct.warranties.find(w => w.warranty_type === 2)
+    };
+    return { ...products, warranties };
+  }));
+
   if(!inventories){
     throw new Error("No inventories found");
   }
+
   return inventories; 
-}
+};
 
 exports.addSalesOrder = async (username, salesOrderData) => {
   const user = await getUserByUsername(username);

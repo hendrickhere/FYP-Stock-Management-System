@@ -50,6 +50,7 @@ function Sidebar({ scrollDirection, isAtTop }) {
     { path: '/vendors', icon: FaUserTie, label: 'Vendors' },
     { path: '/staff', icon: FaUser, label: 'Staff' },
     { path: '/appointments', icon: GrSchedules, label: 'Appointments' },
+    { path: '/warranty', icon: GrSchedules, label: 'Warranties' },
   ];
 
   // Don't render sidebar on mobile

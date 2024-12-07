@@ -5,7 +5,7 @@ const WarrantyClaimController = require('../controller/warrantyClaimController')
 const WarrantyNotificationController = require('../controller/warrantyNotificationController');
 
 // Warranty routes
-router.get("/warranties/active", WarrantyController.getActiveWarranties);
+router.get("/warranties/active", WarrantyController.getAllWarranties);
 router.get("/warranties/expiring", WarrantyController.getExpiringWarranties);
 router.get("/warranties/product/:productId", WarrantyController.getWarrantiesByProduct);
 router.get("/warranties/statistics", WarrantyController.getWarrantyStatistics);
@@ -13,6 +13,7 @@ router.get("/warranties", WarrantyController.getWarranties);
 router.get("/warranties/:id", WarrantyController.getWarrantyById);
 router.post("/warranties/create", WarrantyController.createWarranty);
 router.put("/warranties/:id", WarrantyController.updateWarranty);
+router.get("/warranties/availability/:productId", WarrantyController.getProductWarrantyAvailability);
 
 // Warranty claim routes - using only available methods
 router.post("/warranty-claims/create", WarrantyClaimController.createClaim);

@@ -316,22 +316,40 @@ exports.updateInventory = async (req, res) => {
 };
 
 exports.getAllInventory = async (req, res) => {
-  const username = req.params.username;
+  const { username } = req.params;
+  const { searchTerm } = req.query;
+
   try {
-    const inventories = await UserService.getAllInventory(username);
-    res
-      .status(200)
-      .send({
-        inventories: inventories,
-        message: "Inventories retrieved successfully.",
-      });
+    const inventories = await UserService.getAllInventory(username, searchTerm);
+    
+    return res.status(200).json({
+      success: true,
+      inventories,
+      message: "Inventories retrieved successfully."
+    });
+
   } catch (err) {
-    if (err.message === "User not found") {
-      res.status(401).send({ message: err.message });
-    } else if (err.message === "No inventories found") {
-      res.status(404).send({ message: err.message });
-    } else {
-      res.status(500).send({ message: err.message });
+    console.error('Error in getAllInventory:', err);
+
+    switch (err.message) {
+      case "User not found":
+        return res.status(401).json({
+          success: false,
+          message: err.message
+        });
+
+      case "No inventories found":
+        return res.status(404).json({
+          success: false,
+          message: err.message,
+          inventories: [] // Send empty array instead of null
+        });
+
+      default:
+        return res.status(500).json({
+          success: false,
+          message: "Failed to retrieve inventories"
+        });
     }
   }
 };

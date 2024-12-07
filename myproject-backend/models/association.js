@@ -19,7 +19,9 @@ module.exports = (db) => {
         Tax, 
         Warranty,
         WarrantyClaim,
-        WarrantyNotification
+        WarrantyNotification, 
+        ProductUnit, 
+        WarrantyUnit, 
     } = db;
 
     console.log('Models loaded successfully:', Object.keys(db).filter(key => key !== 'sequelize' && key !== 'Sequelize'));
@@ -110,6 +112,41 @@ module.exports = (db) => {
     User.hasMany(Product, { foreignKey: "user_id" });
     console.log('✓ User <-> Product associations established');
 
+
+    ProductUnit.belongsTo(Product, {
+      foreignKey: "product_id",
+    });
+    Product.hasMany(ProductUnit, {
+      foreignKey: "product_id",
+    });
+    console.log("✓ ProductUnit <-> Product associations established");
+
+    ProductUnit.belongsTo(Warranty, {
+      foreignKey: "warranty_id",
+    });
+    Warranty.hasMany(ProductUnit, {
+      foreignKey: "warranty_id",
+    });
+    console.log("✓ ProductUnit <-> Warranty associations established");
+
+    ProductUnit.hasMany(WarrantyUnit, {
+      foreignKey: "product_unit_id",
+    });
+    console.log("✓ ProductUnit <-> WarrantyUnit associations established");
+
+    WarrantyUnit.belongsTo(ProductUnit, {
+      foreignKey: "product_unit_id",
+    });
+    console.log("✓ WarrantyUnit <-> ProductUnit associations established");
+
+    WarrantyUnit.belongsTo(Warranty, {
+      foreignKey: "warranty_id",
+    });
+    Warranty.hasMany(WarrantyUnit, {
+      foreignKey: "warranty_id",
+    });
+    console.log("✓ WarrantyUnit <-> Warranty associations established");
+
     
     // Purchase Order Associations
     console.log('\n--- Setting up Purchase Order Associations ---');
@@ -137,6 +174,13 @@ module.exports = (db) => {
     PurchaseOrderItem.belongsTo(PurchaseOrder, {
         foreignKey: 'purchase_order_id'
     });
+
+    ProductUnit.belongsTo(PurchaseOrderItem, {
+        foreignKey: "purchase_order_item_id"
+    })
+    PurchaseOrderItem.hasMany(ProductUnit, {
+        foreignKey: "purchase_order_item_id"
+    })
 
     // Then establish the reverse associations
     Product.hasMany(PurchaseOrderItem, {

@@ -1,19 +1,65 @@
 const WarrantyService = require("../service/warrantyService");
 const { TYPE, CLAIM_STATUS } = require("../models/warrantyConstants");
+const UserService = require("../service/userService");
+const {ValidationException} = require("../errors/validationError");
+const {DatabaseOperationException} = require("../errors/operationError");
+exports.getProductWarrantyAvailability = async (req, res) => {
+  const { productId } = req.params;
+ 
+  try {
+    // Validate productId
+    if (!productId) {
+      return res.status(400).json({
+        success: false,
+        message: "Product ID is required"
+      });
+    }
+ 
+    const result = await WarrantyService.getProductWarrantyAvailability(productId);
+ 
+    return res.status(200).json({
+      success: true,
+      ...result
+    });
+ 
+  } catch (err) {
+    console.error('Error in getProductWarrantyAvailability:', err);
+ 
+    if (err instanceof ValidationException) {
+      return res.status(400).json({
+        success: false,
+        message: err.message
+      });
+    }
+ 
+    if (err instanceof DatabaseOperationException) {
+      return res.status(500).json({
+        success: false,
+        message: "Failed to check warranty availability"
+      });
+    }
+ 
+    // Generic error handler
+    return res.status(500).json({
+      success: false,
+      message: "Internal server error"
+    });
+  }
+ };
 
 exports.createWarranty = async (req, res) => {
   try {
+    const username = req.body.username; 
+    const user = await UserService.getUserByUsernameAsync(username);
     const warrantyData = {
       product_id: req.body.product_id,
-      organization_id: req.user.organization_id,
+      organization_id: req.body.organization_id,
       warranty_type: req.body.warranty_type,
-      start_date: req.body.start_date,
-      end_date: req.body.end_date,
       terms: req.body.terms,
       warranty_number: req.body.warranty_number,
       description: req.body.description,
-      notification_sent: false,
-      created_by: req.user.id
+      duration: req.body.duration, 
+      created_by: user.user_id
     };
 
     const result = await WarrantyService.createWarranty(warrantyData);
@@ -79,9 +125,11 @@ exports.getWarrantyById = async (req, res) => {
   }
 };
 
-exports.getActiveWarranties = async (req, res) => {
+exports.getAllWarranties = async (req, res) => {
   try {
-    const warranties = await WarrantyService.getActiveWarranties(req.user.id);
+    const username = req.query.username; 
+    const user = await UserService.getUserByUsernameAsync(username);
+    const warranties = await WarrantyService.getAllWarranties(user.organization_id);
     res.status(200).json({
       warranties,
       message: "Active warranties retrieved successfully"
