@@ -4,3 +4,5 @@ const ProductController = require('../controller/productController');
 const authMiddleware = require('../backend-middleware/authMiddleware');
 
 router.post("/addunit", ProductController.addProductUnit); 
+
+module.exports = router; 

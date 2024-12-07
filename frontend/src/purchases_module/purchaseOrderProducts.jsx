@@ -1,37 +1,241 @@
 import React, { useState } from 'react';
-import { Trash, Plus, Search, X } from 'lucide-react';
+import { Trash, Plus, Search, X, Barcode } from 'lucide-react';
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
 } from "../ui/dialog";
+import instance from '../axiosConfig';
 
 const PurchaseOrderProducts = ({ 
+  statusId,
   products, 
   isEditing, 
   onQuantityChange, 
   onRemoveProduct, 
   onAddProduct,
   availableProducts,
-  formatCurrency 
+  formatCurrency, 
+  currentUser, 
+  purchaseOrderId
 }) => {
   const [showProductModal, setShowProductModal] = useState(false);
+  const [showSerialModal, setShowSerialModal] = useState(false);
+  const [selectedProduct, setSelectedProduct] = useState(null);
+  const [serialNumber, setSerialNumber] = useState('');
+  const [serialNumbers, setSerialNumbers] = useState({});
   const [searchTerm, setSearchTerm] = useState('');
+  const [submitting, setSubmitting] = useState(false);
+  const handleSerialSubmit = (productId) => {
+    if (!serialNumber) return;
+    if (serialNumbers[productId]?.includes(serialNumber.trim())) {
+      alert('This serial number has already been scanned');
+      return;
+    }
+    setSerialNumbers(prev => ({
+      ...prev,
+      [productId]: [...(prev[productId] || []), serialNumber]
+    }));
+    setSerialNumber('');
+  };
 
-  console.log('PurchaseOrderProducts - Products:', products);
-  console.log('PurchaseOrderProducts - Available Products:', availableProducts);
+  const removeSerial = (productId, serialToRemove) => {
+    setSerialNumbers(prev => ({
+      ...prev,
+      [productId]: prev[productId].filter(serial => serial !== serialToRemove)
+    }));
+  };
 
-  // Filter available products
-  const filteredProducts = availableProducts?.filter(product => 
-    product.product_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    product.sku_number?.toString().includes(searchTerm) ||
-    product.manufacturer?.toLowerCase().includes(searchTerm.toLowerCase())
-  ) || [];
+  const handleSubmitSerials = async () => {
+    setSubmitting(true);
+    try {
+      const formattedProducts = Object.entries(serialNumbers).map(([productId, serials]) => ({
+        product_id: parseInt(productId),
+        units: serials.map(serialNumber => ({
+          serialNumber
+        }))
+      }));
+  
+      const requestBody = {
+        products: formattedProducts,
+        purchaseOrderId: purchaseOrderId, 
+        username: currentUser, 
+      };
+  
+      const response = await instance.post('/products/addunit', requestBody);
+      
+      if(response)
+      setSerialNumbers({}); 
+      alert('Serial numbers submitted successfully');
+    } catch (error) {
+      alert(`Failed to submit: ${error.message}`);
+    }
+    setSubmitting(false);
+  };
+
+  const validateQuantities = () => {
+    const invalidProducts = products.filter(product => {
+      const scannedCount = serialNumbers[product.product_id]?.length || 0;
+      return scannedCount > product.unregistered_quantity;
+    });
+
+    return invalidProducts.length === 0;
+  };
+
+
+  const ProductRow = ({ item, index }) => (
+    <div
+      key={index}
+      className="grid grid-cols-12 gap-4 items-center text-sm py-2"
+    >
+      <div className="col-span-4">
+        <div className="font-medium text-gray-900">
+          {item.Product?.product_name || "Unknown Product"}
+        </div>
+        <div className="text-xs text-gray-500">
+          {item.Product?.manufacturer || "N/A"}
+        </div>
+      </div>
+
+      <div className="col-span-2 text-center text-gray-500">
+        {item.Product?.sku_number || "N/A"}
+      </div>
+
+      <div className="col-span-2">
+        <div className="flex justify-center items-center gap-2">
+          {isEditing ? (
+            <input
+              type="number"
+              min="1"
+              value={item.quantity || ""}
+              onChange={(e) =>
+                onQuantityChange(item.product_id, e.target.value)
+              }
+              className="w-20 text-center rounded-md border-gray-300 text-sm"
+            />
+          ) : (
+            <span className="text-center">{item.quantity}</span>
+          )}
+          {statusId === 3 && (
+            <button
+              onClick={() => {
+                setSelectedProduct(item);
+                setShowSerialModal(true);
+              }}
+              className="p-1 hover:bg-gray-100 rounded-full"
+              title="Scan Serial Numbers"
+            >
+              <Barcode className="w-4 h-4 text-blue-500" />
+            </button>
+          )}
+        </div>
+      </div>
+
+      <div className="col-span-2 text-right whitespace-nowrap overflow-hidden">
+        {formatCurrency(parseFloat(item.Product?.cost) || 0)}
+      </div>
+
+      <div className="col-span-2 text-right flex items-center justify-end gap-2">
+        <span className="whitespace-nowrap overflow-hidden">
+          {formatCurrency(parseFloat(item.total_price) || 0)}
+        </span>
+        {/* {isEditing && (
+          <button
+            onClick={() => onRemoveProduct(item.product_id)}
+            className="p-1 hover:bg-gray-100 rounded-full flex-shrink-0"
+          >
+            <Trash className="w-4 h-4 text-red-500" />
+          </button>
+        )} */}
+      </div>
+
+      {serialNumbers[item.product_id]?.length > 0 && (
+        <div className="col-span-12 mt-2">
+          <div className="text-xs text-gray-500 mb-1">Serial Numbers:</div>
+          <div className="flex flex-wrap gap-2">
+            {serialNumbers[item.product_id].map((serial, idx) => (
+              <div
+                key={idx}
+                className="flex items-center bg-gray-100 rounded-full px-3 py-1 text-xs"
+              >
+                <span>{serial}</span>
+                <button
+                  onClick={() => removeSerial(item.product_id, serial)}
+                  className="ml-2"
+                >
+                  <X className="w-3 h-3 text-gray-500" />
+                </button>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+
+  const SerialNumberModal = () => (
+    <Dialog open={showSerialModal} onOpenChange={setShowSerialModal}>
+      <DialogContent className="bg-white">
+        <DialogHeader>
+          <DialogTitle>
+            Scan Serial Numbers - {selectedProduct?.Product?.product_name}
+          </DialogTitle>
+        </DialogHeader>
+
+        <div className="space-y-4">
+          <div className="flex gap-2">
+            <input
+              type="text"
+              placeholder="Scan or enter serial number"
+              value={serialNumber}
+              onChange={(e) => setSerialNumber(e.target.value)}
+              onKeyPress={(e) => {
+                if (e.key === "Enter") {
+                  handleSerialSubmit(selectedProduct?.product_id);
+                }
+              }}
+              className="flex-1 px-3 py-2 border rounded-md"
+              autoFocus
+            />
+            <button
+              onClick={() => handleSerialSubmit(selectedProduct?.product_id)}
+              className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
+            >
+              Add
+            </button>
+          </div>
+
+          <div className="text-sm text-gray-500">
+            Scanned: {serialNumbers[selectedProduct?.product_id]?.length || 0} /{" "}
+            {selectedProduct?.quantity || 0}
+          </div>
+
+          <div className="max-h-[300px] overflow-y-auto">
+            {serialNumbers[selectedProduct?.product_id]?.map((serial, idx) => (
+              <div
+                key={idx}
+                className="flex justify-between items-center py-2 border-b"
+              >
+                <span>{serial}</span>
+                <button
+                  onClick={() =>
+                    removeSerial(selectedProduct?.product_id, serial)
+                  }
+                  className="text-red-500 hover:text-red-700"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+            ))}
+          </div>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
 
   return (
     <div className="space-y-4">
-      {/* Products Table */}
       <div className="grid grid-cols-12 gap-4 text-sm font-medium text-gray-500 border-b pb-2">
         <div className="col-span-4">Product</div>
         <div className="col-span-2 text-center">SKU</div>
@@ -40,59 +244,12 @@ const PurchaseOrderProducts = ({
         <div className="col-span-2 text-right">Total</div>
       </div>
 
-      {/* Product Rows */}
       <div className="space-y-2">
         {products.map((item, index) => (
-          <div key={index} className="grid grid-cols-12 gap-4 items-center text-sm py-2">
-            <div className="col-span-4">
-              <div className="font-medium text-gray-900">
-                {item.Product?.product_name || 'Unknown Product'}
-              </div>
-              <div className="text-xs text-gray-500">
-                {item.Product?.manufacturer || 'N/A'}
-              </div>
-            </div>
-            
-            <div className="col-span-2 text-center text-gray-500">
-              {item.Product?.sku_number || 'N/A'}
-            </div>
-            
-            <div className="col-span-2">
-              <div className="flex justify-center">
-                {isEditing ? (
-                  <input
-                    type="number"
-                    min="1"
-                    value={item.quantity || ''}
-                    onChange={(e) => onQuantityChange(item.product_id, e.target.value)}
-                    className="w-20 text-center rounded-md border-gray-300 text-sm"
-                  />
-                ) : (
-                  <span className="text-center">{item.quantity}</span>
-                )}
-              </div>
-            </div>
-            
-            <div className="col-span-2 text-right">
-              {formatCurrency(item.Product?.cost || 0)}
-            </div>
-            
-            <div className="col-span-2 text-right flex items-center justify-end gap-2">
-              <span>{formatCurrency(item.total_price || 0)}</span>
-              {isEditing && (
-                <button
-                  onClick={() => onRemoveProduct(item.product_id)}
-                  className="p-1 hover:bg-gray-100 rounded-full"
-                >
-                  <Trash className="w-4 h-4 text-red-500" />
-                </button>
-              )}
-            </div>
-          </div>
+          <ProductRow key={item.product_id} item={item} index={index} />
         ))}
       </div>
 
-      {/* Add Product Button */}
       {isEditing && (
         <div>
           <button
@@ -105,7 +262,6 @@ const PurchaseOrderProducts = ({
         </div>
       )}
 
-      {/* Product Selection Modal */}
       <Dialog open={showProductModal} onOpenChange={setShowProductModal}>
         <DialogContent className="max-w-3xl max-h-[80vh] overflow-hidden flex flex-col bg-white">
           <DialogHeader>
@@ -125,7 +281,7 @@ const PurchaseOrderProducts = ({
 
           <div className="flex-1 overflow-y-auto">
             <div className="grid gap-3">
-              {filteredProducts.map((product) => (
+              {availableProducts.map((product) => (
                 <button
                   key={product.product_id}
                   onClick={() => {
@@ -152,7 +308,7 @@ const PurchaseOrderProducts = ({
                     </div>
                     <div className="text-right">
                       <div className="font-medium text-blue-600">
-                        {formatCurrency(product.cost)}
+                        {formatCurrency(parseFloat(product.cost))}
                       </div>
                     </div>
                   </div>
@@ -162,6 +318,26 @@ const PurchaseOrderProducts = ({
           </div>
         </DialogContent>
       </Dialog>
+
+      <SerialNumberModal />
+      {Object.keys(serialNumbers).length > 0 && (
+        <div className="mt-6">
+          {!validateQuantities() && (
+            <div className="text-red-500 mb-2">
+              Cannot register more units than available unregistered quantity
+            </div>
+          )}
+          <div className="flex justify-end">
+            <button
+              onClick={handleSubmitSerials}
+              disabled={submitting || !validateQuantities()}
+              className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 disabled:opacity-50"
+            >
+              {submitting ? 'Submitting...' : 'Submit Serial Numbers'}
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

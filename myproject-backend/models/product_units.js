@@ -29,6 +29,7 @@ class ProductUnit extends Model {
                     type: DataTypes.DATE,
                 },
                 warranty_id: {
+                    allowNull: true, 
                     type: DataTypes.INTEGER,
                     references: {
                         model: "warranties",

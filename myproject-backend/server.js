@@ -25,7 +25,7 @@ console.log('Models still available:', Object.keys(db).filter(key => key !== 'se
 
 const purchasesRouter = require('./routes/purchaseRoutes.js');
 const stakeholdersRouter = require('./routes/stakeholderRoutes.js');
-const productsRouter = require('./routes/product-CRUD');
+const productsRouter = require('./routes/productRoutes.js');
 const appointmentsRouter = require('./routes/appointmentRoutes');
 const salesRoutes = require('./routes/salesRoutes.js');
 const chatbotRoutes = require('./chatbot-api/chatBotServer.js');
@@ -89,6 +89,7 @@ app.use('/api', taxRoutes);
 app.use('/api', discountRoutes);
 app.use('/api', warrantyRoutes);
 app.use('/api/staff', staffRoutes);
+app.use('/api/products', productsRouter);
 
 app.use((err, req, res, next) => {
     console.error('Global error handler:', {

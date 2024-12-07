@@ -133,7 +133,7 @@ class WarrantyService {
 
   async getWarrantiesByProduct(productId) {
     try {
-      return await Warranty.findAll({
+      const warranties = await Warranty.findAll({
         where: {
           product_id: productId,
         },
@@ -141,10 +141,50 @@ class WarrantyService {
           {
             model: Product,
             as: "product",
-          },
+            attributes: ['product_name', 'product_id']
+          }
         ],
         order: [["created_at", "DESC"]],
+        attributes: [
+          'warranty_id',
+          'duration',
+          'description',
+          'terms',
+          'warranty_type',
+          'created_at',
+          'consumer',
+          'manufacturer'
+        ]
       });
+  
+      return {
+        consumer: warranties
+          .filter(warranty => warranty.consumer)
+          .map(warranty => ({
+            warranty_id: warranty.warranty_id,
+            duration: warranty.duration,
+            description: warranty.description,
+            terms: warranty.terms,
+            created_at: warranty.created_at,
+            product: {
+              id: warranty.product?.product_id,
+              name: warranty.product?.product_name
+            }
+          })),
+        manufacturer: warranties
+          .filter(warranty => warranty.manufacturer)
+          .map(warranty => ({
+            warranty_id: warranty.warranty_id,
+            duration: warranty.duration,
+            description: warranty.description,
+            terms: warranty.terms,
+            created_at: warranty.created_at,
+            product: {
+              id: warranty.product?.product_id,
+              name: warranty.product?.product_name
+            }
+          }))
+      };
     } catch (error) {
       throw error;
     }

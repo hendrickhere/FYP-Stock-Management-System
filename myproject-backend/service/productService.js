@@ -11,7 +11,7 @@ const {
   PurchaseOrderTax,
   sequelize,
 } = db;
-const { Op, sequelize } = require("sequelize");
+const { Op } = require("sequelize");
 const bcrypt = require("bcryptjs");
 const WarrantyService = require("./warrantyService");
 const PurchaseService = require("./purchaseService");
@@ -23,7 +23,7 @@ exports.addProductUnit = async (purchaseOrderId, products, username) => {
   try {
     await Promise.all(
       products.map(async (product) => {
-        const purchaseOrder = await PurchaseService.getPurchaseOrderDetails(purchaseOrderId, username);
+        //const purchaseOrder = await PurchaseService.getPurchaseOrderDetails(purchaseOrderId, username);
         const warranty = await WarrantyService.getWarrantiesByProduct(
           product.product_id
         );
@@ -45,24 +45,24 @@ exports.addProductUnit = async (purchaseOrderId, products, username) => {
                 {
                   warranty_id: warranty?.warranty_id || null, 
                   purchase_order_item_id: purchaseOrderItem.purchase_order_item_id,
-                  product_id: product.productId,
+                  product_id: product.product_id,
                   serial_number: unit.serialNumber,
                   date_of_purchase: purchaseDate,
                 },
                 { transaction }
               );
 
-              if (warranty) {
+              if (warranty.manufacturer) {
                 const warrantyStartDate = new Date(purchaseDate);
                 const warrantyEndDate = new Date(purchaseDate);
                 warrantyEndDate.setMonth(
-                  warrantyEndDate.getMonth() + warranty.duration
+                  warrantyEndDate.getMonth() + warranty.manufacturer[0].duration
                 );
 
                 await WarrantyUnit.create(
                   {
                     product_unit_id: productUnit.product_unit_id,
-                    warranty_id: warranty.warranty_id,
+                    warranty_id: warranty.manufacturer[0].warranty_id,
                     warranty_start: warrantyStartDate,
                     warranty_end: warrantyEndDate,
                     status: "ACTIVE",

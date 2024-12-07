@@ -7,7 +7,7 @@ import { Tab } from '@headlessui/react';
 import toast, { Toaster } from 'react-hot-toast';
 import axiosInstance from '../axiosConfig';
 import DragDropImageUploader from '../dragDropImageUploader';
-import { Box } from 'lucide-react';
+import { Box, Shield  } from 'lucide-react';
 
 const ProductDetailModal = ({ 
   isOpen, 
@@ -45,7 +45,8 @@ const ProductDetailModal = ({
     price: product?.price || "",
     cost: product?.cost || "", 
     description: product?.description || "",
-    product_stock: product?.product_stock || ""
+    product_stock: product?.product_stock || "",
+    warranties: product?.warranties || []
   });
 
   const [errors, setErrors] = useState({});
@@ -114,7 +115,8 @@ const ProductDetailModal = ({
       price: product.price || "",
       cost: product.cost || "",
       description: product.description || "",
-      product_stock: product.product_stock || ""
+      product_stock: product.product_stock || "",
+      warranties: product?.warranties || []
     }));
   }
   setIsEditing(false);
@@ -709,6 +711,44 @@ const ProductDetailModal = ({
                       />
                     )}
                   </div>
+                  <div className="space-y-4 mt-6">
+                  <div className="flex items-center gap-2">
+                    <Shield className="w-5 h-5 text-blue-500" />
+                    <h3 className="text-lg font-medium">Warranty Information</h3>
+                  </div>
+
+                  {/* Consumer Warranty */}
+                  <div className="border rounded-lg p-4">
+                    <h4 className="font-medium mb-2">Consumer Warranty</h4>
+                    <p className="text-gray-600">
+                      {product?.warranties?.consumer ? (
+                        <>
+                          <span className="font-medium">{product.warranties.consumer.duration} months</span>
+                          <br />
+                          {product.warranties.consumer.terms || "No terms specified"}
+                        </>
+                      ) : (
+                        "No consumer warranty information available"
+                      )}
+                    </p>
+                  </div>
+
+                  {/* Manufacturer Warranty */}
+                  <div className="border rounded-lg p-4">
+                    <h4 className="font-medium mb-2">Manufacturer Warranty</h4>
+                    <p className="text-gray-600">
+                      {product?.warranties?.manufacturer ? (
+                        <>
+                          <span className="font-medium">{product.warranties.manufacturer.duration} months</span>
+                          <br />
+                          {product.warranties.manufacturer.terms || "No terms specified"}
+                        </>
+                      ) : (
+                        "No manufacturer warranty information available"
+                      )}
+                    </p>
+                  </div>
+                </div>
                 </Tab.Panel>
               </Tab.Panels>
               </Tab.Group>

@@ -10,6 +10,7 @@ const User = db.User;
 const Customer = db.Customer;
 const SalesOrder = db.SalesOrder;
 const Product = db.Product;
+const Warranty = db.Warranty; 
 const Organization = db.Organization;
 const SalesOrderInventory = db.SalesOrderInventory;
 
@@ -467,8 +468,19 @@ exports.getAllInventory = async (username, searchTerm) => {
   }
 
   const inventories = await Product.findAll({
-    where: whereClause
-  }); 
+    where: whereClause,
+    include: [{
+      model: Warranty,
+      as: 'warranties'
+    }]
+  }).then(products => products.map(individualProduct => {
+    const products = individualProduct.get({ plain: true });
+    const warranties = {
+      consumer: individualProduct.warranties.find(w => w.warranty_type === 1),
+      manufacturer: individualProduct.warranties.find(w => w.warranty_type === 2)
+    };
+    return { ...products, warranties };
+  }));
 
   if(!inventories){
     throw new Error("No inventories found");

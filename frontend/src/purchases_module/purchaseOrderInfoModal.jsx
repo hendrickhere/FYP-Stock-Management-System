@@ -266,11 +266,11 @@ const PurchaseOrderModal = ({ isOpen, onClose, order, onUpdate, onDelete, userRo
                       delivery_method: editedOrder.delivery_method,
                       status_id: editedOrder.status_id,
                       payment_terms: editedOrder.payment_terms,
-                      PurchaseOrderItems: editedOrder.PurchaseOrderItems.map(item => ({
-                          product_id: item.product_id,
-                          quantity: item.quantity,
-                          total_price: item.total_price
-                      }))
+                      // PurchaseOrderItems: editedOrder.PurchaseOrderItems.map(item => ({
+                      //     product_id: item.product_id,
+                      //     quantity: item.quantity,
+                      //     total_price: item.total_price
+                      // }))
                   },
                   managerPassword: adminPassword
               }
@@ -375,7 +375,11 @@ const PurchaseOrderModal = ({ isOpen, onClose, order, onUpdate, onDelete, userRo
           open={isOpen}
           onClose={() => {
             if (hasChanges) {
-              if (window.confirm('You have unsaved changes. Are you sure you want to close?')) {
+              if (
+                window.confirm(
+                  "You have unsaved changes. Are you sure you want to close?"
+                )
+              ) {
                 onClose();
               }
             } else {
@@ -392,9 +396,9 @@ const PurchaseOrderModal = ({ isOpen, onClose, order, onUpdate, onDelete, userRo
           />
 
           <motion.div
-            initial={{ x: '100%' }}
+            initial={{ x: "100%" }}
             animate={{ x: 0 }}
-            exit={{ x: '100%' }}
+            exit={{ x: "100%" }}
             transition={{ type: "spring", damping: 30 }}
             className="absolute right-0 top-0 h-full w-full max-w-2xl bg-white shadow-xl"
           >
@@ -425,14 +429,15 @@ const PurchaseOrderModal = ({ isOpen, onClose, order, onUpdate, onDelete, userRo
             <div className="p-6 overflow-y-auto max-h-[calc(100vh-80px)]">
               <Tab.Group>
                 <Tab.List className="flex space-x-1 rounded-xl bg-gray-100 p-1 mb-6">
-                  {['Order Details', 'Products', 'Payment Info'].map((tab) => (
+                  {["Order Details", "Products", "Payment Info"].map((tab) => (
                     <Tab
                       key={tab}
                       className={({ selected }) =>
                         `w-full rounded-lg py-2.5 text-sm font-medium leading-5
-                        ${selected
-                          ? 'bg-white text-blue-700 shadow'
-                          : 'text-gray-700 hover:bg-white/[0.12] hover:text-blue-600'
+                        ${
+                          selected
+                            ? "bg-white text-blue-700 shadow"
+                            : "text-gray-700 hover:bg-white/[0.12] hover:text-blue-600"
                         }`
                       }
                     >
@@ -446,7 +451,9 @@ const PurchaseOrderModal = ({ isOpen, onClose, order, onUpdate, onDelete, userRo
                   <Tab.Panel>
                     <div className="space-y-6">
                       <div className="bg-gray-50 p-4 rounded-lg">
-                        <h3 className="text-lg font-semibold mb-4">Vendor Information</h3>
+                        <h3 className="text-lg font-semibold mb-4">
+                          Vendor Information
+                        </h3>
                         {isEditing ? (
                           <div className="relative">
                             <input
@@ -454,7 +461,7 @@ const PurchaseOrderModal = ({ isOpen, onClose, order, onUpdate, onDelete, userRo
                               readOnly
                               className="w-full p-2 border rounded-md"
                               placeholder="Select Vendor"
-                              value={editedOrder?.Vendor?.vendor_name || ''}
+                              value={editedOrder?.Vendor?.vendor_name || ""}
                               onClick={() => setShowVendorSearch(true)}
                             />
 
@@ -462,7 +469,7 @@ const PurchaseOrderModal = ({ isOpen, onClose, order, onUpdate, onDelete, userRo
                               <div className="absolute w-full z-10">
                                 <div className="mt-1 w-full bg-white border rounded-lg shadow-lg">
                                   <ul className="py-1 max-h-60 overflow-auto">
-                                    {vendorData?.vendors?.map(vendor => (
+                                    {vendorData?.vendors?.map((vendor) => (
                                       <li
                                         key={vendor.vendor_id}
                                         className="px-4 py-2 hover:bg-gray-100 cursor-pointer"
@@ -471,7 +478,9 @@ const PurchaseOrderModal = ({ isOpen, onClose, order, onUpdate, onDelete, userRo
                                           setShowVendorSearch(false);
                                         }}
                                       >
-                                        <div className="font-medium">{vendor.vendor_name}</div>
+                                        <div className="font-medium">
+                                          {vendor.vendor_name}
+                                        </div>
                                         <div className="text-sm text-gray-500">
                                           Contact: {vendor.contact_person}
                                         </div>
@@ -485,15 +494,19 @@ const PurchaseOrderModal = ({ isOpen, onClose, order, onUpdate, onDelete, userRo
                         ) : (
                           <div className="grid grid-cols-2 gap-4">
                             <div>
-                              <p className="text-sm text-gray-500">Vendor Name</p>
+                              <p className="text-sm text-gray-500">
+                                Vendor Name
+                              </p>
                               <p className="font-medium">
-                                {editedOrder?.Vendor?.vendor_name || 'N/A'}
+                                {editedOrder?.Vendor?.vendor_name || "N/A"}
                               </p>
                             </div>
                             <div>
-                              <p className="text-sm text-gray-500">Contact Person</p>
+                              <p className="text-sm text-gray-500">
+                                Contact Person
+                              </p>
                               <p className="font-medium">
-                                {editedOrder?.Vendor?.contact_person || 'N/A'}
+                                {editedOrder?.Vendor?.contact_person || "N/A"}
                               </p>
                             </div>
                           </div>
@@ -501,19 +514,27 @@ const PurchaseOrderModal = ({ isOpen, onClose, order, onUpdate, onDelete, userRo
                       </div>
 
                       <div className="bg-gray-50 p-4 rounded-lg">
-                        <h3 className="text-lg font-semibold mb-4">Order Details</h3>
+                        <h3 className="text-lg font-semibold mb-4">
+                          Order Details
+                        </h3>
                         <div className="grid grid-cols-2 gap-4">
                           <div>
                             <p className="text-sm text-gray-500">Order Date</p>
                             {isEditing ? (
                               <input
                                 type="date"
-                                value={editedOrder?.order_date?.split('T')[0] || ''}
-                                onChange={(e) => handleEdit('order_date', e.target.value)}
+                                value={
+                                  editedOrder?.order_date?.split("T")[0] || ""
+                                }
+                                onChange={(e) =>
+                                  handleEdit("order_date", e.target.value)
+                                }
                                 className="mt-1 w-full rounded-md border-gray-300"
                               />
                             ) : (
-                              <p className="font-medium">{formatDate(editedOrder?.order_date)}</p>
+                              <p className="font-medium">
+                                {formatDate(editedOrder?.order_date)}
+                              </p>
                             )}
                           </div>
                           <div>
@@ -521,7 +542,12 @@ const PurchaseOrderModal = ({ isOpen, onClose, order, onUpdate, onDelete, userRo
                             {isEditing ? (
                               <select
                                 value={editedOrder?.status_id || 1}
-                                onChange={(e) => handleEdit('status_id', parseInt(e.target.value))}
+                                onChange={(e) =>
+                                  handleEdit(
+                                    "status_id",
+                                    parseInt(e.target.value)
+                                  )
+                                }
                                 className="mt-1 w-full rounded-md border-gray-300"
                               >
                                 <option value={1}>Pending</option>
@@ -536,27 +562,38 @@ const PurchaseOrderModal = ({ isOpen, onClose, order, onUpdate, onDelete, userRo
                             )}
                           </div>
                           <div>
-                            <p className="text-sm text-gray-500">Delivery Method</p>
+                            <p className="text-sm text-gray-500">
+                              Delivery Method
+                            </p>
                             {isEditing ? (
                               <input
                                 type="text"
-                                value={editedOrder?.delivery_method || ''}
-                                onChange={(e) => handleEdit('delivery_method', e.target.value)}
+                                value={editedOrder?.delivery_method || ""}
+                                onChange={(e) =>
+                                  handleEdit("delivery_method", e.target.value)
+                                }
                                 className="mt-1 w-full rounded-md border-gray-300"
                               />
                             ) : (
                               <p className="font-medium">
-                                {editedOrder?.delivery_method || 'N/A'}
+                                {editedOrder?.delivery_method || "N/A"}
                               </p>
                             )}
                           </div>
                           <div>
-                            <p className="text-sm text-gray-500">Delivered Date</p>
+                            <p className="text-sm text-gray-500">
+                              Delivered Date
+                            </p>
                             {isEditing ? (
                               <input
                                 type="date"
-                                value={editedOrder?.delivered_date?.split('T')[0] || ''}
-                                onChange={(e) => handleEdit('delivered_date', e.target.value)}
+                                value={
+                                  editedOrder?.delivered_date?.split("T")[0] ||
+                                  ""
+                                }
+                                onChange={(e) =>
+                                  handleEdit("delivered_date", e.target.value)
+                                }
                                 className="mt-1 w-full rounded-md border-gray-300"
                               />
                             ) : (
@@ -574,58 +611,69 @@ const PurchaseOrderModal = ({ isOpen, onClose, order, onUpdate, onDelete, userRo
                   <Tab.Panel>
                     <div className="bg-gray-50 p-4 rounded-lg">
                       <div className="flex justify-between items-center mb-4">
-                        <h3 className="text-lg font-semibold">Order Products</h3>
+                        <h3 className="text-lg font-semibold">
+                          Order Products
+                        </h3>
                       </div>
-                      
-                        <PurchaseOrderProducts 
-                          products={editedOrder?.PurchaseOrderItems || []}
-                          isEditing={isEditing}
-                          onQuantityChange={handleProductQuantityChange}
-                          onRemoveProduct={handleRemoveProduct}
-                          onAddProduct={handleAddProduct}
-                          availableProducts={availableProducts}
-                          formatCurrency={formatCurrency}
-                        />
+
+                      <PurchaseOrderProducts
+                        statusId={editedOrder?.status_id}
+                        products={editedOrder?.PurchaseOrderItems || []}
+                        isEditing={isEditing}
+                        onQuantityChange={handleProductQuantityChange}
+                        onRemoveProduct={handleRemoveProduct}
+                        onAddProduct={handleAddProduct}
+                        availableProducts={availableProducts}
+                        formatCurrency={formatCurrency}
+                        currentUser={username}
+                        purchaseOrderId={editedOrder.purchase_order_id}
+                      />
                     </div>
                   </Tab.Panel>
 
                   {/* Payment Info Panel */}
                   <Tab.Panel>
                     <div className="bg-gray-50 p-4 rounded-lg">
-                      <h3 className="text-lg font-semibold mb-4">Payment Details</h3>
+                      <h3 className="text-lg font-semibold mb-4">
+                        Payment Details
+                      </h3>
                       <div className="space-y-4">
                         <div>
                           <p className="text-sm text-gray-500">Payment Terms</p>
                           {isEditing ? (
                             <input
                               type="text"
-                              value={editedOrder?.payment_terms || ''}
-                              onChange={(e) => handleEdit('payment_terms', e.target.value)}
+                              value={editedOrder?.payment_terms || ""}
+                              onChange={(e) =>
+                                handleEdit("payment_terms", e.target.value)
+                              }
                               className="mt-1 w-full rounded-md border-gray-300"
                             />
                           ) : (
                             <p className="font-medium">
-                              {editedOrder?.payment_terms || 'N/A'}
+                              {editedOrder?.payment_terms || "N/A"}
                             </p>
                           )}
                         </div>
-                        
+
                         <div>
                           <p className="text-sm text-gray-500">Subtotal</p>
                           <p className="font-medium">
                             {formatCurrency(editedOrder?.subtotal)}
                           </p>
                         </div>
-                        
+
                         <div>
                           <p className="text-sm text-gray-500">Total Tax</p>
                           <p className="font-medium">
                             {formatCurrency(editedOrder?.total_tax)}
                           </p>
                         </div>
-                        
+
                         <div className="pt-4 border-t">
-                          <p className="text-sm font-medium text-gray-500">Grand Total</p>
+                          <p className="text-sm font-medium text-gray-500">
+                            Grand Total
+                          </p>
                           <p className="text-xl font-bold">
                             {formatCurrency(editedOrder?.grand_total)}
                           </p>
@@ -657,7 +705,7 @@ const PurchaseOrderModal = ({ isOpen, onClose, order, onUpdate, onDelete, userRo
                     className="px-4 py-2 bg-blue-500 text-white font-medium rounded-md hover:bg-blue-600 disabled:opacity-50"
                     disabled={isSaving || !hasChanges}
                   >
-                    {isSaving ? 'Saving...' : 'Save Changes'}
+                    {isSaving ? "Saving..." : "Save Changes"}
                   </button>
                 </div>
               </div>
@@ -666,69 +714,73 @@ const PurchaseOrderModal = ({ isOpen, onClose, order, onUpdate, onDelete, userRo
         </Dialog>
       )}
 
-        {/* Password Dialog */}
-          <AlertDialog open={showPasswordDialog} onOpenChange={setShowPasswordDialog}>
-            <AlertDialogContent className="bg-white">
-              <AlertDialogHeader>
-                <AlertDialogTitle>Manager Verification Required</AlertDialogTitle>
-                <AlertDialogDescription>
-                  Please enter your manager password to continue.
-                </AlertDialogDescription>
-              </AlertDialogHeader>
-              <input
-                type="password"
-                value={adminPassword}
-                onChange={(e) => setAdminPassword(e.target.value)}
-                className="w-full px-3 py-2 border rounded-md"
-                placeholder="Enter manager password"
-                autoComplete="new-password"
-              />
-              <AlertDialogFooter>
-                <AlertDialogCancel 
-                  onClick={() => {
-                    setShowPasswordDialog(false);
-                    setAdminPassword('');
-                    setPendingAction(null);
-                  }}
-                >
-                  Cancel
-                </AlertDialogCancel>
-                <AlertDialogAction
-                  onClick={handlePasswordVerification}
-                  disabled={!adminPassword || isVerifying}
-                >
-                  {isVerifying ? 'Verifying...' : 'Verify'}
-                </AlertDialogAction>
-              </AlertDialogFooter>
-            </AlertDialogContent>
-          </AlertDialog>
+      {/* Password Dialog */}
+      <AlertDialog
+        open={showPasswordDialog}
+        onOpenChange={setShowPasswordDialog}
+      >
+        <AlertDialogContent className="bg-white">
+          <AlertDialogHeader>
+            <AlertDialogTitle>Manager Verification Required</AlertDialogTitle>
+            <AlertDialogDescription>
+              Please enter your manager password to continue.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <input
+            type="password"
+            value={adminPassword}
+            onChange={(e) => setAdminPassword(e.target.value)}
+            className="w-full px-3 py-2 border rounded-md"
+            placeholder="Enter manager password"
+            autoComplete="new-password"
+          />
+          <AlertDialogFooter>
+            <AlertDialogCancel
+              onClick={() => {
+                setShowPasswordDialog(false);
+                setAdminPassword("");
+                setPendingAction(null);
+              }}
+            >
+              Cancel
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handlePasswordVerification}
+              disabled={!adminPassword || isVerifying}
+            >
+              {isVerifying ? "Verifying..." : "Verify"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
-          {/* Delete Confirmation Dialog */}
-          <AlertDialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>
-            <AlertDialogContent>
-              <AlertDialogHeader>
-                <AlertDialogTitle>Confirm Deletion</AlertDialogTitle>
-                <AlertDialogDescription>
-                  Are you sure you want to delete this purchase order? This action cannot be undone.
-                </AlertDialogDescription>
-              </AlertDialogHeader>
-              <AlertDialogFooter>
-                <AlertDialogCancel onClick={() => setShowDeleteConfirm(false)}>
-                  Cancel
-                </AlertDialogCancel>
-                <AlertDialogAction
-                  onClick={() => {
-                    setShowDeleteConfirm(false);
-                    setPendingAction('delete');
-                    setShowPasswordDialog(true);
-                  }}
-                  className="bg-red-500 hover:bg-red-600 text-white"
-                >
-                  Delete
-                </AlertDialogAction>
-              </AlertDialogFooter>
-            </AlertDialogContent>
-          </AlertDialog>
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Confirm Deletion</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete this purchase order? This action
+              cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setShowDeleteConfirm(false)}>
+              Cancel
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                setShowDeleteConfirm(false);
+                setPendingAction("delete");
+                setShowPasswordDialog(true);
+              }}
+              className="bg-red-500 hover:bg-red-600 text-white"
+            >
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </AnimatePresence>
   );
 };

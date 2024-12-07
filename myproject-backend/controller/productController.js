@@ -2,6 +2,7 @@ const ProductService = require("../service/productService");
 const UserService = require("../service/userService");
 const {UserNotFoundException, PurchaseOrderNotFoundException, ProductNotFoundException, NotFoundException} = require("../errors/notFoundException");
 const {ValidationException} = require("../errors/validationError");
+const {DatabaseOperationException} = require("../errors/operationError");
 exports.addProductUnit = async (req, res) => {
     const { products, purchaseOrderId, username } = req.body;
 
@@ -15,7 +16,7 @@ exports.addProductUnit = async (req, res) => {
             throw new UserNotFoundException(username);
         }
 
-        await ProductService.addProductUnit(purchaseOrderId, products);
+        await ProductService.addProductUnit(purchaseOrderId, products, username);
         
         return res.status(201).json({
             success: true,
@@ -31,13 +32,6 @@ exports.addProductUnit = async (req, res) => {
         }
         
         if (err instanceof ValidationException) {
-            return res.status(err.statusCode).json({
-                success: false,
-                error: err.message
-            });
-        }
-
-        if (err instanceof WarrantyNotFoundException) {
             return res.status(err.statusCode).json({
                 success: false,
                 error: err.message
