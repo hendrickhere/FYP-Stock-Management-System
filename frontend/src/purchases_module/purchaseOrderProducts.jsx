@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useContext, useEffect } from 'react';
 import { Trash, Plus, Search, X, Barcode } from 'lucide-react';
 import {
   Dialog,
@@ -7,7 +7,7 @@ import {
   DialogTitle,
 } from "../ui/dialog";
 import instance from '../axiosConfig';
-
+import { GlobalContext } from '../globalContext';
 const PurchaseOrderProducts = ({ 
   statusId,
   products, 
@@ -23,8 +23,10 @@ const PurchaseOrderProducts = ({
   const [showProductModal, setShowProductModal] = useState(false);
   const [showSerialModal, setShowSerialModal] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState(null);
+  const [isFetching, setIsFetching] = useState(false);
   const [serialNumber, setSerialNumber] = useState('');
   const [serialNumbers, setSerialNumbers] = useState({});
+  const [existingSerials, setExistingSerials] = useState({});
   const [searchTerm, setSearchTerm] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const handleSerialSubmit = (productId) => {
@@ -39,6 +41,7 @@ const PurchaseOrderProducts = ({
     }));
     setSerialNumber('');
   };
+  const {username} = useContext(GlobalContext);
 
   const removeSerial = (productId, serialToRemove) => {
     setSerialNumbers(prev => ({
@@ -47,6 +50,35 @@ const PurchaseOrderProducts = ({
     }));
   };
 
+  const fetchSerialNumber = async (productId, purchaseOrderId) => {
+    if (isFetching) return; // Prevent multiple concurrent calls
+    
+    try {
+      setIsFetching(true);
+      const response = await instance.get(`/products/productUnit?username=${username}&productId=${productId}&purchaseOrderId=${purchaseOrderId}`);
+      
+      if (response?.data?.data) {
+        const serials = response.data.data.map(unit => unit.serial_number);
+        setExistingSerials(prev => ({
+          ...prev,
+          [productId]: serials
+        }));
+      }
+    } catch (error) {
+      console.error('Error fetching serial numbers:', error);
+    } finally {
+      setIsFetching(false);
+    }
+  };
+
+  useEffect(() => {
+    if (showSerialModal && selectedProduct && !existingSerials[selectedProduct.product_id]) {
+      fetchSerialNumber(
+        selectedProduct.product_id, 
+        selectedProduct.purchase_order_item_id
+      );
+    }
+  }, [showSerialModal, selectedProduct]);
   const handleSubmitSerials = async () => {
     setSubmitting(true);
     try {
@@ -104,19 +136,7 @@ const PurchaseOrderProducts = ({
 
       <div className="col-span-2">
         <div className="flex justify-center items-center gap-2">
-          {isEditing ? (
-            <input
-              type="number"
-              min="1"
-              value={item.quantity || ""}
-              onChange={(e) =>
-                onQuantityChange(item.product_id, e.target.value)
-              }
-              className="w-20 text-center rounded-md border-gray-300 text-sm"
-            />
-          ) : (
-            <span className="text-center">{item.quantity}</span>
-          )}
+          <span className="text-center">{item.quantity}</span>
           {statusId === 3 && (
             <button
               onClick={() => {
@@ -174,65 +194,88 @@ const PurchaseOrderProducts = ({
     </div>
   );
 
-  const SerialNumberModal = () => (
-    <Dialog open={showSerialModal} onOpenChange={setShowSerialModal}>
-      <DialogContent className="bg-white">
-        <DialogHeader>
-          <DialogTitle>
-            Scan Serial Numbers - {selectedProduct?.Product?.product_name}
-          </DialogTitle>
-        </DialogHeader>
+  const SerialNumberModal = () => {
+    return (
+      <Dialog open={showSerialModal} onOpenChange={setShowSerialModal}>
+        <DialogContent className="bg-white">
+          <DialogHeader>
+            <DialogTitle>
+              Scan Serial Numbers - {selectedProduct?.Product?.product_name}
+            </DialogTitle>
+          </DialogHeader>
 
-        <div className="space-y-4">
-          <div className="flex gap-2">
-            <input
-              type="text"
-              placeholder="Scan or enter serial number"
-              value={serialNumber}
-              onChange={(e) => setSerialNumber(e.target.value)}
-              onKeyPress={(e) => {
-                if (e.key === "Enter") {
-                  handleSerialSubmit(selectedProduct?.product_id);
-                }
-              }}
-              className="flex-1 px-3 py-2 border rounded-md"
-              autoFocus
-            />
-            <button
-              onClick={() => handleSerialSubmit(selectedProduct?.product_id)}
-              className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
-            >
-              Add
-            </button>
-          </div>
-
-          <div className="text-sm text-gray-500">
-            Scanned: {serialNumbers[selectedProduct?.product_id]?.length || 0} /{" "}
-            {selectedProduct?.quantity || 0}
-          </div>
-
-          <div className="max-h-[300px] overflow-y-auto">
-            {serialNumbers[selectedProduct?.product_id]?.map((serial, idx) => (
-              <div
-                key={idx}
-                className="flex justify-between items-center py-2 border-b"
-              >
-                <span>{serial}</span>
-                <button
-                  onClick={() =>
-                    removeSerial(selectedProduct?.product_id, serial)
+          <div className="space-y-4">
+            <div className="flex gap-2">
+              <input
+                type="text"
+                placeholder="Scan or enter serial number"
+                value={serialNumber}
+                onChange={(e) => setSerialNumber(e.target.value)}
+                onKeyPress={(e) => {
+                  if (e.key === "Enter") {
+                    handleSerialSubmit(selectedProduct?.product_id);
                   }
-                  className="text-red-500 hover:text-red-700"
-                >
-                  <X className="w-4 h-4" />
-                </button>
-              </div>
-            ))}
+                }}
+                className="flex-1 px-3 py-2 border rounded-md"
+                autoFocus
+              />
+              <button
+                onClick={() => handleSerialSubmit(selectedProduct?.product_id)}
+                className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
+              >
+                Add
+              </button>
+            </div>
+
+            <div className="text-sm text-gray-500">
+              Scanned:{" "}
+              {selectedProduct?.quantity -
+                selectedProduct?.unregistered_quantity +
+                (serialNumbers[selectedProduct?.product_id]?.length || 0)}{" "}
+              / {selectedProduct?.quantity || 0}
+            </div>
+
+            <div className="max-h-[300px] overflow-y-auto space-y-2">
+              {/* Existing serial numbers (read-only) */}
+              {existingSerials[selectedProduct?.product_id]?.map(
+                (serial, idx) => (
+                  <div
+                    key={`existing-${idx}`}
+                    className="flex justify-between items-center py-2 border-b bg-gray-50"
+                  >
+                    <span>{serial}</span>
+                    <span className="text-gray-500 text-sm italic">
+                      Registered
+                    </span>
+                  </div>
+                )
+              )}
+
+              {/* Newly added serial numbers (can be removed) */}
+              {serialNumbers[selectedProduct?.product_id]?.map(
+                (serial, idx) => (
+                  <div
+                    key={`new-${idx}`}
+                    className="flex justify-between items-center py-2 border-b"
+                  >
+                    <span>{serial}</span>
+                    <button
+                      onClick={() =>
+                        removeSerial(selectedProduct?.product_id, serial)
+                      }
+                      className="text-red-500 hover:text-red-700"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                  </div>
+                )
+              )}
+            </div>
           </div>
-        </div>
-      </DialogContent>
-    </Dialog>
-  );
+        </DialogContent>
+      </Dialog>
+    );
+  };
 
   return (
     <div className="space-y-4">
