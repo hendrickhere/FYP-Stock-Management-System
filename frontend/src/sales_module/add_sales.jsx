@@ -221,35 +221,52 @@ const MainContent = ({ isMobile }) => {
   };
 
   const validateForm = () => {
-      const newErrors = {};
-      
-      if (!formState.selectedCustomer) {
-          toast.error('Please select a customer');
-          newErrors.customer = "Customer selection is required";
-      }
-      
-      if (!formState.orderDate) {
-          newErrors.orderDate = "Order date is required";
-      }
-      
-      if (requiresShipping && !formState.shipmentDate) {
-          newErrors.shipmentDate = "Shipment date is required";
-      }
-      
-      if (!formState.paymentTerms) {
-          newErrors.paymentTerms = "Payment terms are required";
-      }
+    const newErrors = {};
+    
+    if (!formState.selectedCustomer) {
+        toast.error('Please select a customer');
+        newErrors.customer = "Customer selection is required";
+    }
+    
+    if (!formState.orderDate) {
+        newErrors.orderDate = "Order date is required";
+    }
+    
+    if (requiresShipping && !formState.shipmentDate) {
+        newErrors.shipmentDate = "Shipment date is required";
+    }
+    
+    if (!formState.paymentTerms) {
+        newErrors.paymentTerms = "Payment terms are required";
+    }
 
-      if (!formState.items || formState.items.length === 0 || !formState.items.some(item => 
-          item.product_uuid && item.quantity && item.quantity > 0
-      )) {
-          toast.error('Please add at least one valid item to the order');
-          newErrors.items = "Please add at least one valid item to the order";
-      }
+    // Add serial number validation
+    const validItems = formState.items.filter(
+      (item) => item.product_uuid && item.quantity && item.quantity > 0
+    );
 
-      setErrors(newErrors);
-      return Object.keys(newErrors).length === 0;
-  };
+    // Check if all items have correct number of serial numbers
+    const serialNumberError = validItems.some((item, index) => {
+      const serialCount = item.serialNumbers?.length || 0;
+      if (serialCount !== item.quantity) {
+        toast.error(`Please add ${item.quantity} serial numbers for ${item.product_name}`);
+        return true;
+      }
+      return false;
+    });
+
+    if (serialNumberError) {
+      newErrors.serialNumbers = "All items must have matching serial numbers";
+    }
+
+    if (!validItems.length) {
+      toast.error('Please add at least one valid item to the order');
+      newErrors.items = "Please add at least one valid item to the order";
+    }
+
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+};
 
   const handleSubmit = async (e) => {
     e?.preventDefault();
@@ -284,6 +301,7 @@ const MainContent = ({ isMobile }) => {
           uuid: item.product_uuid,
           quantity: parseInt(item.quantity),
           price: parseFloat(item.price),
+          serialNumbers: item.serialNumbers || [],
         })),
         discounts:
           selectedDiscount.length > 0

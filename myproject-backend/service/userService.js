@@ -133,16 +133,19 @@ exports.getInventoryCount = async (username) => {
   today.setHours(0, 0, 0, 0);
   const [totalCount, todayCount] = await Promise.all([
     Product.count({
+      where: {
+        status_id: 1,
+      },
       include: [{
         model: User,
         where: { organization_id: user.organization_id }
       }]
     }),
     Product.count({
-      where: {  created_at: { [Op.gte]: today },},
+      where: {  created_at: { [Op.gte]: today }, status_id: 1,},
       include: [{
         model: User,
-        where: { organization_id: user.organization_id }
+        where: { organization_id: user.organization_id}
       }]
     })
   ]);

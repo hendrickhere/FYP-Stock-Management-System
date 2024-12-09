@@ -7,12 +7,15 @@ const {
   Product,
   Discount,
   Tax,
+  ProductUnit,
   SalesOrderTax,
   SalesOrderDiscount,
   Organization,
   sequelize
 } = require("../models");
 const { SalesError, InvalidTimeRangeError, UserNotFoundError, DatabaseError } = require("../errors/salesError");
+const {ValidationException} = require("../errors/validationError");
+const {ProductUnitNotFoundException} = require("../errors/notFoundException");
 const { ValidationError, Op, where } = require("sequelize");
 const { getDiscountByIdAsync } = require("../service/discountService");
 // Add debug logging
@@ -310,6 +313,16 @@ exports.calculateSalesOrderTotal = async (reqBody) => {
   }
 };
 
+exports.getSalesOrderItem = async (salesOrderId, productId) => {
+  const salesOrderItem = SalesOrderInventory.findOne({
+    where: {
+      sales_order_id: salesOrderId, 
+      product_id: productId
+    }
+  });
+  return salesOrderItem;
+}
+
 async function getDiscountRates(discountIds) {
   const discounts = await Discount.findAll({
     where: {
@@ -548,6 +561,33 @@ if (!username) {
     );
   }
 };
+const validateSerialNumbers = async (productId, serialNumbers, quantity, transaction) => {
+  if(serialNumbers.length !== quantity) {
+    throw new ValidationException("Number of serial numbers must match the item quantity.");
+  }
+
+  const productUnits = await ProductUnit.findAll({
+    where: {
+      product_id: productId,
+      serial_number: {
+        [Op.in]: serialNumbers,
+      },
+    },
+    lock: true,
+    transaction,
+  });
+
+  if(productUnits.length !== serialNumbers.length) {
+    throw new ProductUnitNotFoundException(serialNumbers);
+  }
+
+  const soldUnits = productUnits.filter(unit => unit.is_sold);
+  if(soldUnits.length > 0) {
+    throw new ValidationException(
+      `Units with serial numbers ${soldUnits.map(u => u.serial_number).join(', ')} are already sold`
+    );
+  }
+};
 
 exports.createSalesOrder = async (username, salesData) => {
   const transaction = await sequelize.transaction();
@@ -621,7 +661,22 @@ exports.createSalesOrder = async (username, salesData) => {
       await Promise.all(
         salesData.itemsList.map(async (item) => {
           const itemObj = await getInventoryByUUID(item.uuid);
-          
+
+          if (item.serialNumbers) {
+            const uniqueSerials = new Set(item.serialNumbers);
+            if (uniqueSerials.size !== item.serialNumbers.length) {
+              throw new ValidationException(
+                "Duplicate serial numbers provided"
+              );
+            }
+            await validateSerialNumbers(
+              itemObj.product_id,
+              item.serialNumbers,
+              item.quantity,
+              transaction
+            );
+          }
+
           const leftoverStock = itemObj.product_stock - item.quantity;
           if (leftoverStock < 0) {
             throw new Error(
@@ -637,20 +692,45 @@ exports.createSalesOrder = async (username, salesData) => {
               transaction,
             }
           );
-          orderItems.push({
-            sales_order_id: salesOrder.sales_order_id,
-            product_id: itemObj.product_id,
-            quantity: item.quantity,
-            price: item.price,
-            discounted_price:
-              totalDiscountRate > 0 ? item.price * (1 - totalDiscountRate) : null,
-            status_id: 1,
-          });
+          const salesOrderItem = await SalesOrderInventory.create(
+            {
+              sales_order_id: salesOrder.sales_order_id,
+              product_id: itemObj.product_id,
+              quantity: item.quantity,
+              price: item.price,
+              discounted_price:
+                totalDiscountRate > 0
+                  ? item.price * (1 - totalDiscountRate)
+                  : null,
+              status_id: 1,
+            },
+            { transaction }
+          );
+
+          orderItems.push(salesOrderItem);
+
+          if (item.serialNumbers) {
+            await ProductUnit.update(
+              {
+                is_sold: true,
+                sales_order_item_id: salesOrderItem.sales_order_item_id,
+              },
+              {
+                where: {
+                  product_id: itemObj.product_id,
+                  serial_number: {
+                    [Op.in]: item.serialNumbers,
+                  },
+                },
+                transaction, 
+              }
+            );
+          }
         })
       );
-      await SalesOrderInventory.bulkCreate(orderItems, { transaction });
+      //await SalesOrderInventory.bulkCreate(orderItems, { transaction });
     }
-
+    
     if (salesData.taxes && salesData.taxes.length > 0) {
       const salesTaxes = salesData.taxes.map((tax) => ({
         sales_order_id: salesOrder.sales_order_id,

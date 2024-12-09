@@ -15,7 +15,8 @@ const { Op } = require("sequelize");
 const bcrypt = require("bcryptjs");
 const WarrantyService = require("./warrantyService");
 const PurchaseService = require("./purchaseService");
-const { WarrantyNotFoundException } = require("../errors/notFoundException");
+const SalesService = require("./salesService");
+const { WarrantyNotFoundException, ProductNotFoundException } = require("../errors/notFoundException");
 const { DatabaseOperationException } = require("../errors/operationError");
 
 exports.addProductUnit = async (purchaseOrderId, products, username) => {
@@ -102,4 +103,50 @@ exports.addProductUnit = async (purchaseOrderId, products, username) => {
   }
 };
 
+exports.sellProductUnit = async (salesOrderId, products) => {
+  const transaction = await db.sequelize.transaction();
 
+  try {
+    await Promise.all(
+      products.map(async (product, index) => {
+        const warranty = await WarrantyService.getWarrantiesByProduct(
+          product.product_id
+        );
+        const salesOrderItem = await SalesService.getSalesOrderItem(
+          purchaseOrderId,
+          product.product_id
+        );
+        const salesDate = new Date();
+        if (product.units.length > salesOrderItem.unregistered_quantity) {
+          throw new Error(`Cannot register more units than available unregistered quantity for product ${product.product_id}`);
+        }
+      })
+    )
+  } catch (err) {
+    
+  }
+}
+
+exports.getProductUnitWithSerialNumber = async (serialNumber) => {
+  try {
+    if (!serialNumber) {
+      throw new Error("Serial number is required");
+    }
+
+    const productUnit = await ProductUnit.findOne({
+      where: {
+        serial_number: serialNumber,
+        is_sold: false
+      }
+    });
+
+    if (!productUnit) {
+      throw new ProductNotFoundException("Product unit not found or already sold");
+    }
+
+    return productUnit.dataValues;
+  } catch (err) {
+    console.error("Error in getProductUnitWithSerialNumber:", err);
+    throw err; 
+  }
+};

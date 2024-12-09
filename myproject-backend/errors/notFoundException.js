@@ -28,6 +28,32 @@ class ProductNotFoundException extends NotFoundException{
   }
 }
 
+class ProductUnitNotFoundException extends NotFoundException {
+  constructor(productUnitIds) {
+    if (!Array.isArray(productUnitIds)) {
+      throw new TypeError('productUnitIds must be an array');
+    }
+
+    // if (!productUnitIds.every(id => Number.isInteger(id) && id >= 0)) {
+    //   throw new TypeError('All product unit IDs must be non-negative integers');
+    // }
+
+    const formattedIds = productUnitIds.join(', ');
+    
+    super(
+      `Product units [${formattedIds}] not found`,
+      'product_units',
+      404
+    );
+
+    this.name = 'ProductUnitNotFoundException';
+    this.productUnitIds = [...productUnitIds]; 
+  }
+  getProductUnitIds() {
+    return [...this.productUnitIds];
+  }
+}
+
 class WarrantyNotFoundException extends Error {
   constructor(productId) {
       super(`No warranty found for product: ${productId}`);
@@ -36,4 +62,4 @@ class WarrantyNotFoundException extends Error {
   }
 }
 
-module.exports = { NotFoundException, UserNotFoundException, PurchaseOrderNotFoundException, ProductNotFoundException, WarrantyNotFoundException };
+module.exports = { NotFoundException, UserNotFoundException, PurchaseOrderNotFoundException, ProductNotFoundException, WarrantyNotFoundException, ProductUnitNotFoundException };

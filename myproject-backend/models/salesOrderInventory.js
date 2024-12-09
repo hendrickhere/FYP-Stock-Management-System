@@ -8,7 +8,12 @@ class SalesOrderInventory extends Model {
                 autoIncrement: true,
                 primaryKey: true,
                 allowNull: false,
+                references: {
+                    model: 'sales_order_items',
+                    key: 'sales_order_item_id'
+                }
             },
+            
             sales_order_item_uuid: {
                 type: DataTypes.UUID,
                 defaultValue: Sequelize.fn('uuid_generate_v4'),
