@@ -54,6 +54,55 @@ exports.addProductUnit = async (req, res) => {
     }
 };
 
+exports.addExistingUnit = async (req, res) => {
+  const { serialNumbers, productId, username } = req.body;
+
+  try {
+    if ((!serialNumbers || !productId)) {
+      throw new ValidationException("Missing required fields");
+    }
+    const user = await UserService.getUserByUsernameAsync(username);
+    if (!user) {
+      throw new UserNotFoundException(username);
+    }
+    await ProductService.addExistingUnit(serialNumbers,productId );
+
+    return res.status(201).json({
+        success: true,
+        message: 'Product units successfully added'
+    });
+  } catch (err) {
+    if (err instanceof ValidationException) {
+      return res.status(err.statusCode).json({
+        succecss: false,
+        error: err.message,
+      });
+    }
+    if (err instanceof UserNotFoundException) {
+      return res.status(err.statusCode).json({
+        succecss: false,
+        error: err.message,
+      });
+    }
+    if (err instanceof ProductNotFoundException) {
+      return res.status(err.statusCode).json({
+        succecss: false,
+        error: err.message,
+      });
+    }
+    if (err instanceof DatabaseOperationException) {
+      return res.status(err.statusCode).json({
+        succecss: false,
+        error: err.message,
+      });
+    }
+    console.error("Unexpected error:", err);
+    return res.status(500).json({
+      success: false,
+      error: "Internal server error",
+    });
+  }
+};
 
 exports.sellProductUnit = async (req, res) => {
     const { products, salesOrderId, username } = req.body;

@@ -22,6 +22,12 @@ class ProductUnit extends Model {
                 key: "product_id",
               },
             },
+            // Add the new source_type field
+            source_type: {
+              type: DataTypes.ENUM('PURCHASE_ORDER', 'INITIAL_STOCK'),
+              allowNull: false,
+              defaultValue: 'PURCHASE_ORDER'
+            },
             date_of_purchase: {
               type: DataTypes.DATE,
             },
@@ -38,7 +44,7 @@ class ProductUnit extends Model {
             },
             purchase_order_item_id: {
               type: DataTypes.INTEGER,
-              allowNull: false,
+              allowNull: true,  
               references: {
                 model: "purchase_order_items",
                 key: "purchase_order_item_id",
@@ -76,9 +82,27 @@ class ProductUnit extends Model {
             tableName: "product_units",
             timestamps: false,
             underscored: true,
+            indexes: [
+              {
+                unique: true,
+                fields: ['product_id', 'serial_number'],
+                name: 'product_units_product_serial_unique'
+              }
+            ],
+            // Add model validations
+            validate: {
+              sourceTypeCheck() {
+                if (this.source_type === 'PURCHASE_ORDER' && !this.purchase_order_item_id) {
+                  throw new Error('Purchase order item ID is required when source type is PURCHASE_ORDER');
+                }
+                if (this.source_type === 'INITIAL_STOCK' && this.purchase_order_item_id !== null) {
+                  throw new Error('Purchase order item ID must be null when source type is INITIAL_STOCK');
+                }
+              }
+            }
           }
         );
     }
 }
 
-module.exports = ProductUnit; 
+module.exports = ProductUnit;

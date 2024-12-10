@@ -383,12 +383,16 @@ async function getItemPrice(itemId) {
   return price.dataValues;
 }
 
-exports.getAllSalesOrders = async (username) => {
+exports.getAllSalesOrders = async (username, pageSize, pageNumber) => {
   try {
     const user = await User.findOne({
       where: { username },
     });
-    const salesOrders = await SalesOrder.findAll({
+
+    const offset = (pageNumber - 1) * pageSize;
+
+    const { count, rows: salesOrders } = await SalesOrder.findAndCountAll({
+      distinct: true,
       where: {
         organization_id: user.organization_id,
       },
@@ -406,7 +410,7 @@ exports.getAllSalesOrders = async (username) => {
           ],
         },
         {
-        model: Product,
+          model: Product,
           through: {
             model: SalesOrderInventory,
             as: "sales_order_items", 
@@ -417,7 +421,7 @@ exports.getAllSalesOrders = async (username) => {
             "product_uuid",
             "product_name",
             "sku_number",
-          "description",
+            "description",
           ],
         },
         {
@@ -440,9 +444,14 @@ exports.getAllSalesOrders = async (username) => {
         }
       ],
       order: [["order_date_time", "DESC"]],
+      limit: pageSize,
+      offset: offset
     });
 
-    // Debug log
+    const totalPages = Math.ceil(count / pageSize);
+    const hasNextPage = pageNumber < totalPages;
+    const hasPreviousPage = pageNumber > 1;
+
     console.log(
       "Raw sales orders:",
       JSON.stringify(salesOrders[0]?.get({ plain: true }), null, 2)
@@ -457,23 +466,18 @@ exports.getAllSalesOrders = async (username) => {
             ...plainOrder.Customer,
             customer_contact: plainOrder.Customer?.customer_contact || "N/A",
           },
-          // products:
-          //   plainOrder.Products?.map((product) => ({
-          //     product_id: product.product_id,
-          //     product_uuid: product.product_uuid,
-          //     product_name: product.product_name,
-          //     sku_number: product.sku_number,
-          //     product_description: product.description,
-          //     sales_order_items: {
-          //       quantity: product.SalesOrderInventory?.quantity || 0,
-          //       price: product.SalesOrderInventory?.price || 0,
-          //     },
-          //   })) || [],
         };
       }),
+      pagination: {
+        totalItems: count,
+        totalPages,
+        currentPage: parseInt(pageNumber),
+        pageSize: parseInt(pageSize),
+        hasNextPage,
+        hasPreviousPage
+      }
     };
 
-    // Debug log
     console.log(
       "Transformed result:",
       JSON.stringify(result.salesOrders[0], null, 2)
@@ -485,6 +489,7 @@ exports.getAllSalesOrders = async (username) => {
     throw error;
   }
 };
+
 const getTodayDateRange = () => {
   const today = new Date();
   
@@ -662,7 +667,7 @@ exports.createSalesOrder = async (username, salesData) => {
         salesData.itemsList.map(async (item) => {
           const itemObj = await getInventoryByUUID(item.uuid);
 
-          if (item.serialNumbers) {
+          if (item.serialNumbers) { 
             const uniqueSerials = new Set(item.serialNumbers);
             if (uniqueSerials.size !== item.serialNumbers.length) {
               throw new ValidationException(
@@ -708,12 +713,13 @@ exports.createSalesOrder = async (username, salesData) => {
           );
 
           orderItems.push(salesOrderItem);
-
+          const currentDate = new Date();
           if (item.serialNumbers) {
             await ProductUnit.update(
               {
                 is_sold: true,
                 sales_order_item_id: salesOrderItem.sales_order_item_id,
+                date_of_sale: currentDate, 
               },
               {
                 where: {
@@ -722,7 +728,8 @@ exports.createSalesOrder = async (username, salesData) => {
                     [Op.in]: item.serialNumbers,
                   },
                 },
-                transaction, 
+                transaction,
+                validate: false  
               }
             );
           }

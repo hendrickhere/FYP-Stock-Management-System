@@ -695,7 +695,7 @@ const ItemTable = ({ items, setItems }) => {
                       onChange={(e) => setTempSerialNumber(e.target.value)}
                       onKeyDown={(e) => {
                         if (e.key === "Enter") {
-                          e.preventDefault(); // Prevent form submission
+                          e.preventDefault();
                           addSerial();
                         }
                       }}

@@ -338,10 +338,10 @@ exports.addInventory = async (username, inventoryData) => {
       statusId
     } = inventoryData;
 
-    // Create inventory with correctly mapped field names
     const inventory = await Product.create({
       product_name: productName,
       product_stock: productStock,
+      unregistered_quantity: productStock, 
       sku_number: skuNumber,
       unit: unit,
       brand: brand,
@@ -349,7 +349,7 @@ exports.addInventory = async (username, inventoryData) => {
       dimensions_unit: dimensionsUnit,
       manufacturer: manufacturer,
       weight: weight,
-      weight_unit: weightUnit,
+    weight_unit: weightUnit,
       is_expiry_goods: isExpiryGoods,
       expiry_date: expiryDate,
       user_id: user.user_id,
@@ -600,29 +600,29 @@ exports.getSalesOrder = async (username) => {
     throw new Error("Sales Orders not found.");
   }
 
-  const totalPriceResults = await SalesOrderInventory.findAll({
-    where: {
-      sales_order_id: salesOrders.map((order) => order.sales_order_id),
-    },
-    attributes: [
-      "sales_order_id",
-      [sequelize.literal("SUM(price * quantity)"), "total_price"],
-    ],
-    group: ["sales_order_id"],
-    raw: true,
-  });
+  // const totalPriceResults = await SalesOrderInventory.findAll({
+  //   where: {
+  //     sales_order_id: salesOrders.map((order) => order.sales_order_id),
+  //   },
+  //   attributes: [
+  //     "sales_order_id",
+  //     [sequelize.literal("SUM(price * quantity)"), "total_price"],
+  //   ],
+  //   group: ["sales_order_id"],
+  //   raw: true,
+  // });
 
-  const salesOrdersWithTotalPrice = salesOrders.map((order) => {
-    const totalPriceEntry = totalPriceResults.find(
-      (tp) => tp.sales_order_id === order.sales_order_id
-    );
-    return {
-      ...order.toJSON(),
-      total_price: totalPriceEntry ? totalPriceEntry.total_price : 0, 
-    };
-  });
+  // const salesOrdersWithTotalPrice = salesOrders.map((order) => {
+  //   const totalPriceEntry = totalPriceResults.find(
+  //     (tp) => tp.sales_order_id === order.sales_order_id
+  //   );
+  //   return {
+  //     ...order.toJSON(),
+  //     total_price: totalPriceEntry ? totalPriceEntry.total_price : 0, 
+  //   };
+  // });
 
-  return salesOrdersWithTotalPrice;
+  return salesOrders.toJson();
 };
 
 exports.deleteInventory = async (username, inventoryuuid) => {

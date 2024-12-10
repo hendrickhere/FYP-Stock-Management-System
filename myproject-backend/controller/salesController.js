@@ -6,14 +6,14 @@ exports.getAllSalesOrders = async (req, res) => {
         console.log('Received request params:', req.params);
         console.log('Username from params:', req.params.username);
         const username = req.params.username;
-        const pageNumber = req.query.pageNumer; 
+        const pageNumber = req.query.pageNumber; 
         const pageSize = req.query.pageSize; 
 
         if (!username) {
             return res.status(400).json({ message: 'Username is required' });
         }
 
-        const salesOrders = await SalesService.getAllSalesOrders(username, pageNumber, pageSize);
+        const salesOrders = await SalesService.getAllSalesOrders(username, pageSize, pageNumber);
         
         if (!salesOrders) {
             return res.status(404).json({ message: 'No sales orders found' });

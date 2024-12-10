@@ -22,6 +22,11 @@ class Product extends Model {
                 type: DataTypes.INTEGER,
                 allowNull: false,
             },
+            unregistered_quantity: {
+                type: DataTypes.INTEGER,
+                allowNull: false,  
+                defaultValue: 0,
+            },
             sku_number: {
                 type: DataTypes.STRING,  
                 allowNull: true,
