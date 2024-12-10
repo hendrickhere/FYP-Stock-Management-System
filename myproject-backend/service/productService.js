@@ -15,8 +15,11 @@ const { Op } = require("sequelize");
 const bcrypt = require("bcryptjs");
 const WarrantyService = require("./warrantyService");
 const PurchaseService = require("./purchaseService");
-const { WarrantyNotFoundException } = require("../errors/notFoundException");
+const SalesService = require("./salesService");
+const UserService = require("./userService");
+const { WarrantyNotFoundException, ProductNotFoundException } = require("../errors/notFoundException");
 const { DatabaseOperationException } = require("../errors/operationError");
+const {ValidationException} = require("../errors/validationError");
 
 exports.addProductUnit = async (purchaseOrderId, products, username) => {
   const transaction = await db.sequelize.transaction();
@@ -102,6 +105,29 @@ exports.addProductUnit = async (purchaseOrderId, products, username) => {
   }
 };
 
+exports.sellProductUnit = async (salesOrderId, products) => {
+  const transaction = await db.sequelize.transaction();
+  try {
+    await Promise.all(
+      products.map(async (product, index) => {
+        const warranty = await WarrantyService.getWarrantiesByProduct(
+          product.product_id
+        );
+        const salesOrderItem = await SalesService.getSalesOrderItem(
+          purchaseOrderId,
+          product.product_id
+        );
+        const salesDate = new Date();
+        if (product.units.length > salesOrderItem.unregistered_quantity) {
+          throw new Error(`Cannot register more units than available unregistered quantity for product ${product.product_id}`);
+        }
+      })
+    )
+  } catch (err) {
+    
+  }
+}
+
 exports.getProductUnit = async (purchaseOrderId, productId) => {
   try {
     const productUnits = await ProductUnit.findAll({
@@ -118,3 +144,124 @@ exports.getProductUnit = async (purchaseOrderId, productId) => {
   }
 };
 
+exports.getProductUnitWithSerialNumber = async (serialNumber) => {
+  try {
+    if (!serialNumber) {
+      throw new Error("Serial number is required");
+    }
+
+    const productUnit = await ProductUnit.findOne({
+      where: {
+        serial_number: serialNumber,
+        is_sold: false
+      }
+    });
+
+    if (!productUnit) {
+      throw new ProductNotFoundException("Product unit not found or already sold");
+    }
+
+    return productUnit.dataValues;
+  } catch (err) {
+    console.error("Error in getProductUnitWithSerialNumber:", err);
+    throw err; 
+  }
+};
+async function getInventoryByUUID(uuid) {
+  const inventory = await Product.findOne({
+    where: {
+      status_id: 1, 
+      product_uuid: uuid,
+    }
+  }); 
+  return inventory; 
+}
+
+exports.addExistingUnit = async (serialNumbers, productId) => {
+  const transaction = await db.sequelize.transaction();
+
+  try {
+      const itemObj = await getInventoryByUUID(productId);
+      if (!itemObj) {
+          throw new ProductNotFoundException(productId);
+      }
+
+      if (!Array.isArray(serialNumbers) || serialNumbers.length === 0) {
+          throw new ValidationException("Serial numbers must be provided");
+      }
+
+      const uniqueSerials = new Set(serialNumbers);
+      if (uniqueSerials.size !== serialNumbers.length) {
+          throw new ValidationException("Duplicate serial numbers detected");
+      }
+
+      const existingUnits = await ProductUnit.findAll({
+          where: {
+              serial_number: serialNumbers,
+              product_id: itemObj.product_id
+          }
+      });
+
+      if (existingUnits.length > 0) {
+          throw new ValidationException(
+              `Serial numbers already exist: ${existingUnits.map(unit => unit.serial_number).join(', ')}`
+          );
+      }
+
+      const warranty = await WarrantyService.getWarrantiesByProduct(itemObj.product_id);
+
+      const createdUnits = await Promise.all(
+        serialNumbers.map(async (serialNumber) => {
+          const unitData = {
+            product_id: itemObj.product_id,
+            serial_number: serialNumber,
+            source_type: "INITIAL_STOCK",
+            is_sold: false,
+            date_of_purchase: null,
+            purchase_order_item_id: null,
+          };
+      
+          if (warranty.manufacturer.length > 0) {
+            const warrantyStartDate = new Date();
+            const warrantyEndDate = new Date(warrantyStartDate);
+            warrantyEndDate.setMonth(
+              warrantyStartDate.getMonth() + warranty.manufacturer[0].duration
+            );
+      
+            unitData.warranty_start_date = warrantyStartDate;
+            unitData.warranty_end_date = warrantyEndDate;
+          }
+      
+          const productUnit = await ProductUnit.create(unitData, { transaction });
+      
+          if (warranty.manufacturer.length > 0) {
+            await WarrantyUnit.create({
+              product_unit_id: productUnit.product_unit_id,
+              warranty_id: warranty.manufacturer[0].warranty_id,
+              warranty_start: productUnit.warranty_start_date,
+              warranty_end: productUnit.warranty_end_date,
+              status: "ACTIVE",
+            }, { transaction });
+          }
+          return productUnit;
+        })
+      );
+      
+      await Product.decrement('unregistered_quantity', {
+        by: serialNumbers.length,
+        where: { product_id: itemObj.product_id },
+        transaction
+      });
+
+      await transaction.commit();
+      return createdUnits;
+  } catch (err) {
+      await transaction.rollback();
+      console.error("Error adding existing units:", err);
+      
+      if (err instanceof ValidationException || err instanceof ProductNotFoundException) {
+          throw err;
+      }
+      throw new DatabaseOperationException("Failed to add existing units", err);
+  }
+};

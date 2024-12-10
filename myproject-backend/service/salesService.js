@@ -7,12 +7,15 @@ const {
   Product,
   Discount,
   Tax,
+  ProductUnit,
   SalesOrderTax,
   SalesOrderDiscount,
   Organization,
   sequelize
 } = require("../models");
 const { SalesError, InvalidTimeRangeError, UserNotFoundError, DatabaseError } = require("../errors/salesError");
+const {ValidationException} = require("../errors/validationError");
+const {ProductUnitNotFoundException} = require("../errors/notFoundException");
 const { ValidationError, Op, where } = require("sequelize");
 const { getDiscountByIdAsync } = require("../service/discountService");
 // Add debug logging
@@ -310,6 +313,16 @@ exports.calculateSalesOrderTotal = async (reqBody) => {
   }
 };
 
+exports.getSalesOrderItem = async (salesOrderId, productId) => {
+  const salesOrderItem = SalesOrderInventory.findOne({
+    where: {
+      sales_order_id: salesOrderId, 
+      product_id: productId
+    }
+  });
+  return salesOrderItem;
+}
+
 async function getDiscountRates(discountIds) {
   const discounts = await Discount.findAll({
     where: {
@@ -370,12 +383,16 @@ async function getItemPrice(itemId) {
   return price.dataValues;
 }
 
-exports.getAllSalesOrders = async (username) => {
+exports.getAllSalesOrders = async (username, pageSize, pageNumber) => {
   try {
     const user = await User.findOne({
       where: { username },
     });
-    const salesOrders = await SalesOrder.findAll({
+
+    const offset = (pageNumber - 1) * pageSize;
+
+    const { count, rows: salesOrders } = await SalesOrder.findAndCountAll({
+      distinct: true,
       where: {
         organization_id: user.organization_id,
       },
@@ -393,7 +410,7 @@ exports.getAllSalesOrders = async (username) => {
           ],
         },
         {
-        model: Product,
+          model: Product,
           through: {
             model: SalesOrderInventory,
             as: "sales_order_items", 
@@ -404,7 +421,7 @@ exports.getAllSalesOrders = async (username) => {
             "product_uuid",
             "product_name",
             "sku_number",
-          "description",
+            "description",
           ],
         },
         {
@@ -427,9 +444,14 @@ exports.getAllSalesOrders = async (username) => {
         }
       ],
       order: [["order_date_time", "DESC"]],
+      limit: pageSize,
+      offset: offset
     });
 
-    // Debug log
+    const totalPages = Math.ceil(count / pageSize);
+    const hasNextPage = pageNumber < totalPages;
+    const hasPreviousPage = pageNumber > 1;
+
     console.log(
       "Raw sales orders:",
       JSON.stringify(salesOrders[0]?.get({ plain: true }), null, 2)
@@ -444,23 +466,18 @@ exports.getAllSalesOrders = async (username) => {
             ...plainOrder.Customer,
             customer_contact: plainOrder.Customer?.customer_contact || "N/A",
           },
-          // products:
-          //   plainOrder.Products?.map((product) => ({
-          //     product_id: product.product_id,
-          //     product_uuid: product.product_uuid,
-          //     product_name: product.product_name,
-          //     sku_number: product.sku_number,
-          //     product_description: product.description,
-          //     sales_order_items: {
-          //       quantity: product.SalesOrderInventory?.quantity || 0,
-          //       price: product.SalesOrderInventory?.price || 0,
-          //     },
-          //   })) || [],
         };
       }),
+      pagination: {
+        totalItems: count,
+        totalPages,
+        currentPage: parseInt(pageNumber),
+        pageSize: parseInt(pageSize),
+        hasNextPage,
+        hasPreviousPage
+      }
     };
 
-    // Debug log
     console.log(
       "Transformed result:",
       JSON.stringify(result.salesOrders[0], null, 2)
@@ -472,6 +489,7 @@ exports.getAllSalesOrders = async (username) => {
     throw error;
   }
 };
+
 const getTodayDateRange = () => {
   const today = new Date();
   
@@ -548,6 +566,33 @@ if (!username) {
     );
   }
 };
+const validateSerialNumbers = async (productId, serialNumbers, quantity, transaction) => {
+  if(serialNumbers.length !== quantity) {
+    throw new ValidationException("Number of serial numbers must match the item quantity.");
+  }
+
+  const productUnits = await ProductUnit.findAll({
+    where: {
+      product_id: productId,
+      serial_number: {
+        [Op.in]: serialNumbers,
+      },
+    },
+    lock: true,
+    transaction,
+  });
+
+  if(productUnits.length !== serialNumbers.length) {
+    throw new ProductUnitNotFoundException(serialNumbers);
+  }
+
+  const soldUnits = productUnits.filter(unit => unit.is_sold);
+  if(soldUnits.length > 0) {
+    throw new ValidationException(
+      `Units with serial numbers ${soldUnits.map(u => u.serial_number).join(', ')} are already sold`
+    );
+  }
+};
 
 exports.createSalesOrder = async (username, salesData) => {
   const transaction = await sequelize.transaction();
@@ -621,7 +666,22 @@ exports.createSalesOrder = async (username, salesData) => {
       await Promise.all(
         salesData.itemsList.map(async (item) => {
           const itemObj = await getInventoryByUUID(item.uuid);
-          
+
+          if (item.serialNumbers) { 
+            const uniqueSerials = new Set(item.serialNumbers);
+            if (uniqueSerials.size !== item.serialNumbers.length) {
+              throw new ValidationException(
+                "Duplicate serial numbers provided"
+              );
+            }
+            await validateSerialNumbers(
+              itemObj.product_id,
+              item.serialNumbers,
+              item.quantity,
+              transaction
+            );
+          }
+
           const leftoverStock = itemObj.product_stock - item.quantity;
           if (leftoverStock < 0) {
             throw new Error(
@@ -637,20 +697,47 @@ exports.createSalesOrder = async (username, salesData) => {
               transaction,
             }
           );
-          orderItems.push({
-            sales_order_id: salesOrder.sales_order_id,
-            product_id: itemObj.product_id,
-            quantity: item.quantity,
-            price: item.price,
-            discounted_price:
-              totalDiscountRate > 0 ? item.price * (1 - totalDiscountRate) : null,
-            status_id: 1,
-          });
+          const salesOrderItem = await SalesOrderInventory.create(
+            {
+              sales_order_id: salesOrder.sales_order_id,
+              product_id: itemObj.product_id,
+              quantity: item.quantity,
+              price: item.price,
+              discounted_price:
+                totalDiscountRate > 0
+                  ? item.price * (1 - totalDiscountRate)
+                  : null,
+              status_id: 1,
+            },
+            { transaction }
+          );
+
+          orderItems.push(salesOrderItem);
+          const currentDate = new Date();
+          if (item.serialNumbers) {
+            await ProductUnit.update(
+              {
+                is_sold: true,
+                sales_order_item_id: salesOrderItem.sales_order_item_id,
+                date_of_sale: currentDate, 
+              },
+              {
+                where: {
+                  product_id: itemObj.product_id,
+                  serial_number: {
+                    [Op.in]: item.serialNumbers,
+                  },
+                },
+                transaction,
+                validate: false  
+              }
+            );
+          }
         })
       );
-      await SalesOrderInventory.bulkCreate(orderItems, { transaction });
+      //await SalesOrderInventory.bulkCreate(orderItems, { transaction });
     }
-
+    
     if (salesData.taxes && salesData.taxes.length > 0) {
       const salesTaxes = salesData.taxes.map((tax) => ({
         sales_order_id: salesOrder.sales_order_id,

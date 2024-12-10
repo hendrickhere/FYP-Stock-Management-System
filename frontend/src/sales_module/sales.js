@@ -10,7 +10,7 @@ import { FileText, FileSpreadsheet, Receipt, RotateCcw, Plus } from 'lucide-reac
 import { useScrollDirection } from '../useScrollDirection';
 import { motion } from 'framer-motion';
 import SalesOrderSearch from './salesOrderSearch';
-
+import Pagination from "../pagination_component/pagination";
 const springTransition = {
   type: "spring",
   stiffness: 400,
@@ -54,6 +54,10 @@ const MainContent = ({ isMobile, scrollDirection, isAtTop }) => {
   const [selectedOrders, setSelectedOrders] = useState([]);
   const [searchConfig, setSearchConfig] = useState({ term: '', activeFilters: [] });
   const [highlightSelections, setHighlightSelections] = useState(false);
+  const [totalCount, setTotalCount] = useState(0);
+  const [totalPage, setTotalPage] = useState(0);
+  const [hasNextPage, setHasNextPage] = useState(true);
+  const [hasPreviousPage, setHasPreviousPage] = useState(false);
 
   const filterSalesOrders = (orders, searchConfig) => {
     if (!searchConfig?.term || !orders) return orders;
@@ -124,6 +128,17 @@ const MainContent = ({ isMobile, scrollDirection, isAtTop }) => {
     }
   };
 
+  const handlePageChange = (newPage) => {
+    setPageNumber(newPage);
+    fetchSalesOrder(newPage, pageSize);
+  };
+  
+  const handlePageSizeChange = (newPageSize) => {
+    setPageSize(newPageSize);
+    setPageNumber(1); 
+    fetchSalesOrder(1, newPageSize);
+  };
+  
   const handleDeleteData = async (salesOrderUUID, managerPassword) => {
     try {
       await axiosInstance.delete(`http://localhost:3002/api/user/${username}/salesOrder/${salesOrderUUID}`, {
@@ -155,19 +170,27 @@ const MainContent = ({ isMobile, scrollDirection, isAtTop }) => {
   }
 
   useEffect(() => {
-    fetchSalesOrder(pageNumber);
+    fetchSalesOrder(pageNumber, pageSize);
   }, [render]);
 
-  async function fetchSalesOrder(pageNumber) {
+  async function fetchSalesOrder(pageNumber, pageSize) {
     try {
       setLoading(true);
       const encodedUsername = encodeURIComponent(username);
-      const response = await axiosInstance.get(`http://localhost:3002/api/sales/${username}/salesOrders?pageNumber=${pageNumber}`);
+      const response = await axiosInstance.get(`http://localhost:3002/api/sales/${username}/salesOrders?pageNumber=${pageNumber}&pageSize=${pageSize}`);
       
       if (response.data && Array.isArray(response.data.salesOrders)) {
         setData(response.data);
       } else {
         setData({ salesOrders: [] });
+      }
+
+      if(response.data.pagination) {
+        setPageNumber(response.data.pagination.currentPage); 
+        setTotalPage(response.data.pagination.totalPages);
+        setTotalCount(response.data.pagination.totalItems);
+        setHasNextPage(response.data.pagination.hasNextPage);
+        setHasPreviousPage(response.data.pagination.hasPreviousPage);
       }
     } catch (error) {
       console.error('Error fetching sales orders:', error);
@@ -178,7 +201,7 @@ const MainContent = ({ isMobile, scrollDirection, isAtTop }) => {
   }
 
   return (
-    <div className="flex-1 overflow-hidden">
+    <div className="flex-1 overflow-hidden h-screen pb-12"> 
       <div className="h-full overflow-y-auto">
         <motion.div 
           className="p-6"
@@ -238,6 +261,16 @@ const MainContent = ({ isMobile, scrollDirection, isAtTop }) => {
               />
               )
             )}
+             <Pagination 
+        currentPage={pageNumber}
+        totalPages={totalPage}
+        onPageChange={handlePageChange}
+        hasNextPage={hasNextPage}
+        hasPreviousPage={hasPreviousPage}
+        pageSize={pageSize}
+        onPageSizeChange={handlePageSizeChange}
+        totalItems={totalCount}
+      />
           </div>
         </motion.div>
       </div>

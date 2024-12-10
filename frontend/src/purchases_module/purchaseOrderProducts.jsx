@@ -95,7 +95,7 @@ const PurchaseOrderProducts = ({
         username: currentUser, 
       };
   
-      const response = await instance.post('/products/addunit', requestBody);
+      const response = await instance.post('/products/unit/new', requestBody);
       
       if(response)
       setSerialNumbers({}); 

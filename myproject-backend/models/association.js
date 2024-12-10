@@ -180,7 +180,18 @@ module.exports = (db) => {
     })
     PurchaseOrderItem.hasMany(ProductUnit, {
         foreignKey: "purchase_order_item_id"
-    })
+    });
+
+    ProductUnit.belongsTo(SalesOrderInventory, {
+        foreignKey: 'sales_order_item_id',
+        as: 'salesOrderItem'
+    });
+    
+    SalesOrderInventory.hasMany(ProductUnit, {
+        foreignKey: 'sales_order_item_id',
+        as: 'productUnits'
+    });
+
 
     // Then establish the reverse associations
     Product.hasMany(PurchaseOrderItem, {
