@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import { Search, X, Filter } from 'lucide-react';
 import debounce from 'lodash/debounce';
 import {
@@ -24,35 +24,42 @@ const SalesOrderSearch = ({ onFilterChange, initialFilters = {} }) => {
   });
   const [showFilterDialog, setShowFilterDialog] = useState(false);
 
-  // Debounced search handler
+  // Create the debounced function
   const debouncedSearch = useCallback(
-    debounce((term) => {
-      const activeFilters = Object.entries(filters)
+    debounce((term, currentFilters) => {
+      const activeFilters = Object.entries(currentFilters)
         .filter(([_, active]) => active)
         .map(([key]) => key);
       
       onFilterChange({ term, activeFilters });
     }, 300),
-    [filters, onFilterChange]
+    [onFilterChange]
   );
+
+  // Use useEffect to trigger search when either searchTerm or filters change
+  useEffect(() => {
+    debouncedSearch(searchTerm, filters);
+    
+    // Cleanup
+    return () => {
+      debouncedSearch.cancel();
+    };
+  }, [searchTerm, filters, debouncedSearch]);
 
   const handleSearchChange = (e) => {
     const value = e.target.value;
     setSearchTerm(value);
-    debouncedSearch(value);
   };
 
   const handleFilterChange = (filterKey) => {
-    setFilters(prev => {
-      const updated = { ...prev, [filterKey]: !prev[filterKey] };
-      debouncedSearch(searchTerm);
-      return updated;
-    });
+    setFilters(prev => ({
+      ...prev,
+      [filterKey]: !prev[filterKey]
+    }));
   };
 
   const clearSearch = () => {
     setSearchTerm('');
-    debouncedSearch('');
   };
 
   // Count active filters for badge

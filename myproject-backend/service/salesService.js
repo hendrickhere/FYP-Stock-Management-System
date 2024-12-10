@@ -383,19 +383,89 @@ async function getItemPrice(itemId) {
   return price.dataValues;
 }
 
-exports.getAllSalesOrders = async (username, pageSize, pageNumber) => {
+exports.getAllSalesOrders = async (username, pageSize, pageNumber, searchConfig) => {
   try {
     const user = await User.findOne({
       where: { username },
     });
 
     const offset = (pageNumber - 1) * pageSize;
+    
+    let whereClause = {
+      organization_id: user.organization_id,
+    };
+
+    if (searchConfig?.term) {
+      const searchTerm = searchConfig.term.toLowerCase().trim();
+      const activeFilters = searchConfig.activeFilters || [];
+      
+      const searchConditions = activeFilters.map(filter => {
+        switch (filter) {
+          case 'orderId':
+            return sequelize.where(
+              sequelize.cast(sequelize.col('SalesOrder.sales_order_uuid'), 'text'),
+              { [Op.iLike]: `%${searchTerm}%` }
+            );
+          case 'orderDate':
+            return sequelize.where(
+              sequelize.fn('TO_CHAR', 
+                sequelize.col('order_date_time'), 
+                'YYYY-MM-DD HH24:MI:SS'
+              ),
+              { [Op.iLike]: `%${searchTerm}%` }
+            );
+          case 'shipmentDate':
+            return sequelize.where(
+              sequelize.fn('TO_CHAR', 
+                sequelize.col('expected_shipment_date'), 
+                'YYYY-MM-DD HH24:MI:SS'
+              ),
+              { [Op.iLike]: `%${searchTerm}%` }
+            );
+          case 'totalPrice':
+            return sequelize.where(
+              sequelize.cast(sequelize.col('grand_total'), 'varchar'),
+              { [Op.iLike]: `%${searchTerm}%` }
+            );
+          case 'deliveryMethod':
+            return {
+              delivery_method: {
+                [Op.iLike]: `%${searchTerm}%`
+              }
+            };
+          case 'paymentTerms':
+            return {
+              payment_terms: {
+                [Op.iLike]: `%${searchTerm}%`
+              }
+            };
+          case 'status':
+            return sequelize.where(
+              sequelize.cast(sequelize.col('SalesOrder.status_id'), 'varchar'),
+              { [Op.iLike]: `%${searchTerm}%` }
+            );
+          case 'customerName':
+            return {
+              '$Customer.customer_name$': {
+                [Op.iLike]: `%${searchTerm}%`
+              }
+            };
+          default:
+            return null;
+        }
+      }).filter(Boolean);
+
+      if (searchConditions.length > 0) {
+        whereClause = {
+          ...whereClause,
+          [Op.or]: searchConditions
+        };
+      }
+    }
 
     const { count, rows: salesOrders } = await SalesOrder.findAndCountAll({
       distinct: true,
-      where: {
-        organization_id: user.organization_id,
-      },
+      where: whereClause,
       include: [
         {
           model: Customer,
@@ -413,11 +483,11 @@ exports.getAllSalesOrders = async (username, pageSize, pageNumber) => {
           model: Product,
           through: {
             model: SalesOrderInventory,
-            as: "sales_order_items", 
+            as: "sales_order_items",
             attributes: ["quantity", "price", "discounted_price"],
           },
           attributes: [
-            "product_id", 
+            "product_id",
             "product_uuid",
             "product_name",
             "sku_number",
@@ -428,34 +498,29 @@ exports.getAllSalesOrders = async (username, pageSize, pageNumber) => {
           model: Discount,
           through: {
             model: SalesOrderDiscount,
-            as: "sales_order_discounts", 
-            attributes: ["applied_discount_rate", "discount_amount"] 
+            as: "sales_order_discounts",
+            attributes: ["applied_discount_rate", "discount_amount"]
           },
-          attributes: ["discount_name", "discount_rate"] 
+          attributes: ["discount_name", "discount_rate"]
         },
         {
           model: Tax,
           through: {
             model: SalesOrderTax,
-            as: "sales_order_taxes", 
-            attributes: ["applied_tax_rate", "tax_amount"] 
+            as: "sales_order_taxes",
+            attributes: ["applied_tax_rate", "tax_amount"]
           },
-          attributes: ["tax_name", "tax_rate"] 
+          attributes: ["tax_name", "tax_rate"]
         }
       ],
       order: [["order_date_time", "DESC"]],
-      limit: pageSize,
+      limit: parseInt(pageSize),
       offset: offset
     });
 
     const totalPages = Math.ceil(count / pageSize);
     const hasNextPage = pageNumber < totalPages;
     const hasPreviousPage = pageNumber > 1;
-
-    console.log(
-      "Raw sales orders:",
-      JSON.stringify(salesOrders[0]?.get({ plain: true }), null, 2)
-    );
 
     const result = {
       salesOrders: salesOrders.map((order) => {
@@ -477,11 +542,6 @@ exports.getAllSalesOrders = async (username, pageSize, pageNumber) => {
         hasPreviousPage
       }
     };
-
-    console.log(
-      "Transformed result:",
-      JSON.stringify(result.salesOrders[0], null, 2)
-    );
 
     return result;
   } catch (error) {
