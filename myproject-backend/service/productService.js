@@ -107,7 +107,6 @@ exports.addProductUnit = async (purchaseOrderId, products, username) => {
 
 exports.sellProductUnit = async (salesOrderId, products) => {
   const transaction = await db.sequelize.transaction();
-
   try {
     await Promise.all(
       products.map(async (product, index) => {
@@ -128,6 +127,22 @@ exports.sellProductUnit = async (salesOrderId, products) => {
     
   }
 }
+
+exports.getProductUnit = async (purchaseOrderId, productId) => {
+  try {
+    const productUnits = await ProductUnit.findAll({
+      where: {
+        product_id: productId,      
+        purchase_order_item_id: purchaseOrderId
+      },
+      attributes: ["serial_number", "product_unit_id"]
+    });
+
+    return productUnits;
+  } catch (err) {
+    throw err;              
+  }
+};
 
 exports.getProductUnitWithSerialNumber = async (serialNumber) => {
   try {
