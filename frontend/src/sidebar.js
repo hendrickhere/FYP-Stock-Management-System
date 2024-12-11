@@ -7,6 +7,7 @@ import { BsCashCoin } from "react-icons/bs";
 import { GrStakeholder, GrSchedules, GrLogout } from "react-icons/gr";
 import { FaUsers, FaUserTie, FaUser } from 'react-icons/fa';
 import { motion, AnimatePresence } from 'framer-motion';
+import { RiShieldCheckLine } from "react-icons/ri";
 
 const springTransition = {
   type: "spring",
@@ -51,7 +52,7 @@ function Sidebar({ scrollDirection, isAtTop }) {
     { path: '/vendors', icon: FaUserTie, label: 'Vendors' },
     { path: '/staff', icon: FaUser, label: 'Staff' },
     { path: '/appointments', icon: GrSchedules, label: 'Appointments' },
-    { path: '/warranty', icon: GrSchedules, label: 'Warranties' },
+    { path: '/warranty', icon: RiShieldCheckLine, label: 'Warranties' },
   ];
 
   // Don't render sidebar on mobile

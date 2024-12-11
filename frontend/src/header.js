@@ -8,6 +8,7 @@ import { AiOutlineStock } from "react-icons/ai";
 import { BsCashCoin } from "react-icons/bs";
 import { AlertTriangle } from 'lucide-react';
 import { GrSchedules, GrLogout } from "react-icons/gr";
+import { RiShieldCheckLine } from "react-icons/ri";
 import { CgProfile } from "react-icons/cg";
 import { TbNumbers } from "react-icons/tb";
 import { useNavigate, Link, useLocation } from 'react-router-dom';
@@ -47,7 +48,8 @@ function Header({ scrollDirection, isAtTop }) {
     { path: '/vendors', icon: FaUserTie, label: 'Vendors' },
     { path: '/staff', icon: FaUsersCog, label: 'Staff' },
     { path: '/appointments', icon: GrSchedules, label: 'Appointments' },
-    { path: '/settings', icon: IoSettingsSharp, label: 'Settings' }, // Add this line
+    { path: '/warranty', icon: RiShieldCheckLine, label: 'Warranties' },
+    { path: '/settings', icon: IoSettingsSharp, label: 'Settings' }, 
   ];
 
   // Settings menu items with role-based access

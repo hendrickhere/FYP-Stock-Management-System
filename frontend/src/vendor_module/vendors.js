@@ -110,7 +110,7 @@ function MainContent({ isMobile, scrollDirection, isAtTop }) {
         >
           <div className="mb-6">
             <div className="flex flex-col lg:flex-row lg:items-center gap-4">
-              <h1 className="text-2xl font-bold">Vendors</h1>
+              <h1 className="text-xl font-medium">Vendors</h1>
               <div className="lg:w-auto lg:ml-20 flex-1">
                 <VendorSearch 
                   onFilterChange={handleSearchFilter}

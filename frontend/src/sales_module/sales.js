@@ -169,7 +169,7 @@ const MainContent = ({ isMobile, scrollDirection, isAtTop }) => {
   
 
   return (
-    <div className="flex-1 overflow-hidden h-screen pb-12"> 
+    <div className="flex-1 overflow-hidden"> 
       <div className="h-full overflow-y-auto">
         <motion.div 
           className="p-6"
@@ -181,7 +181,7 @@ const MainContent = ({ isMobile, scrollDirection, isAtTop }) => {
           {/* Title and Search Section */}
           <div className="mb-6">
             <div className="flex flex-col lg:flex-row lg:items-center gap-4">
-              <h1 className="text-2xl font-bold">Sales Orders</h1>
+              <h1 className="text-xl font-medium">Sales Orders</h1>
                 <div className="lg:ml-20 flex-1">
                 <SalesOrderSearch
                   onFilterChange={setSearchConfig}

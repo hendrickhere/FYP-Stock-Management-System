@@ -157,7 +157,7 @@ const MainContent = ({ isMobile, scrollDirection, isAtTop }) => {
           {/* Title and Search Section */}
           <div className="mb-6">
             <div className="flex flex-col lg:flex-row lg:items-center gap-4">
-              <h1 className="text-2xl font-bold">Purchase Orders</h1>
+              <h1 className="text-xl font-medium">Purchase Orders</h1>
               <div className="lg:ml-20 flex-1">
                 <PurchasesSearch
                   onFilterChange={setSearchConfig}
