@@ -13,9 +13,7 @@ exports.getAllSalesOrders = async (req, res) => {
             try {
                 searchConfig = JSON.parse(req.query.searchConfig);
                 
-                // Validate searchConfig structure
                 if (searchConfig && typeof searchConfig === 'object') {
-                    // Ensure required properties exist with correct types
                     if (!('term' in searchConfig) || typeof searchConfig.term !== 'string') {
                         searchConfig.term = '';
                     }
@@ -44,7 +42,7 @@ exports.getAllSalesOrders = async (req, res) => {
         res.status(200).json( salesOrders ); 
     } catch (err) {
         console.error('Error in getAllSalesOrders:', err);
-        res.status(500).json({ message: err.message }); // Changed from 404 to 500 for server errors
+        res.status(500).json({ message: err.message });
     }
 };
 
