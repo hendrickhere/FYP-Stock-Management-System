@@ -1,4 +1,4 @@
-const bcrypt = require('bcrypt');
+const bcrypt = require("bcrypt");
 const {
   User,
   SalesOrder,
@@ -11,11 +11,16 @@ const {
   SalesOrderTax,
   SalesOrderDiscount,
   Organization,
-  sequelize
+  sequelize,
 } = require("../models");
-const { SalesError, InvalidTimeRangeError, UserNotFoundError, DatabaseError } = require("../errors/salesError");
-const {ValidationException} = require("../errors/validationError");
-const {ProductUnitNotFoundException} = require("../errors/notFoundException");
+const {
+  SalesError,
+  InvalidTimeRangeError,
+  UserNotFoundError,
+  DatabaseError,
+} = require("../errors/salesError");
+const { ValidationException } = require("../errors/validationError");
+const { ProductUnitNotFoundException } = require("../errors/notFoundException");
 const { ValidationError, Op, where } = require("sequelize");
 const { getDiscountByIdAsync } = require("../service/discountService");
 // Add debug logging
@@ -31,20 +36,23 @@ async function verifyManagerPassword(managerPassword) {
   try {
     const managers = await User.findAll({
       where: {
-        role: 'Manager'
-      }
+        role: "Manager",
+      },
     });
 
     // Check against all manager passwords
     for (const manager of managers) {
-      const isValid = await bcrypt.compare(managerPassword, manager.password_hash);
+      const isValid = await bcrypt.compare(
+        managerPassword,
+        manager.password_hash
+      );
       if (isValid) {
         return true;
       }
     }
     return false;
   } catch (error) {
-    console.error('Error verifying manager password:', error);
+    console.error("Error verifying manager password:", error);
     return false;
   }
 }
@@ -144,7 +152,7 @@ exports.getSalesOrderTotal = async (username, salesOrderUUID) => {
 //         {
 //           model: Tax,
 //           through: {
-//             model: SalesOrderTax, 
+//             model: SalesOrderTax,
 //             attributes: ["applied_tax_rate", "tax_amount"]
 //           },
 //           as: "taxes"
@@ -166,7 +174,7 @@ exports.getSalesOrderTotal = async (username, salesOrderUUID) => {
 //         subtotal: order.subtotal,
 //         discounts: order.discounts,
 //         taxes: order.taxes,
-//         products: order.products, 
+//         products: order.products,
 //         discountAmount: order.discount_amount,
 //         totalTax: order.total_tax,
 //       })),
@@ -238,7 +246,7 @@ exports.calculateSalesOrderTotal = async (reqBody) => {
     if (discountIds.length > 0) {
       try {
         const discountRates = await getDiscountRates(discountIds);
-        
+
         discountRates.forEach((discount) => {
           if (discount.discount_rate < 0 || discount.discount_rate > 1) {
             throw new SalesError(
@@ -247,17 +255,17 @@ exports.calculateSalesOrderTotal = async (reqBody) => {
               400
             );
           }
-          
+
           const discountAmount = subtotal * discount.discount_rate;
           discountRatesDto.push({
             discount_id: discount.discount_id,
             discount_name: discount.discount_name,
             discount_rate: discount.discount_rate,
-            discount_amount: Number(discountAmount.toFixed(2))
+            discount_amount: Number(discountAmount.toFixed(2)),
           });
           totalDiscountAmount += discountAmount;
         });
-        
+
         grandtotal = grandtotal - totalDiscountAmount;
       } catch (error) {
         throw error;
@@ -267,7 +275,7 @@ exports.calculateSalesOrderTotal = async (reqBody) => {
     if (taxIds.length > 0) {
       try {
         const taxRates = await getTaxRates(taxIds);
-        
+
         taxRates.forEach((tax) => {
           if (tax.tax_rate < 0 || tax.tax_rate > 1) {
             throw new SalesError(
@@ -276,17 +284,17 @@ exports.calculateSalesOrderTotal = async (reqBody) => {
               400
             );
           }
-          
+
           const taxAmount = grandtotal * tax.tax_rate;
           taxRatesDto.push({
             tax_id: tax.tax_id,
             tax_name: tax.tax_name,
             tax_rate: tax.tax_rate,
-            tax_amount: Number(taxAmount.toFixed(2))
+            tax_amount: Number(taxAmount.toFixed(2)),
           });
           totalTaxAmount += taxAmount;
         });
-        
+
         grandtotal = grandtotal + totalTaxAmount;
       } catch (error) {
         throw error;
@@ -299,7 +307,7 @@ exports.calculateSalesOrderTotal = async (reqBody) => {
       totalDiscountAmount: Number(totalDiscountAmount.toFixed(2)),
       totalTaxAmount: Number(totalTaxAmount.toFixed(2)),
       discounts: discountRatesDto,
-      taxes: taxRatesDto
+      taxes: taxRatesDto,
     };
   } catch (err) {
     if (err instanceof SalesError) {
@@ -316,42 +324,42 @@ exports.calculateSalesOrderTotal = async (reqBody) => {
 exports.getSalesOrderItem = async (salesOrderId, productId) => {
   const salesOrderItem = SalesOrderInventory.findOne({
     where: {
-      sales_order_id: salesOrderId, 
-      product_id: productId
-    }
+      sales_order_id: salesOrderId,
+      product_id: productId,
+    },
   });
   return salesOrderItem;
-}
+};
 
 async function getDiscountRates(discountIds) {
   const discounts = await Discount.findAll({
     where: {
       discount_id: {
-        [Op.in]: discountIds
-      }
+        [Op.in]: discountIds,
+      },
     },
-    attributes: ["discount_id", "discount_rate", "discount_name"]
+    attributes: ["discount_id", "discount_rate", "discount_name"],
   });
 
   if (!discounts.length) {
     throw new SalesError(
       `No discounts found for ids: ${discountIds.join(", ")}`,
-      "NOT_FOUND", 
+      "NOT_FOUND",
       404
     );
   }
 
-  return discounts.map(discount => discount.dataValues);
+  return discounts.map((discount) => discount.dataValues);
 }
 
 async function getTaxRates(taxIds) {
   const taxes = await Tax.findAll({
     where: {
       tax_id: {
-        [Op.in]: taxIds  
-      }
+        [Op.in]: taxIds,
+      },
     },
-    attributes: ["tax_id", "tax_rate", "tax_name"]
+    attributes: ["tax_id", "tax_rate", "tax_name"],
   });
 
   if (!taxes.length) {
@@ -362,7 +370,7 @@ async function getTaxRates(taxIds) {
     );
   }
 
-  return taxes.map(tax => tax.dataValues);
+  return taxes.map((tax) => tax.dataValues);
 }
 async function getItemPrice(itemId) {
   const price = await Product.findOne({
@@ -383,14 +391,19 @@ async function getItemPrice(itemId) {
   return price.dataValues;
 }
 
-exports.getAllSalesOrders = async (username, pageSize, pageNumber, searchConfig) => {
+exports.getAllSalesOrders = async (
+  username,
+  pageSize,
+  pageNumber,
+  searchConfig
+) => {
   try {
     const user = await User.findOne({
       where: { username },
     });
 
     const offset = (pageNumber - 1) * pageSize;
-    
+
     let whereClause = {
       organization_id: user.organization_id,
     };
@@ -398,67 +411,77 @@ exports.getAllSalesOrders = async (username, pageSize, pageNumber, searchConfig)
     if (searchConfig?.term) {
       const searchTerm = searchConfig.term.toLowerCase().trim();
       const activeFilters = searchConfig.activeFilters || [];
-      
-      const searchConditions = activeFilters.map(filter => {
-        switch (filter) {
-          case 'orderId':
-            return sequelize.where(
-              sequelize.cast(sequelize.col('SalesOrder.sales_order_uuid'), 'text'),
-              { [Op.iLike]: `%${searchTerm}%` }
-            );
-          case 'orderDate':
-            return sequelize.where(
-              sequelize.fn('TO_CHAR', 
-                sequelize.col('order_date_time'), 
-                'YYYY-MM-DD HH24:MI:SS'
-              ),
-              { [Op.iLike]: `%${searchTerm}%` }
-            );
-          case 'shipmentDate':
-            return sequelize.where(
-              sequelize.fn('TO_CHAR', 
-                sequelize.col('expected_shipment_date'), 
-                'YYYY-MM-DD HH24:MI:SS'
-              ),
-              { [Op.iLike]: `%${searchTerm}%` }
-            );
-          case 'totalPrice':
-            return sequelize.where(
-              sequelize.cast(sequelize.col('grand_total'), 'varchar'),
-              { [Op.iLike]: `%${searchTerm}%` }
-            );
-          case 'deliveryMethod':
-            return {
-              delivery_method: {
-                [Op.iLike]: `%${searchTerm}%`
-              }
-            };
-          case 'paymentTerms':
-            return {
-              payment_terms: {
-                [Op.iLike]: `%${searchTerm}%`
-              }
-            };
-          case 'status':
-            return sequelize.where(
-              sequelize.cast(sequelize.col('SalesOrder.status_id'), 'varchar'),
-              { [Op.iLike]: `%${searchTerm}%` }
-            );
-          case 'customerName':
-            return {
-              '$Customer.customer_name$': {
-                [Op.iLike]: `%${searchTerm}%`
-              }
-            };
-          default:
-            return null;
-        }
-      }).filter(Boolean);
+
+      const searchConditions = activeFilters
+        .map((filter) => {
+          switch (filter) {
+            case "orderId":
+              return sequelize.where(
+                sequelize.cast(
+                  sequelize.col("SalesOrder.sales_order_uuid"),
+                  "text"
+                ),
+                { [Op.iLike]: `%${searchTerm}%` }
+              );
+            case "orderDate":
+              return sequelize.where(
+                sequelize.fn(
+                  "TO_CHAR",
+                  sequelize.col("order_date_time"),
+                  "YYYY-MM-DD HH24:MI:SS"
+                ),
+                { [Op.iLike]: `%${searchTerm}%` }
+              );
+            case "shipmentDate":
+              return sequelize.where(
+                sequelize.fn(
+                  "TO_CHAR",
+                  sequelize.col("expected_shipment_date"),
+                  "YYYY-MM-DD HH24:MI:SS"
+                ),
+                { [Op.iLike]: `%${searchTerm}%` }
+              );
+            case "totalPrice":
+              return sequelize.where(
+                sequelize.cast(sequelize.col("grand_total"), "varchar"),
+                { [Op.iLike]: `%${searchTerm}%` }
+              );
+            case "deliveryMethod":
+              return {
+                delivery_method: {
+                  [Op.iLike]: `%${searchTerm}%`,
+                },
+              };
+            case "paymentTerms":
+              return {
+                payment_terms: {
+                  [Op.iLike]: `%${searchTerm}%`,
+                },
+              };
+            case "status":
+              return sequelize.where(
+                sequelize.cast(
+                  sequelize.col("SalesOrder.status_id"),
+                  "varchar"
+                ),
+                { [Op.iLike]: `%${searchTerm}%` }
+              );
+            case "customerName":
+              return {
+                "$Customer.customer_name$": {
+                  [Op.iLike]: `%${searchTerm}%`,
+                },
+              };
+            default:
+              return null;
+          }
+        })
+        .filter(Boolean);
 
       if (searchConditions.length > 0) {
         whereClause = {
           ...whereClause,
-          [Op.or]: searchConditions
+          [Op.or]: searchConditions,
         };
       }
     }
@@ -483,7 +506,7 @@ exports.getAllSalesOrders = async (username, pageSize, pageNumber, searchConfig)
           model: Product,
           through: {
             model: SalesOrderInventory,
-            as: "sales_order_items",
+            as: "items", // Changed from 'sales_order_items' to 'items'
             attributes: ["quantity", "price", "discounted_price"],
           },
           attributes: [
@@ -495,27 +518,38 @@ exports.getAllSalesOrders = async (username, pageSize, pageNumber, searchConfig)
           ],
         },
         {
+          model: SalesOrderInventory,
+          as: "items", // Changed from 'sales_order_items' to 'items'
+          include: [
+            {
+              model: ProductUnit,
+              as: "productUnits",
+              attributes: ["product_unit_id", "serial_number"],
+            },
+          ],
+        },
+        {
           model: Discount,
           through: {
             model: SalesOrderDiscount,
             as: "sales_order_discounts",
-            attributes: ["applied_discount_rate", "discount_amount"]
+            attributes: ["applied_discount_rate", "discount_amount"],
           },
-          attributes: ["discount_name", "discount_rate"]
+          attributes: ["discount_name", "discount_rate"],
         },
         {
           model: Tax,
           through: {
             model: SalesOrderTax,
             as: "sales_order_taxes",
-            attributes: ["applied_tax_rate", "tax_amount"]
+            attributes: ["applied_tax_rate", "tax_amount"],
           },
-          attributes: ["tax_name", "tax_rate"]
-        }
+          attributes: ["tax_name", "tax_rate"],
+        },
       ],
       order: [["order_date_time", "DESC"]],
       limit: parseInt(pageSize),
-      offset: offset
+      offset: offset,
     });
 
     const totalPages = Math.ceil(count / pageSize);
@@ -539,8 +573,8 @@ exports.getAllSalesOrders = async (username, pageSize, pageNumber, searchConfig)
         currentPage: parseInt(pageNumber),
         pageSize: parseInt(pageSize),
         hasNextPage,
-        hasPreviousPage
-      }
+        hasPreviousPage,
+      },
     };
 
     return result;
@@ -552,35 +586,41 @@ exports.getAllSalesOrders = async (username, pageSize, pageNumber, searchConfig)
 
 const getTodayDateRange = () => {
   const today = new Date();
-  
+
   const startDate = new Date(
     today.getFullYear(),
     today.getMonth(),
     today.getDate(),
-    0, 0, 0, 0
+    0,
+    0,
+    0,
+    0
   );
-  
+
   const endDate = new Date(
     today.getFullYear(),
     today.getMonth(),
     today.getDate(),
-    23, 59, 59, 999
+    23,
+    59,
+    59,
+    999
   );
-  
+
   return { startDate, endDate };
 };
 exports.getSalesOrderTotalWithTimeRange = async (username, timeRange) => {
-if (!username) {
-    throw new SalesError('Username is required', 400);
+  if (!username) {
+    throw new SalesError("Username is required", 400);
   }
   const parsedTimeRange = parseInt(timeRange);
   if (isNaN(parsedTimeRange) || parsedTimeRange <= 0) {
-    throw new InvalidTimeRangeError('Time range must be a positive number');
+    throw new InvalidTimeRangeError("Time range must be a positive number");
   }
 
   const MAX_TIME_RANGE = 365 * 24 * 60 * 60 * 1000;
   if (parsedTimeRange > MAX_TIME_RANGE) {
-    throw new InvalidTimeRangeError('Time range cannot exceed 1 year');
+    throw new InvalidTimeRangeError("Time range cannot exceed 1 year");
   }
 
   try {
@@ -598,37 +638,42 @@ if (!username) {
         break;
       }
     }
-    
 
     const salesOrders = await SalesOrder.findAll({
       where: {
         organization_id: user.organization_id,
         order_date_time: {
-          [Op.between]: [startDate, endDate]
-        }
+          [Op.between]: [startDate, endDate],
+        },
       },
       attributes: [
-        [sequelize.fn('SUM', sequelize.col('grand_total')), 'totalSales']
+        [sequelize.fn("SUM", sequelize.col("grand_total")), "totalSales"],
       ],
-      raw: true
+      raw: true,
     });
 
     return salesOrders[0]?.totalSales || 0;
-
   } catch (error) {
-    console.error('Sales order query error:', error);
+    console.error("Sales order query error:", error);
     if (error instanceof SalesError) {
       throw error;
     }
-    
+
     throw new DatabaseError(
-      'An error occurred while fetching sales data: ' + error.message
+      "An error occurred while fetching sales data: " + error.message
     );
   }
 };
-const validateSerialNumbers = async (productId, serialNumbers, quantity, transaction) => {
-  if(serialNumbers.length !== quantity) {
-    throw new ValidationException("Number of serial numbers must match the item quantity.");
+const validateSerialNumbers = async (
+  productId,
+  serialNumbers,
+  quantity,
+  transaction
+) => {
+  if (serialNumbers.length !== quantity) {
+    throw new ValidationException(
+      "Number of serial numbers must match the item quantity."
+    );
   }
 
   const productUnits = await ProductUnit.findAll({
@@ -642,14 +687,16 @@ const validateSerialNumbers = async (productId, serialNumbers, quantity, transac
     transaction,
   });
 
-  if(productUnits.length !== serialNumbers.length) {
+  if (productUnits.length !== serialNumbers.length) {
     throw new ProductUnitNotFoundException(serialNumbers);
   }
 
-  const soldUnits = productUnits.filter(unit => unit.is_sold);
-  if(soldUnits.length > 0) {
+  const soldUnits = productUnits.filter((unit) => unit.is_sold);
+  if (soldUnits.length > 0) {
     throw new ValidationException(
-      `Units with serial numbers ${soldUnits.map(u => u.serial_number).join(', ')} are already sold`
+      `Units with serial numbers ${soldUnits
+        .map((u) => u.serial_number)
+        .join(", ")} are already sold`
     );
   }
 };
@@ -675,15 +722,32 @@ exports.createSalesOrder = async (username, salesData) => {
     }
 
     //discount validation
-    if (salesData.discounts && Array.isArray(salesData.discounts) && salesData.discounts.length > 0) {
+    if (
+      salesData.discounts &&
+      Array.isArray(salesData.discounts) &&
+      salesData.discounts.length > 0
+    ) {
       for (const discount of salesData.discounts) {
-        const currentDiscount = await getDiscountByIdAsync(discount.discount_id);
+        const currentDiscount = await getDiscountByIdAsync(
+          discount.discount_id
+        );
         const currentDate = new Date();
         if (new Date(currentDiscount.discount_start) > currentDate) {
-          throw new SalesError("Discount hasn't started yet", "VALIDATION_ERROR", "400");
+          throw new SalesError(
+            "Discount hasn't started yet",
+            "VALIDATION_ERROR",
+            "400"
+          );
         }
-        if (currentDiscount.discount_end && new Date(currentDiscount.discount_end) < currentDate) {
-          throw new SalesError("Discount has expired", "VALIDATION_ERROR", "400");
+        if (
+          currentDiscount.discount_end &&
+          new Date(currentDiscount.discount_end) < currentDate
+        ) {
+          throw new SalesError(
+            "Discount has expired",
+            "VALIDATION_ERROR",
+            "400"
+          );
         }
       }
     }
@@ -727,7 +791,7 @@ exports.createSalesOrder = async (username, salesData) => {
         salesData.itemsList.map(async (item) => {
           const itemObj = await getInventoryByUUID(item.uuid);
 
-          if (item.serialNumbers) { 
+          if (item.serialNumbers) {
             const uniqueSerials = new Set(item.serialNumbers);
             if (uniqueSerials.size !== item.serialNumbers.length) {
               throw new ValidationException(
@@ -779,7 +843,7 @@ exports.createSalesOrder = async (username, salesData) => {
               {
                 is_sold: true,
                 sales_order_item_id: salesOrderItem.sales_order_item_id,
-                date_of_sale: currentDate, 
+                date_of_sale: currentDate,
               },
               {
                 where: {
@@ -789,7 +853,7 @@ exports.createSalesOrder = async (username, salesData) => {
                   },
                 },
                 transaction,
-                validate: false  
+                validate: false,
               }
             );
           }
@@ -797,7 +861,7 @@ exports.createSalesOrder = async (username, salesData) => {
       );
       //await SalesOrderInventory.bulkCreate(orderItems, { transaction });
     }
-    
+
     if (salesData.taxes && salesData.taxes.length > 0) {
       const salesTaxes = salesData.taxes.map((tax) => ({
         sales_order_id: salesOrder.sales_order_id,
@@ -820,7 +884,7 @@ exports.createSalesOrder = async (username, salesData) => {
 exports.getAvailableProducts = async (username) => {
   try {
     const user = await User.findOne({
-      where: { username }
+      where: { username },
     });
 
     if (!user) {
@@ -830,47 +894,52 @@ exports.getAvailableProducts = async (username) => {
     const products = await Product.findAll({
       where: {
         organization_id: user.organization_id,
-        status_id: 1 // Assuming 1 is active status
+        status_id: 1, // Assuming 1 is active status
       },
       attributes: [
-        'product_id',
-        'product_uuid',
-        'product_name',
-        'sku_number',
-        'product_stock',
-        'unit',
-        'price',
-        'description'
+        "product_id",
+        "product_uuid",
+        "product_name",
+        "sku_number",
+        "product_stock",
+        "unit",
+        "price",
+        "description",
       ],
-      raw: true 
+      raw: true,
     });
 
     return {
       success: true,
-      products: products
+      products: products,
     };
   } catch (error) {
-    console.error('Error fetching available products:', error);
+    console.error("Error fetching available products:", error);
     throw error;
   }
 };
 async function getInventoryByUUID(uuid) {
   const inventory = await Product.findOne({
     where: {
-      status_id: 1, 
+      status_id: 1,
       product_uuid: uuid,
-    }
-  }); 
-  return inventory; 
+    },
+  });
+  return inventory;
 }
 
-exports.updateSalesOrder = async (username, salesOrderUUID, updatedData, managerPassword) => {
+exports.updateSalesOrder = async (
+  username,
+  salesOrderUUID,
+  updatedData,
+  managerPassword
+) => {
   const transaction = await sequelize.transaction();
-  
+
   try {
     const user = await User.findOne({
       where: { username },
-      transaction
+      transaction,
     });
 
     if (!user) {
@@ -879,17 +948,29 @@ exports.updateSalesOrder = async (username, salesOrderUUID, updatedData, manager
 
     // Verify manager password
     if (!managerPassword) {
-      throw new SalesError("Manager password is required", "INVALID_MANAGER_PASSWORD", 401);
+      throw new SalesError(
+        "Manager password is required",
+        "INVALID_MANAGER_PASSWORD",
+        401
+      );
     }
 
     const isValidManagerPassword = await verifyManagerPassword(managerPassword);
     if (!isValidManagerPassword) {
-      throw new SalesError("The password doesn't match any manager's password", "INVALID_MANAGER_PASSWORD", 401);
+      throw new SalesError(
+        "The password doesn't match any manager's password",
+        "INVALID_MANAGER_PASSWORD",
+        401
+      );
     }
 
     const isValid = await bcrypt.compare(managerPassword, user.password_hash);
     if (!isValid) {
-      throw new SalesError("Invalid manager password", "INVALID_MANAGER_PASSWORD", 401);  // Changed error code
+      throw new SalesError(
+        "Invalid manager password",
+        "INVALID_MANAGER_PASSWORD",
+        401
+      ); // Changed error code
     }
 
     const salesOrder = await SalesOrder.findOne({
@@ -897,11 +978,13 @@ exports.updateSalesOrder = async (username, salesOrderUUID, updatedData, manager
         sales_order_uuid: salesOrderUUID,
         organization_id: user.organization_id,
       },
-      include: [{
-        model: SalesOrderInventory,
-        as: 'items'
-      }],
-      transaction
+      include: [
+        {
+          model: SalesOrderInventory,
+          as: "items",
+        },
+      ],
+      transaction,
     });
 
     if (!salesOrder) {
@@ -911,20 +994,23 @@ exports.updateSalesOrder = async (username, salesOrderUUID, updatedData, manager
     // Get current order items for comparison
     const currentItems = await SalesOrderInventory.findAll({
       where: { sales_order_id: salesOrder.sales_order_id },
-      transaction
+      transaction,
     });
 
     // Update basic sales order information
-    await salesOrder.update({
-      expected_shipment_date: updatedData.expected_shipment_date,
-      payment_terms: updatedData.payment_terms,
-      delivery_method: updatedData.delivery_method,
-      customer_id: updatedData.customer_id,
-    }, { transaction });
+    await salesOrder.update(
+      {
+        expected_shipment_date: updatedData.expected_shipment_date,
+        payment_terms: updatedData.payment_terms,
+        delivery_method: updatedData.delivery_method,
+        customer_id: updatedData.customer_id,
+      },
+      { transaction }
+    );
 
     // Create a map of current quantities
     const currentQuantities = new Map(
-      currentItems.map(item => [item.product_id, item.quantity])
+      currentItems.map((item) => [item.product_id, item.quantity])
     );
 
     // If there are updated products, handle them
@@ -932,9 +1018,9 @@ exports.updateSalesOrder = async (username, salesOrderUUID, updatedData, manager
       // First, delete existing inventory items
       await SalesOrderInventory.destroy({
         where: {
-          sales_order_id: salesOrder.sales_order_id
+          sales_order_id: salesOrder.sales_order_id,
         },
-        transaction
+        transaction,
       });
 
       // Process each product
@@ -944,31 +1030,33 @@ exports.updateSalesOrder = async (username, salesOrderUUID, updatedData, manager
         const quantityDiff = newQty - currentQty;
 
         // Update product stock
-        const productRecord = await Product.findByPk(product.product_id, { transaction });
+        const productRecord = await Product.findByPk(product.product_id, {
+          transaction,
+        });
         if (productRecord) {
           if (quantityDiff > 0) {
             // Deduct additional stock
-            await productRecord.decrement('product_stock', { 
+            await productRecord.decrement("product_stock", {
               by: quantityDiff,
-              transaction 
+              transaction,
             });
           } else if (quantityDiff < 0) {
             // Return stock
-            await productRecord.increment('product_stock', { 
+            await productRecord.increment("product_stock", {
               by: Math.abs(quantityDiff),
-              transaction 
+              transaction,
             });
           }
         }
       }
 
       // Create new sales order items
-      const inventoryItems = updatedData.products.map(product => ({
+      const inventoryItems = updatedData.products.map((product) => ({
         sales_order_id: salesOrder.sales_order_id,
         product_id: product.product_id,
         quantity: product.sales_order_items.quantity,
         price: product.sales_order_items.price,
-        status_id: 1
+        status_id: 1,
       }));
 
       await SalesOrderInventory.bulkCreate(inventoryItems, { transaction });
@@ -1011,53 +1099,72 @@ exports.updateSalesOrder = async (username, salesOrderUUID, updatedData, manager
   }
 };
 
-exports.deleteSalesOrder = async (username, salesOrderUUID, managerPassword) => {
+exports.deleteSalesOrder = async (
+  username,
+  salesOrderUUID,
+  managerPassword
+) => {
   const transaction = await sequelize.transaction();
-  
+
   try {
     const user = await User.findOne({
       where: { username },
-      transaction
+      transaction,
     });
 
     if (!user) {
-      throw new SalesError('User not found', 'AUTH_ERROR', 401);
+      throw new SalesError("User not found", "AUTH_ERROR", 401);
     }
 
     const isValidManagerPassword = await verifyManagerPassword(managerPassword);
     if (!isValidManagerPassword) {
-      throw new SalesError("The password doesn't match any manager's password", "INVALID_MANAGER_PASSWORD", 401);
+      throw new SalesError(
+        "The password doesn't match any manager's password",
+        "INVALID_MANAGER_PASSWORD",
+        401
+      );
     }
 
-    const isPasswordValid = await bcrypt.compare(managerPassword, user.password_hash);
+    const isPasswordValid = await bcrypt.compare(
+      managerPassword,
+      user.password_hash
+    );
     if (!isPasswordValid) {
-      throw new SalesError('Invalid manager password', "INVALID_MANAGER_PASSWORD", 401);  
+      throw new SalesError(
+        "Invalid manager password",
+        "INVALID_MANAGER_PASSWORD",
+        401
+      );
     }
 
     const salesOrder = await SalesOrder.findOne({
       where: {
         sales_order_uuid: salesOrderUUID,
-        organization_id: user.organization_id
+        organization_id: user.organization_id,
       },
-      include: [{
-        model: SalesOrderInventory,
-        as: 'items'
-      }],
-      transaction
+      include: [
+        {
+          model: SalesOrderInventory,
+          as: "items",
+        },
+      ],
+      transaction,
     });
 
     if (!salesOrder) {
-      throw new SalesError('Sales order not found', 'NOT_FOUND', 404);
+      throw new SalesError("Sales order not found", "NOT_FOUND", 404);
     }
 
     // Stock restoration
     if (salesOrder?.items?.length > 0) {
       for (const item of salesOrder.items) {
-        const product = await Product.findByPk(item.product_id, { transaction });
+        const product = await Product.findByPk(item.product_id, {
+          transaction,
+        });
         if (product) {
-          await product.increment('product_stock', { 
+          await product.increment("product_stock", {
             by: item.quantity,
-            transaction 
+            transaction,
           });
         }
       }
@@ -1067,257 +1174,296 @@ exports.deleteSalesOrder = async (username, salesOrderUUID, managerPassword) => 
     await Promise.all([
       SalesOrderInventory.destroy({
         where: { sales_order_id: salesOrder.sales_order_id },
-        transaction
+        transaction,
       }),
       SalesOrderTax.destroy({
         where: { sales_order_id: salesOrder.sales_order_id },
-        transaction
+        transaction,
       }),
       SalesOrderDiscount.destroy({
         where: { sales_order_id: salesOrder.sales_order_id },
-        transaction
-      })
+        transaction,
+      }),
     ]);
 
     await salesOrder.destroy({ transaction });
     await transaction.commit();
-    
+
     return {
       success: true,
-      message: 'Sales order deleted successfully',
-      deletedOrderId: salesOrder.sales_order_uuid
+      message: "Sales order deleted successfully",
+      deletedOrderId: salesOrder.sales_order_uuid,
     };
-
   } catch (error) {
     await transaction.rollback();
-    console.error('Error in deleteSalesOrder service:', error);
-    
+    console.error("Error in deleteSalesOrder service:", error);
+
     if (error instanceof SalesError) {
       throw error;
     }
-    
+
     throw new SalesError(
-      'Failed to delete sales order',
-      'INTERNAL_SERVER_ERROR',
+      "Failed to delete sales order",
+      "INTERNAL_SERVER_ERROR",
       500
     );
   }
 };
 
 async function getFastMovingItems(username, timeRange = 30) {
-    // This will aggregate sales data over the specified time range
-    // Default to last 30 days if not specified
-    const startDate = new Date();
-    startDate.setDate(startDate.getDate() - timeRange);
-    
-    try {
-        // Get user's organization
-        const user = await User.findOne({ where: { username } });
-        
-        // Join sales_order_items with products and aggregate quantities
-        const fastMovingItems = await SalesOrderInventory.findAll({
-            attributes: [
-                'product_id',
-                [sequelize.fn('SUM', sequelize.col('quantity')), 'total_quantity'],
-                [sequelize.fn('COUNT', sequelize.col('sales_order_id')), 'order_count'],
-                [sequelize.literal('SUM(quantity) / ' + timeRange), 'daily_velocity']
-            ],
-            include: [{
-                model: SalesOrder,
-                where: {
-                    order_date_time: {
-                        [Op.gte]: startDate
-                    },
-                    organization_id: user.organization_id
-                },
-                attributes: []
-            }, {
-                model: Product,
-                attributes: ['product_name', 'sku_number', 'product_stock']
-            }],
-            group: ['product_id', 'Product.product_name', 'Product.sku_number', 'Product.product_stock'],
-            having: sequelize.literal('COUNT(sales_order_id) > 0'),
-            order: [[sequelize.literal('total_quantity'), 'DESC']],
-            limit: 5
-        });
+  // This will aggregate sales data over the specified time range
+  // Default to last 30 days if not specified
+  const startDate = new Date();
+  startDate.setDate(startDate.getDate() - timeRange);
 
-        return fastMovingItems;
-    } catch (error) {
-        throw new Error('Error calculating fast-moving items: ' + error.message);
-    }
+  try {
+    // Get user's organization
+    const user = await User.findOne({ where: { username } });
+
+    // Join sales_order_items with products and aggregate quantities
+    const fastMovingItems = await SalesOrderInventory.findAll({
+      attributes: [
+        "product_id",
+        [sequelize.fn("SUM", sequelize.col("quantity")), "total_quantity"],
+        [sequelize.fn("COUNT", sequelize.col("sales_order_id")), "order_count"],
+        [sequelize.literal("SUM(quantity) / " + timeRange), "daily_velocity"],
+      ],
+      include: [
+        {
+          model: SalesOrder,
+          where: {
+            order_date_time: {
+              [Op.gte]: startDate,
+            },
+            organization_id: user.organization_id,
+          },
+          attributes: [],
+        },
+        {
+          model: Product,
+          attributes: ["product_name", "sku_number", "product_stock"],
+        },
+      ],
+      group: [
+        "product_id",
+        "Product.product_name",
+        "Product.sku_number",
+        "Product.product_stock",
+      ],
+      having: sequelize.literal("COUNT(sales_order_id) > 0"),
+      order: [[sequelize.literal("total_quantity"), "DESC"]],
+      limit: 5,
+    });
+
+    return fastMovingItems;
+  } catch (error) {
+    throw new Error("Error calculating fast-moving items: " + error.message);
+  }
 }
 
 exports.getFastMovingItemsAnalytics = async (username, options) => {
-    try {
-        const user = await User.findOne({ 
-            where: { username }
-        });
+  try {
+    const user = await User.findOne({
+      where: { username },
+    });
 
-        if (!user) {
-            throw new SalesError('User not found', 'AUTH_ERROR', 401);
-        }
-
-        // Base query using the correct association
-        const baseQuery = {
-            attributes: [
-                'product_id',
-                [sequelize.fn('SUM', sequelize.col('SalesOrderInventory.quantity')), 'total_quantity'],
-                [sequelize.fn('COUNT', sequelize.fn('DISTINCT', sequelize.col('SalesOrder.sales_order_id'))), 'order_count']
-            ],
-            include: [
-                {
-                    model: Product,  
-                    as: 'Product',  
-                    required: true,
-                    attributes: ['product_name', 'sku_number', 'product_stock']
-                },
-                {
-                    model: SalesOrder,
-                    required: true,
-                    attributes: [],
-                    where: {
-                        organization_id: user.organization_id,
-                        // Add date range filter if needed
-                        order_date_time: {
-                            [Op.gte]: sequelize.literal(`CURRENT_DATE - INTERVAL '${options.timeRange} days'`)
-                        }
-                    }
-                }
-            ],
-            group: [
-                'SalesOrderInventory.product_id',
-                'Product.product_id',
-                'Product.product_name',
-                'Product.sku_number',
-                'Product.product_stock'
-            ],
-            order: [[sequelize.literal('total_quantity'), 'DESC']],
-            limit: options.limit || 5
-        };
-
-        // Execute query with proper error handling
-        const results = await SalesOrderInventory.findAll(baseQuery);
-
-        // Transform results into a cleaner format
-        const transformedResults = results.map(result => ({
-            productId: result.product_id,
-            productName: result.Product.product_name,
-            skuNumber: result.Product.sku_number,
-            totalQuantity: parseInt(result.getDataValue('total_quantity')),
-            orderCount: parseInt(result.getDataValue('order_count')),
-            currentStock: result.Product.product_stock
-        }));
-
-        return {
-            success: true,
-            data: {
-                fastMovingItems: transformedResults,
-                analyzedAt: new Date(),
-                timeRange: options.timeRange
-            }
-        };
-
-    } catch (error) {
-        console.error('Analytics service error:', error);
-        throw error;
+    if (!user) {
+      throw new SalesError("User not found", "AUTH_ERROR", 401);
     }
+
+    // Base query using the correct association
+    const baseQuery = {
+      attributes: [
+        "product_id",
+        [
+          sequelize.fn("SUM", sequelize.col("SalesOrderInventory.quantity")),
+          "total_quantity",
+        ],
+        [
+          sequelize.fn(
+            "COUNT",
+            sequelize.fn("DISTINCT", sequelize.col("SalesOrder.sales_order_id"))
+          ),
+          "order_count",
+        ],
+      ],
+      include: [
+        {
+          model: Product,
+          as: "Product",
+          required: true,
+          attributes: ["product_name", "sku_number", "product_stock"],
+        },
+        {
+          model: SalesOrder,
+          required: true,
+          attributes: [],
+          where: {
+            organization_id: user.organization_id,
+            // Add date range filter if needed
+            order_date_time: {
+              [Op.gte]: sequelize.literal(
+                `CURRENT_DATE - INTERVAL '${options.timeRange} days'`
+              ),
+            },
+          },
+        },
+      ],
+      group: [
+        "SalesOrderInventory.product_id",
+        "Product.product_id",
+        "Product.product_name",
+        "Product.sku_number",
+        "Product.product_stock",
+      ],
+      order: [[sequelize.literal("total_quantity"), "DESC"]],
+      limit: options.limit || 5,
+    };
+
+    // Execute query with proper error handling
+    const results = await SalesOrderInventory.findAll(baseQuery);
+
+    // Transform results into a cleaner format
+    const transformedResults = results.map((result) => ({
+      productId: result.product_id,
+      productName: result.Product.product_name,
+      skuNumber: result.Product.sku_number,
+      totalQuantity: parseInt(result.getDataValue("total_quantity")),
+      orderCount: parseInt(result.getDataValue("order_count")),
+      currentStock: result.Product.product_stock,
+    }));
+
+    return {
+      success: true,
+      data: {
+        fastMovingItems: transformedResults,
+        analyzedAt: new Date(),
+        timeRange: options.timeRange,
+      },
+    };
+  } catch (error) {
+    console.error("Analytics service error:", error);
+    throw error;
+  }
 };
 
 // Helper functions
 function getSortExpression(sortBy) {
-    const expressions = {
-        quantity: 'SUM(quantity)',
-        velocity: 'SUM(quantity)::float / ${timeRange}',
-        turnover: 'SUM(quantity)::float / NULLIF("Product"."product_stock", 0)',
-        value: 'SUM(quantity * price)'
-    };
-    return expressions[sortBy] || expressions.quantity;
+  const expressions = {
+    quantity: "SUM(quantity)",
+    velocity: "SUM(quantity)::float / ${timeRange}",
+    turnover: 'SUM(quantity)::float / NULLIF("Product"."product_stock", 0)',
+    value: "SUM(quantity * price)",
+  };
+  return expressions[sortBy] || expressions.quantity;
 }
 
 async function getPreviousPeriodData(baseQuery, startDate, endDate) {
-    const query = {
-        ...baseQuery,
-        include: [{
-            ...baseQuery.include[0],
-            where: {
-                ...baseQuery.include[0].where,
-                order_date_time: {
-                    [Op.between]: [startDate, endDate]
-                }
-            }
+  const query = {
+    ...baseQuery,
+    include: [
+      {
+        ...baseQuery.include[0],
+        where: {
+          ...baseQuery.include[0].where,
+          order_date_time: {
+            [Op.between]: [startDate, endDate],
+          },
         },
-        baseQuery.include[1]]
-    };
-    return await SalesOrderInventory.findAll(query);
+      },
+      baseQuery.include[1],
+    ],
+  };
+  return await SalesOrderInventory.findAll(query);
 }
 
 async function getCategoryBreakdown(organizationId, startDate, endDate) {
-    return await SalesOrderInventory.findAll({
-        attributes: [
-            [sequelize.col('Product.category'), 'category'],
-            [sequelize.fn('SUM', sequelize.col('quantity')), 'total_quantity'],
-            [sequelize.fn('COUNT', sequelize.fn('DISTINCT', sequelize.col('product_id'))), 'unique_products']
-        ],
-        include: [{
-            model: SalesOrder,
-            where: {
-                order_date_time: { [Op.between]: [startDate, endDate] },
-                organization_id: organizationId
-            },
-            attributes: []
-        }, {
-            model: Product,
-            attributes: []
-        }],
-        group: [sequelize.col('Product.category')]
-    });
+  return await SalesOrderInventory.findAll({
+    attributes: [
+      [sequelize.col("Product.category"), "category"],
+      [sequelize.fn("SUM", sequelize.col("quantity")), "total_quantity"],
+      [
+        sequelize.fn(
+          "COUNT",
+          sequelize.fn("DISTINCT", sequelize.col("product_id"))
+        ),
+        "unique_products",
+      ],
+    ],
+    include: [
+      {
+        model: SalesOrder,
+        where: {
+          order_date_time: { [Op.between]: [startDate, endDate] },
+          organization_id: organizationId,
+        },
+        attributes: [],
+      },
+      {
+        model: Product,
+        attributes: [],
+      },
+    ],
+    group: [sequelize.col("Product.category")],
+  });
 }
 
 async function enrichAnalyticsData(currentData, previousData, timeRange) {
-    const items = currentData.map(item => {
-        const plainItem = item.get({ plain: true });
-        const previousItem = previousData.find(p => p.product_id === item.product_id);
-        
-        // Calculate period-over-period changes
-        const previousQuantity = previousItem?.total_quantity || 0;
-        const quantityChange = ((plainItem.total_quantity - previousQuantity) / previousQuantity) * 100;
-        
-        // Calculate velocity and momentum
-        const velocity = plainItem.total_quantity / timeRange;
-        const previousVelocity = previousQuantity / timeRange;
-        const velocityChange = ((velocity - previousVelocity) / previousVelocity) * 100;
-        
-        // Calculate turnover rate
-        const turnoverRate = plainItem.total_quantity / (plainItem.Product.product_stock || 1);
-        
-        return {
-            ...plainItem,
-            metrics: {
-                quantityChange: parseFloat(quantityChange.toFixed(2)),
-                velocityChange: parseFloat(velocityChange.toFixed(2)),
-                turnoverRate: parseFloat(turnoverRate.toFixed(2)),
-                velocity: parseFloat(velocity.toFixed(2)),
-                reorderPoint: calculateReorderPoint(plainItem, velocity)
-            }
-        };
-    });
+  const items = currentData.map((item) => {
+    const plainItem = item.get({ plain: true });
+    const previousItem = previousData.find(
+      (p) => p.product_id === item.product_id
+    );
 
-    // Calculate overall trends
-    const trends = calculateOverallTrends(items);
+    // Calculate period-over-period changes
+    const previousQuantity = previousItem?.total_quantity || 0;
+    const quantityChange =
+      ((plainItem.total_quantity - previousQuantity) / previousQuantity) * 100;
 
-    return { items, trends };
+    // Calculate velocity and momentum
+    const velocity = plainItem.total_quantity / timeRange;
+    const previousVelocity = previousQuantity / timeRange;
+    const velocityChange =
+      ((velocity - previousVelocity) / previousVelocity) * 100;
+
+    // Calculate turnover rate
+    const turnoverRate =
+      plainItem.total_quantity / (plainItem.Product.product_stock || 1);
+
+    return {
+      ...plainItem,
+      metrics: {
+        quantityChange: parseFloat(quantityChange.toFixed(2)),
+        velocityChange: parseFloat(velocityChange.toFixed(2)),
+        turnoverRate: parseFloat(turnoverRate.toFixed(2)),
+        velocity: parseFloat(velocity.toFixed(2)),
+        reorderPoint: calculateReorderPoint(plainItem, velocity),
+      },
+    };
+  });
+
+  // Calculate overall trends
+  const trends = calculateOverallTrends(items);
+
+  return { items, trends };
 }
 
 function calculateReorderPoint(item, velocity) {
-    const leadTime = 7; // Assumed 7 days lead time
-    const safetyStock = Math.ceil(velocity * 3); // 3 days safety stock
-    return Math.ceil(velocity * leadTime + safetyStock);
+  const leadTime = 7; // Assumed 7 days lead time
+  const safetyStock = Math.ceil(velocity * 3); // 3 days safety stock
+  return Math.ceil(velocity * leadTime + safetyStock);
 }
 
 function calculateOverallTrends(items) {
-    return {
-        averageVelocity: items.reduce((acc, item) => acc + item.metrics.velocity, 0) / items.length,
-        averageTurnover: items.reduce((acc, item) => acc + item.metrics.turnoverRate, 0) / items.length,
-        totalQuantityChange: items.reduce((acc, item) => acc + item.metrics.quantityChange, 0) / items.length
-    };
+  return {
+    averageVelocity:
+      items.reduce((acc, item) => acc + item.metrics.velocity, 0) /
+      items.length,
+    averageTurnover:
+      items.reduce((acc, item) => acc + item.metrics.turnoverRate, 0) /
+      items.length,
+    totalQuantityChange:
+      items.reduce((acc, item) => acc + item.metrics.quantityChange, 0) /
+      items.length,
+  };
 }

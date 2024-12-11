@@ -137,7 +137,7 @@ const PurchaseOrderProducts = ({
       <div className="col-span-2">
         <div className="flex justify-center items-center gap-2">
           <span className="text-center">{item.quantity}</span>
-          {statusId === 3 && (
+          {statusId === 3 && isEditing && (
             <button
               onClick={() => {
                 setSelectedProduct(item);
