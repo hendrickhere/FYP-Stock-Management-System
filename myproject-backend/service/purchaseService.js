@@ -287,7 +287,7 @@ exports.insertAutomatedPurchase = async (purchaseData) => {
 
     // Process each item, handling the BAT- prefix in SKUs
     for (const item of purchaseData.itemsList) {
-      const itemSku = item.uuid.startsWith('BAT-') ? item.uuid : `BAT-${item.uuid}`;
+      const itemSku = item.sku || '';  // Use sku directly, with fallback
       const itemObj = await Product.findOne({
         where: {
           sku_number: itemSku,

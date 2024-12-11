@@ -6,17 +6,30 @@ const initialState = {
   currentOrder: null,
   processingStage: null,
   pendingProducts: [],
-  stockIssues: [],
   validationErrors: [],
-  isProcessing: false
+  isProcessing: false,
+  processedData: null  
 };
 
 function purchaseOrderReducer(state, action) {
   switch (action.type) {
+    case 'SET_STATUS':
+    // Validate status transition
+    if (action.payload === 'delivered' && state.status !== 'pending') {
+      throw new Error('Order must be pending before delivery');
+    }
+    
+    return {
+      ...state,
+      status: action.payload,
+      stockUpdated: action.payload === 'delivered'
+    };
     case 'SET_PROCESSING_STAGE':
       return {
         ...state,
-        processingStage: action.payload
+        processingStage: action.payload.stage,
+        currentStep: action.payload.currentStep,
+        processedData: action.payload.processedData  
       };
     case 'SET_PENDING_PRODUCTS':
       return {

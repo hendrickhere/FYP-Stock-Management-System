@@ -34,6 +34,7 @@ function Sidebar({ scrollDirection, isAtTop }) {
 
   const handleLogout = () => {
     localStorage.removeItem('accessToken');
+    sessionStorage.removeItem('userData');
     navigate('/login');
   };
 

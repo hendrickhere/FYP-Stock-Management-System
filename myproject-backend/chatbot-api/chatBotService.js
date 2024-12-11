@@ -61,17 +61,56 @@ class ChatbotService {
                 throw new Error('Invalid file data');
             }
 
-            // First use base processor to determine document type
-            const baseResult = await this.baseProcessor.processDocument(file);
+            // Use the enhanced document processor
+            const processingResult = await this.baseProcessor.processDocument(file);
             
-            // If it's a purchase order, use the specialized processor
-            if (baseResult.metadata.documentType === 'purchase_order' && this.poProcessor) {
-                return await this.poProcessor.processPurchaseOrder(file);
+            // For purchase orders, enhance with purchase order specific processing
+            if (processingResult.analysisResult.metadata.documentType === 'purchase_order') {
+                return await this.enhancePurchaseOrderAnalysis(processingResult);
             }
 
-            return baseResult;
+            return processingResult;
         } catch (error) {
             console.error('Document processing error:', error);
+            throw error;
+        }
+    }
+
+    async enhancePurchaseOrderAnalysis(processingResult) {
+        try {
+            const { analysisResult } = processingResult;
+            
+            // Enhance the analysis with warranty checks for battery products
+            const enhancedItems = await Promise.all(
+                analysisResult.extractedItems.map(async (item) => {
+                    if (item.productName.toLowerCase().includes('battery')) {
+                        const warrantyAnalysis = await this.analyzeWarrantyRequirements({
+                            category: 'Battery',
+                            manufacturer: item.manufacturer || analysisResult.metadata.vendorName
+                        });
+                        return {
+                            ...item,
+                            warrantyRequirements: warrantyAnalysis
+                        };
+                    }
+                    return item;
+                })
+            );
+
+            // Return enhanced result
+            return {
+                ...processingResult,
+                analysisResult: {
+                    ...analysisResult,
+                    extractedItems: enhancedItems,
+                    enhancedAnalysis: {
+                        hasWarrantyItems: enhancedItems.some(item => item.warrantyRequirements),
+                        requiresVendorVerification: !analysisResult.metadata.vendorName
+                    }
+                }
+            };
+        } catch (error) {
+            console.error('Error enhancing purchase order analysis:', error);
             throw error;
         }
     }
@@ -108,7 +147,10 @@ class ChatbotService {
         
         for (const item of items) {
             const product = await db.Product.findOne({
-                where: { sku_number: item.sku },
+                where: { 
+                    sku_number: item.sku,
+                    status_id: 1  // Only active products
+                },
                 include: [{ 
                     model: db.Warranty,
                     as: 'warranties',
@@ -300,31 +342,28 @@ class ChatbotService {
 
     generatePurchaseOrderResponse(poAnalysis, options = {}) {
         try {
-            // Start with our basic response
             let response = "I've analyzed your purchase order. Here's what I found:\n\n";
 
-            // New products section
+            // Simplified product sections to match new structure
             if (poAnalysis.newProducts.length > 0) {
                 response += "📦 New Products to Add:\n";
                 poAnalysis.newProducts.forEach(product => {
                     response += `• ${product.productName}\n`;
-                    response += `  - Suggested SKU: ${product.suggestedSku}\n`;
-                    response += `  - Category: ${product.category}\n`;
-                    response += `  - Initial Stock: ${product.initialStock} units\n`;
+                    response += `  - SKU: ${product.sku}\n`;
+                    response += `  - Quantity: ${product.quantity} ${product.unit}\n`;
                     response += `  - Unit Price: RM${product.unitPrice.toFixed(2)}\n`;
                 });
                 response += "\n";
             }
 
-            // Existing products section
             if (poAnalysis.existingProducts.length > 0) {
-                response += "🔄 Existing Products to Update:\n";
+                response += "🔄 Existing Products:\n";
                 poAnalysis.existingProducts.forEach(item => {
                     response += `• ${item.product.product_name}\n`;
+                    response += `  - Quantity: ${item.quantity} ${item.product.unit}\n`;
                     if (item.priceChanged) {
-                        response += `  - Price Change: RM${item.product.price} → RM${item.newPrice}\n`;
+                        response += `  - Price Update: RM${item.product.price} → RM${item.newPrice}\n`;
                     }
-                    response += `  - Adding: ${item.quantityToAdd} units\n`;
                 });
                 response += "\n";
             }

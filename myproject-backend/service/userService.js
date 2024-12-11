@@ -132,6 +132,7 @@ exports.getInventoryCount = async (username) => {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
   const [totalCount, todayCount] = await Promise.all([
+
     Product.count({
       where: {
         status_id: 1,
@@ -149,10 +150,12 @@ exports.getInventoryCount = async (username) => {
       }]
     })
   ]);
+  
   return {
     total: totalCount,
     newToday: todayCount
   };}
+
 exports.signup = async (userData) => {
   const { username, email, password, role, created_at } = userData;
 

@@ -104,7 +104,7 @@ const Input = ({ onSend, disabled, onFileUpload }) => {
     onSend(query);
   };
 
-  const handleKeyPress = e => {
+  const handleKeyPress = (e) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
       handleSend(e);
@@ -172,6 +172,7 @@ const Input = ({ onSend, disabled, onFileUpload }) => {
             value={text}
             disabled={disabled}
             placeholder={disabled ? "Bot is offline..." : "Ask about your inventory..."}
+            onKeyDown={handleKeyPress}
             className={`flex-1 px-3 sm:px-4 py-1.5 sm:py-2 text-sm sm:text-base rounded-full 
               focus:outline-none focus:ring-2 focus:ring-purple-500 focus:bg-white
               overflow-x-hidden whitespace-normal break-words resize-none

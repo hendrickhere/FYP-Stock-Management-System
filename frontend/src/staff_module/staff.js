@@ -32,31 +32,48 @@ function Staff() {
     return () => window.removeEventListener('resize', handleResize);
   }, []);
   
-  // If Staff role, show access denied
-  if (userRole == 'Staff') {
-    return (
-      <div className="flex flex-col h-screen w-full">
-        <Header />
-        <div className="flex flex-grow items-center justify-center">
-          <Sidebar scrollDirection={scrollDirection} isAtTop={isAtTop} />
-          <div className="text-center p-8 max-w-md ">
-            <FaLock className="w-16 h-16 mx-auto text-gray-400 mb-4" />
-            <h2 className="text-2xl font-bold text-gray-800 mb-2">Access Restricted</h2>
-            <p className="text-gray-600">
-              You don't have permission to view this page. This section is only accessible to managers.
-            </p>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
   return (
     <div className="flex flex-col h-screen w-full">
       <Header scrollDirection={scrollDirection} isAtTop={isAtTop} /> 
       <div className="flex flex-row flex-grow">
         <Sidebar scrollDirection={scrollDirection} isAtTop={isAtTop} />
-        <MainContent isMobile={isMobile} scrollDirection={scrollDirection} isAtTop={isAtTop} />
+          {userRole === 'Staff' ? (
+            // Restricted Access Content
+            <div className="flex-1 overflow-hidden">
+              <div className="h-full overflow-y-auto">
+                <motion.div 
+                  className="p-6 h-full"
+                  animate={{ 
+                    marginLeft: isMobile ? '0' : (scrollDirection === 'down' && !isAtTop ? '4rem' : '13rem'),
+                  }}
+                  transition={springTransition}
+                >
+                  <div className="flex items-center justify-center h-full">
+                    <motion.div 
+                      className="text-center"
+                      initial={{ opacity: 0, y: 20 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ duration: 0.3 }}
+                    >
+                      <div className="bg-white/50 rounded-lg p-8">
+                        <FaLock className="w-16 h-16 mx-auto text-gray-400 mb-4" />
+                        <h2 className="text-2xl font-bold text-gray-800 mb-2">Access Restricted</h2>
+                        <p className="text-gray-600 max-w-md">
+                          You don't have permission to view this page. This section is only accessible to managers.
+                        </p>
+                      </div>
+                    </motion.div>
+                  </div>
+                </motion.div>
+              </div>
+            </div>
+          ) : (
+            <MainContent 
+              isMobile={isMobile} 
+              scrollDirection={scrollDirection} 
+              isAtTop={isAtTop} 
+            />
+          )}
       </div>
     </div>
   );

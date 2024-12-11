@@ -26,129 +26,181 @@ const BotMessage = ({
   onProcessingCancel
 }) => {
 
+  const validateAnalysisResult = (result) => {
+    if (!result) {
+      return { 
+        isValid: false, 
+        error: 'No analysis result provided' 
+      };
+    }
+
+    // Updated structure validation
+    const requiredStructure = {
+      metadata: ['poNumber', 'poDate', 'vendorName'],
+      items: {
+        existingProducts: ['productId', 'productName', 'sku', 'orderQuantity', 'cost'],
+        newProducts: ['productName', 'suggestedSku', 'orderQuantity', 'cost']
+      },
+      financials: ['subtotal', 'tax', 'shipping', 'total'],
+      status: ['requiresProductCreation', 'canCreatePurchaseOrder']
+    };
+
+    // Validate each section
+    const validateSection = (data, structure) => {
+      if (Array.isArray(structure)) {
+        return structure.every(field => data && data[field] !== undefined);
+      }
+      
+      if (typeof structure === 'object') {
+        return Object.entries(structure).every(([key, value]) => 
+          validateSection(data[key], value)
+        );
+      }
+      
+      return true;
+    };
+
+    if (!validateSection(result, requiredStructure)) {
+      return {
+        isValid: false,
+        error: 'Invalid or incomplete data structure'
+      };
+    }
+
+    return { isValid: true };
+  };
+
   // Function to render the appropriate analysis view based on the data
   const renderAnalysisView = () => {
-    if (!fileAnalysis || !showPreview) return null;
+    // First, add defensive checks
+    if (!fileAnalysis && !analysisResult) {
+      console.log('No analysis data available');
+      return null;
+    }
 
-    // If automation is active and we have analysis results, show processing view
-    if (analysisResult && analysisResult.groupedItems) {
+    if (fileAnalysis?.status?.completed || analysisResult?.status?.completed) {
+      return null;
+    }
+
+    if (analysisResult) {
       return (
         <PurchaseOrderProvider>
           <ChatbotProcessing
             analysisResult={analysisResult}
-            onProcessingComplete={onProcessingComplete}
+            onProcessingComplete={(result) => {
+              // Update the fileAnalysis in the message
+              if (onProcessingComplete) {
+                onProcessingComplete(result);
+              }
+            }}
             onProcessingCancel={onProcessingCancel}
-            onActionClick={onActionClick}
           />
         </PurchaseOrderProvider>
       );
     }
 
-    // Render initial analysis summary if automation hasn't started
-    return (
-      <Card className="mt-4">
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <FileText className="h-5 w-5 text-blue-600" />
-            Purchase Order Analysis
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          {/* Metadata Section */}
-          <div className="space-y-2">
-            <h4 className="font-medium text-gray-900">Document Details</h4>
-            <div className="grid grid-cols-2 gap-4 text-sm">
-              <div>
-                <span className="text-gray-500">PO Date:</span>
-                <span className="ml-2">{fileAnalysis.metadata.poDate}</span>
-              </div>
-              <div>
-                <span className="text-gray-500">Vendor:</span>
-                <span className="ml-2">{fileAnalysis.metadata.vendorName}</span>
-              </div>
+  return (
+    <Card className="mt-4">
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2">
+          <FileText className="h-5 w-5 text-blue-600" />
+          Initial Purchase Order Analysis
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        {/* Simple Document Overview */}
+        <div className="p-4 bg-blue-50 rounded-lg">
+          <div className="flex items-start gap-2">
+            <Package className="h-5 w-5 text-blue-600 mt-1" />
+            <div>
+              <h4 className="font-medium text-blue-900">Document Summary</h4>
+              <p className="text-sm text-blue-700">
+                Purchase Order from {fileAnalysis.metadata.vendorName}
+              </p>
+              <p className="text-sm text-blue-700">
+                Date: {fileAnalysis.metadata.poDate}
+              </p>
             </div>
           </div>
+        </div>
 
-          {/* Items Summary */}
-          <div className="space-y-2">
-            <h4 className="font-medium text-gray-900">Items Summary</h4>
-            <div className="space-y-2">
-              {fileAnalysis.extractedItems.map((item, index) => (
-                <div key={index} className="p-2 bg-gray-50 rounded-md">
-                  <div className="flex justify-between">
-                    <span>{item.productName}</span>
-                    <span className="text-gray-600">
-                      {item.quantity} × RM{item.price.toFixed(2)}
-                    </span>
-                  </div>
-                </div>
-              ))}
-            </div>
+        {/* Quick Stats */}
+        <div className="grid grid-cols-2 gap-4">
+          <div className="p-4 bg-gray-50 rounded-lg">
+            <h4 className="text-sm font-medium text-gray-500">Total Items</h4>
+            <p className="text-2xl font-semibold">
+              {fileAnalysis.extractedItems.length}
+            </p>
           </div>
-
-          {/* Financial Summary */}
-          <div className="space-y-2">
-            <h4 className="font-medium text-gray-900">Financial Summary</h4>
-            <div className="space-y-1">
-              <div className="flex justify-between text-sm">
-                <span className="text-gray-500">Subtotal:</span>
-                <span>RM{fileAnalysis.financials.subtotal.toFixed(2)}</span>
-              </div>
-              <div className="flex justify-between text-sm">
-                <span className="text-gray-500">Tax (6%):</span>
-                <span>RM{fileAnalysis.financials.tax.toFixed(2)}</span>
-              </div>
-              <div className="flex justify-between text-sm">
-                <span className="text-gray-500">Shipping:</span>
-                <span>RM{fileAnalysis.financials.shipping.toFixed(2)}</span>
-              </div>
-              <div className="flex justify-between font-medium mt-2">
-                <span>Total:</span>
-                <span>RM{fileAnalysis.financials.grandTotal.toFixed(2)}</span>
-              </div>
-            </div>
+          <div className="p-4 bg-gray-50 rounded-lg">
+            <h4 className="text-sm font-medium text-gray-500">Total Amount</h4>
+            <p className="text-2xl font-semibold">
+              RM{fileAnalysis.financials.grandTotal.toFixed(2)}
+            </p>
           </div>
+        </div>
 
-          {/* Action Buttons */}
-          {actions?.length > 0 && (
-            <div className="flex justify-end gap-2 mt-4">
-              {actions.map((action, index) => (
-                <Button
-                  key={index}
-                  variant={action.variant || 'default'}
-                  onClick={() => onActionClick?.(action)}
-                  disabled={action.disabled}
-                  className={action.priority === 'high' ? 'bg-blue-600' : ''}
-                >
-                  {action.label}
-                </Button>
-              ))}
-            </div>
-          )}
-        </CardContent>
-      </Card>
-    );
-  };
+        {/* Status Alert */}
+        <Alert
+          variant={fileAnalysis.status.requiresProductCreation ? "warning" : "success"}
+          className="mt-4"
+        >
+          <AlertTitle>
+            {fileAnalysis.status.requiresProductCreation 
+              ? `${fileAnalysis.items.newProducts.length} New Products Detected`
+              : "Ready to Process"
+            }
+          </AlertTitle>
+          <AlertDescription>
+            {fileAnalysis.status.requiresProductCreation 
+              ? "These products need to be added to inventory first."
+              : "All products exist in inventory. Ready to create purchase order."
+            }
+          </AlertDescription>
+        </Alert>
+
+        {/* Action Button */}
+        <div className="flex justify-end gap-2">
+          <Button
+            variant="outline"
+            onClick={onProcessingCancel}
+          >
+            Cancel
+          </Button>
+          <Button
+            onClick={() => onActionClick({
+              type: fileAnalysis.status.requiresProductCreation 
+                ? 'start_product_creation' 
+                : 'start_purchase_order',
+              data: fileAnalysis
+            })}
+          >
+            {fileAnalysis.status.requiresProductCreation 
+              ? "Add New Products" 
+              : "Create Purchase Order"
+            }
+          </Button>
+        </div>
+      </CardContent>
+    </Card>
+  );
+};
 
   return (
-    <div className="flex items-start gap-3">
-      {/* Bot Avatar */}
+    <div className="flex items-start gap-3 max-w-[80%]"> 
       <div className="flex-shrink-0 w-8 h-8 rounded-full bg-purple-100 flex items-center justify-center">
         <Bot className="w-5 h-5 text-purple-600" />
       </div>
 
-      {/* Message Content */}
       <div className="flex-1 space-y-4">
-        {/* Text Message */}
         {text && (
-          <div className={`px-4 py-3 rounded-2xl rounded-tl-none ${
+          <div className={`px-3 py-2 rounded-2xl rounded-tl-none inline-block ${
             isError ? 'bg-red-50 text-red-600' : 'bg-gray-100'
           }`}>
             <div className="text-sm whitespace-pre-wrap">{text}</div>
           </div>
         )}
 
-        {/* Error Alert */}
         {isError && (
           <Alert variant="destructive">
             <AlertCircle className="h-4 w-4" />
@@ -157,7 +209,6 @@ const BotMessage = ({
           </Alert>
         )}
 
-        {/* Analysis View */}
         {renderAnalysisView()}
       </div>
     </div>

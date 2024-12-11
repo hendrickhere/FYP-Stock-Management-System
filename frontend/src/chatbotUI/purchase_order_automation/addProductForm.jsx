@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   Card,
   CardContent, 
@@ -22,28 +22,57 @@ import {
 } from "../../ui/select";
 
 const AddProductsForm = ({ 
-  newProducts, 
+  products, 
   onProductsAdded,
   onCancel 
 }) => {
-  const [products, setProducts] = useState(
-    newProducts.map(product => ({
-      ...product,
-      errors: {},
-      isDirty: false,
-      unit: 'piece',
-      dimensions: '0x0x0',
-      dimensions_unit: 'cm',
-      weight: 0,
-      weight_unit: 'kg',
-      is_expiry_goods: false,
-      status_id: 1,
-      brand: product.manufacturer || ''
-    }))
-  );
+
+  const [productState, setProductState] = useState(() => {
+      if (!Array.isArray(products) || products.length === 0) {
+          return [];
+      }
+      
+      return products.map(product => {
+          console.log('Processing product:', product);
+          const sku = product.suggestedSku || product.sku || '';
+          const quantity = 0;
+          
+          return {
+              product_name: product.productName || '',
+              sku_number: sku,
+              manufacturer: product.manufacturer || '',
+              quantity: quantity,
+              cost: product.cost,
+              price: product.unitPrice || product.price || 0,
+              unit: product.unit || 'piece',
+              brand: product.manufacturer || '',
+              dimensions: '0x0x0',
+              dimensions_unit: 'cm',
+              weight: 0,
+              weight_unit: 'kg',
+              is_expiry_goods: false,
+              status_id: 1,
+              errors: {},
+              isDirty: false
+          };
+      });
+  });
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [globalError, setGlobalError] = useState(null);
+
+  useEffect(() => {
+    console.log('AddProductsForm received products:', {
+      rawProducts: products,
+      productState: productState,
+      mappedFields: products.map(p => ({
+        suggestedSku: p.suggestedSku,
+        sku: p.sku,
+        cost: p.cost,
+        unitPrice: p.unitPrice
+      }))
+    });
+  }, [products, productState]);
 
   const validateProduct = (product) => {
     const errors = {};
@@ -52,34 +81,25 @@ const AddProductsForm = ({
       errors.product_name = 'Product name is required';
     }
     
-    if (!product.sku_number?.trim()) {
-      errors.sku_number = 'SKU is required';
-    } else if (!/^(BAT|PO)-[A-Z0-9]+$/.test(product.sku_number)) {
-      errors.sku_number = 'Invalid SKU format (must be BAT-XXX or PO-XXX)';
-    }
+    const cost = parseFloat(product.cost);
+    const price = parseFloat(product.price);
     
-    if (!product.manufacturer?.trim()) {
-      errors.manufacturer = 'Manufacturer is required';
-    }
-    
-    if (isNaN(product.price) || product.price <= 0) {
+    if (isNaN(price) || price <= 0) {
       errors.price = 'Valid price is required';
     }
     
-    if (isNaN(product.cost) || product.cost <= 0) {
+    if (isNaN(cost) || cost <= 0) {
       errors.cost = 'Valid cost is required';
+    } else if (cost >= price) {
+      errors.cost = 'Cost must be less than price';
     }
     
-    if (isNaN(product.product_stock) || product.product_stock < 0) {
-      errors.product_stock = 'Valid stock quantity is required';
-    }
-
     return errors;
   };
 
   const handleInputChange = (index, field, value) => {
-    setProducts(prevProducts => {
-      const updatedProducts = [...prevProducts];
+    setProductState(prevState => {
+      const updatedProducts = [...prevState];
       updatedProducts[index] = {
         ...updatedProducts[index],
         [field]: value,
@@ -99,7 +119,7 @@ const AddProductsForm = ({
       setGlobalError(null);
 
       // Validate all products
-      const productsWithValidation = products.map(product => ({
+      const productsWithValidation = productState.map(product => ({
         ...product,
         errors: validateProduct(product)
       }));
@@ -110,28 +130,17 @@ const AddProductsForm = ({
       );
 
       if (hasErrors) {
-        setProducts(productsWithValidation);
+        setProductState(productsWithValidation);  
         setGlobalError('Please fix the validation errors before submitting');
         return;
       }
 
       // Format products for API
       const formattedProducts = productsWithValidation.map(product => ({
-        product_name: product.product_name,
-        product_stock: parseInt(product.product_stock),
+        ...product,
         sku_number: product.sku_number,
-        unit: product.unit,
-        brand: product.brand,
-        dimensions: product.dimensions,
-        dimensions_unit: product.dimensions_unit,
-        manufacturer: product.manufacturer,
-        weight: parseFloat(product.weight),
-        weight_unit: product.weight_unit,
-        is_expiry_goods: product.is_expiry_goods,
-        status_id: product.status_id,
-        price: parseFloat(product.price),
-        cost: parseFloat(product.cost),
-        description: product.description || ''
+        product_stock: 0,  // Enforce zero initial stock
+        status_id: 1
       }));
 
       await onProductsAdded(formattedProducts);
@@ -143,6 +152,18 @@ const AddProductsForm = ({
     }
   };
 
+  if (!Array.isArray(products) || products.length === 0) {
+    return (
+      <Alert variant="destructive">
+        <AlertCircle className="h-4 w-4" />
+        <AlertTitle>Error</AlertTitle>
+        <AlertDescription>
+          No products data provided or invalid format.
+        </AlertDescription>
+      </Alert>
+    );
+  }
+
   return (
     <div className="space-y-6">
       {globalError && (
@@ -153,17 +174,18 @@ const AddProductsForm = ({
         </Alert>
       )}
 
-      {products.map((product, index) => (
+      {productState.map((product, index) => (
         <Card key={index} className="relative">
           <CardHeader>
             <CardTitle>New Product #{index + 1}</CardTitle>
             <CardDescription>
-              Enter the details for {product.productName}
+              Enter the details for {product.product_name}
             </CardDescription>
           </CardHeader>
 
           <CardContent className="space-y-4">
             <div className="grid grid-cols-2 gap-4">
+              {/* Product Name */}
               <div className="space-y-2">
                 <label className="text-sm font-medium">Product Name</label>
                 <Input
@@ -178,11 +200,11 @@ const AddProductsForm = ({
 
               <div className="space-y-2">
                 <label className="text-sm font-medium">SKU</label>
-                <Input
-                  value={product.sku_number || product.suggestedSku}
-                  onChange={(e) => handleInputChange(index, 'sku_number', e.target.value)}
-                  className={product.errors?.sku_number ? 'border-red-500' : ''}
-                />
+                  <Input
+                    value={product.sku_number}  
+                    onChange={(e) => handleInputChange(index, 'sku_number', e.target.value)}
+                    className={product.errors?.sku_number ? 'border-red-500' : ''}
+                  />
                 {product.errors?.sku_number && (
                   <p className="text-sm text-red-500">{product.errors.sku_number}</p>
                 )}
@@ -212,7 +234,7 @@ const AddProductsForm = ({
                 <label className="text-sm font-medium">Initial Stock</label>
                 <Input
                   type="number"
-                  value={product.product_stock || product.quantity}
+                  value={0}
                   onChange={(e) => handleInputChange(index, 'product_stock', e.target.value)}
                   className={product.errors?.product_stock ? 'border-red-500' : ''}
                   min="0"
@@ -231,7 +253,7 @@ const AddProductsForm = ({
                   <SelectTrigger>
                     <SelectValue />
                   </SelectTrigger>
-                  <SelectContent>
+                  <SelectContent className="bg-white">
                     <SelectGroup>
                       <SelectLabel>Units</SelectLabel>
                       <SelectItem value="piece">Piece</SelectItem>
@@ -259,14 +281,14 @@ const AddProductsForm = ({
 
               <div className="space-y-2">
                 <label className="text-sm font-medium">Cost (RM)</label>
-                <Input
-                  type="number"
-                  value={product.cost || product.unitPrice * 0.7} // Default 30% margin
-                  onChange={(e) => handleInputChange(index, 'cost', e.target.value)}
-                  className={product.errors?.cost ? 'border-red-500' : ''}
-                  min="0"
-                  step="0.01"
-                />
+                  <Input
+                    type="number"
+                    value={product.cost}
+                    onChange={(e) => handleInputChange(index, 'cost', e.target.value)}
+                    className={product.errors?.cost ? 'border-red-500' : ''}
+                    min="0"
+                    step="0.01"
+                  />
                 {product.errors?.cost && (
                   <p className="text-sm text-red-500">{product.errors.cost}</p>
                 )}

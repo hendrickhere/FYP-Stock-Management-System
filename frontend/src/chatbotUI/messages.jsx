@@ -13,10 +13,25 @@ export default function Messages({
   onProcessingCancel,
   onActionClick 
 }) {
-
   const scrollContainerRef = useRef(null);
   const messagesEndRef = useRef(null);
 
+  // Add data validation and transformation
+  const processMessageForBot = (message) => {
+    // Ensure message has necessary properties with defaults
+    return {
+      text: message.text || '',
+      data: message.data || null,
+      fileAnalysis: message.fileAnalysis || null,
+      analysisResult: message.analysisResult || null,
+      showPreview: message.showPreview || false,
+      actions: message.actions || [],
+      isError: message.isError || false,
+      timestamp: message.timestamp
+    };
+  };
+
+  // Scroll logic remains the same
   const scrollToBottom = () => {
     if (scrollContainerRef.current) {
       const { scrollHeight, clientHeight } = scrollContainerRef.current;
@@ -43,24 +58,38 @@ export default function Messages({
         
         {Array.isArray(messages) && messages.map((message, index) => {
           const key = message.timestamp || `message-${index}`;
+          
+          // Process bot messages
+          if (message.type === 'bot') {
+            const processedMessage = processMessageForBot(message);
+            console.log('Processed bot message:', processedMessage); // For debugging
+
+            return (
+              <div key={key} className="animate-fade-in">
+                <BotMessage
+                  key={index}
+                  text={message.text}
+                  fileAnalysis={message.fileAnalysis}    
+                  analysisResult={message.analysisResult} 
+                  showPreview={message.showPreview}
+                  actions={message.actions}
+                  isError={message.isError}
+                  onProcessingComplete={onProcessingComplete}
+                  onProcessingCancel={onProcessingCancel}
+                />
+              </div>
+            );
+          }
+
           return (
             <div 
               key={key} 
-              className={`animate-fade-in ${message.type === 'user' ? 'flex justify-end' : ''}`}
+              className="flex justify-end animate-fade-in"
             >
-              {message.type === 'bot' ? (
-                <BotMessage 
-                  {...message} 
-                  onProcessingComplete={onProcessingComplete}
-                  onProcessingCancel={onProcessingCancel}
-                  onActionClick={onActionClick}
-                />
-              ) : (
-                <UserMessage 
-                  {...message}
-                  isMobile={isMobile}
-                />
-              )}
+              <UserMessage 
+                {...message}
+                isMobile={isMobile}
+              />
             </div>
           );
         })}
