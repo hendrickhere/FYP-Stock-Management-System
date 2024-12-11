@@ -117,7 +117,6 @@ const StaffTable = ({ staffs, searchConfig, onStaffDeleted }) => {
           description: response.data.message || "Staff member deleted successfully",
         });
         
-        // Make sure onStaffDeleted exists before calling it
         if (typeof onStaffDeleted === 'function') {
           onStaffDeleted();
         } else {
@@ -195,11 +194,23 @@ const StaffTable = ({ staffs, searchConfig, onStaffDeleted }) => {
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: index * 0.1 }}
             >
-              <div>
-                <h3 className="font-medium text-gray-900">{staff.username}</h3>
-                <p className="text-sm text-gray-500">ID: {staff.user_id}</p>
+              {/* Header with Name and Actions */}
+              <div className="flex justify-between items-start">
+                <div>
+                  <h3 className="font-medium text-gray-900">{staff.username}</h3>
+                  <p className="text-sm text-gray-500">ID: {staff.user_id}</p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => handleDeleteClick(staff)}
+                    className="p-2 hover:bg-gray-100 rounded-full transition-colors"
+                  >
+                    <FaTrashAlt className="text-red-500 hover:text-red-700 w-4 h-4" />
+                  </button>
+                </div>
               </div>
               
+              {/* Details Grid */}
               <div className="grid grid-cols-2 gap-3 text-sm">
                 <div>
                   <p className="text-gray-500 text-xs uppercase tracking-wider">Email</p>

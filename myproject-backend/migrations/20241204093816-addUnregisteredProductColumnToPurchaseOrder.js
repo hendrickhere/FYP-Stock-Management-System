@@ -8,7 +8,7 @@ module.exports = {
       "unregistered_quantity",
       {
         type: Sequelize.INTEGER,
-        allowNull: false,
+        allowNull: true,
       }
     );
   },

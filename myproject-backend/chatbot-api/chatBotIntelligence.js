@@ -99,7 +99,7 @@ class ChatbotIntelligence {
         try {
             const analysis = {
                 newProducts: [],
-                existingProducts: [],
+                existingProducts: [], // Simplified from previous structure
                 financialValidation: {},
                 suggestedActions: []
             };
@@ -109,20 +109,12 @@ class ChatbotIntelligence {
                 throw new Error('Invalid purchase order data structure');
             }
 
-            // Process each product
+            // Process each product with more generic pattern matching
             for (const item of data.items) {
-                // Extract model number from product name/description
-                const modelMatch = item.description.match(/Model\s+([A-Z0-9]+)/i);
-                const modelNumber = modelMatch ? modelMatch[1] : null;
-
-                if (!modelNumber) {
-                    throw new Error(`Could not extract model number from item: ${item.description}`);
-                }
-
                 const existingProduct = await db.Product.findOne({
                     where: {
                         [Op.or]: [
-                            { sku_number: `BAT-${modelNumber}` },
+                            { sku_number: item.sku },
                             { product_name: item.description }
                         ]
                     }
@@ -131,29 +123,29 @@ class ChatbotIntelligence {
                 if (!existingProduct) {
                     analysis.newProducts.push({
                         productName: item.description,
-                        suggestedSku: `BAT-${modelNumber}`,
+                        sku: item.sku,
                         unitPrice: item.unitPrice,
-                        category: item.description.includes('Truck') ? 'Truck Battery' : 'Car Battery',
+                        category: item.category || 'General', // More generic category handling
                         manufacturer: data.vendorName,
-                        initialStock: item.quantity,
-                        unit: 'piece',  // Default unit for batteries
-                        status_id: 1    // Default active status
+                        quantity: item.quantity,
+                        unit: item.unit || 'piece',
+                        status_id: 1
                     });
                 } else {
                     analysis.existingProducts.push({
                         product: existingProduct,
                         newPrice: item.unitPrice,
                         priceChanged: existingProduct.price !== item.unitPrice,
-                        quantityToAdd: item.quantity
+                        quantity: item.quantity
                     });
                 }
             }
 
-            // Financial validation logic
+            // Financial validation logic remains the same
             analysis.financialValidation = this.validateFinancials(data);
 
             // Generate actions based on analysis
-            this.generateSuggestedActions(analysis);
+            analysis.suggestedActions = this.determineSuggestedActions(analysis);
 
             return analysis;
 
@@ -451,50 +443,50 @@ class ChatbotIntelligence {
         return response;
     }
 
-  async generateContextualResponse(conversation, message) {
-      // Add timeout control
-      const TIMEOUT_MS = 30000; // 30 seconds
-      
-      const timeoutPromise = new Promise((_, reject) => {
-          setTimeout(() => reject(new Error('Response generation timed out')), TIMEOUT_MS);
-      });
+    async generateContextualResponse(conversation, message) {
+        // Add timeout control
+        const TIMEOUT_MS = 30000; // 30 seconds
+        
+        const timeoutPromise = new Promise((_, reject) => {
+            setTimeout(() => reject(new Error('Response generation timed out')), TIMEOUT_MS);
+        });
 
-      try {
-          const context = this.buildConversationContext(conversation);
-          
-          // Race between API call and timeout
-          const response = await Promise.race([
-              this.openai.chat.completions.create({
-                  model: "gpt-4",
-                  messages: [
-                      {
-                          role: "system",
-                          content: `You are an intelligent stock management assistant handling purchase orders and warranties. 
-                          Current context: ${JSON.stringify(context)}`
-                      },
-                      ...conversation.history.slice(-5),
-                      { role: "user", content: message }
-                  ],
-                  temperature: 0.7,
-                  max_tokens: 500  // Add token limit
-              }),
-              timeoutPromise
-          ]);
+        try {
+            const context = this.buildConversationContext(conversation);
+            
+            // Race between API call and timeout
+            const response = await Promise.race([
+                this.openai.chat.completions.create({
+                    model: "gpt-4",
+                    messages: [
+                        {
+                            role: "system",
+                            content: `You are an intelligent stock management assistant handling purchase orders and warranties. 
+                            Current context: ${JSON.stringify(context)}`
+                        },
+                        ...conversation.history.slice(-5),
+                        { role: "user", content: message }
+                    ],
+                    temperature: 0.7,
+                    max_tokens: 500  // Add token limit
+                }),
+                timeoutPromise
+            ]);
 
-          return {
-              message: response.choices[0].message.content,
-              suggestedActions: this.determineSuggestedActions(context, message)
-          };
-      } catch (error) {
-          if (error.message === 'Response generation timed out') {
-              return {
-                  message: "I apologize, but the request timed out. Please try again or break your request into smaller parts.",
-                  suggestedActions: ['retry']
-              };
-          }
-          throw error;
-      }
-  }
+            return {
+                message: response.choices[0].message.content,
+                suggestedActions: this.determineSuggestedActions(context, message)
+            };
+        } catch (error) {
+            if (error.message === 'Response generation timed out') {
+                return {
+                    message: "I apologize, but the request timed out. Please try again or break your request into smaller parts.",
+                    suggestedActions: ['retry']
+                };
+            }
+            throw error;
+        }
+    }
 
     generatePurchaseOrderResponse(poAnalysis) {
         // Generate AI-enhanced insights
@@ -555,70 +547,70 @@ class ChatbotIntelligence {
         }
     }
 
-  calculateFinancials(extractedItems) {
-        try {
-            const calculations = {
-                subtotal: 0,
-                tax: 0,
-                shipping: 0,
-                total: 0,
-                itemBreakdown: [],
-                warnings: []
-            };
+    calculateFinancials(extractedItems) {
+            try {
+                const calculations = {
+                    subtotal: 0,
+                    tax: 0,
+                    shipping: 0,
+                    total: 0,
+                    itemBreakdown: [],
+                    warnings: []
+                };
 
-            // Process each item
-            extractedItems.forEach(item => {
-                const itemTotal = parseFloat(item.price) * parseInt(item.quantity);
-                
-                // Validate item calculations
-                if (isNaN(itemTotal)) {
-                    calculations.warnings.push({
-                        item: item.productName || 'Unknown item',
-                        message: 'Invalid price or quantity'
+                // Process each item
+                extractedItems.forEach(item => {
+                    const itemTotal = parseFloat(item.price) * parseInt(item.quantity);
+                    
+                    // Validate item calculations
+                    if (isNaN(itemTotal)) {
+                        calculations.warnings.push({
+                            item: item.productName || 'Unknown item',
+                            message: 'Invalid price or quantity'
+                        });
+                        return;
+                    }
+
+                    calculations.itemBreakdown.push({
+                        name: item.productName,
+                        quantity: item.quantity,
+                        price: item.price,
+                        total: itemTotal
                     });
-                    return;
-                }
 
-                calculations.itemBreakdown.push({
-                    name: item.productName,
-                    quantity: item.quantity,
-                    price: item.price,
-                    total: itemTotal
+                    calculations.subtotal += itemTotal;
                 });
 
-                calculations.subtotal += itemTotal;
-            });
+                // Calculate tax (assuming 6% standard rate)
+                calculations.tax = calculations.subtotal * 0.06;
 
-            // Calculate tax (assuming 6% standard rate)
-            calculations.tax = calculations.subtotal * 0.06;
+                // Add standard shipping
+                calculations.shipping = calculations.subtotal > 1000 ? 0 : 500.00;
 
-            // Add standard shipping
-            calculations.shipping = calculations.subtotal > 1000 ? 0 : 500.00;
+                // Calculate final total
+                calculations.total = calculations.subtotal + calculations.tax + calculations.shipping;
 
-            // Calculate final total
-            calculations.total = calculations.subtotal + calculations.tax + calculations.shipping;
+                // Validate final calculations
+                if (isNaN(calculations.total)) {
+                    throw new Error('Invalid total calculation');
+                }
 
-            // Validate final calculations
-            if (isNaN(calculations.total)) {
-                throw new Error('Invalid total calculation');
+                return {
+                    calculations,
+                    isValid: calculations.warnings.length === 0,
+                    warnings: calculations.warnings
+                };
+            } catch (error) {
+                console.error('Financial calculation error:', error);
+                return {
+                    calculations: null,
+                    isValid: false,
+                    warnings: [{
+                        message: 'Failed to calculate financials',
+                        error: error.message
+                    }]
+                };
             }
-
-            return {
-                calculations,
-                isValid: calculations.warnings.length === 0,
-                warnings: calculations.warnings
-            };
-        } catch (error) {
-            console.error('Financial calculation error:', error);
-            return {
-                calculations: null,
-                isValid: false,
-                warnings: [{
-                    message: 'Failed to calculate financials',
-                    error: error.message
-                }]
-            };
-        }
     }
 
     // Private Helper Methods

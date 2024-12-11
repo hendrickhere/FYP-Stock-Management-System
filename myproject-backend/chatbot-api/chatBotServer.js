@@ -90,158 +90,37 @@ const openai = new OpenAI({
     apiKey: process.env.OPENAI_API_KEY
 });
 
-const maxOutputTokens = 1000
-
-// Rate limiting configuration moved to a separate object for better organization
-const rateLimiter = {
-    tokens: 0,
-    lastReset: Date.now(),
-    maxTokens: 30000,
-    resetInterval: 60000,
-    maxRequestSize: 15000,
-    
-    // Method to check and update rate limit
-    async checkLimit(requiredTokens) {
-        const now = Date.now();
-        if (now - this.lastReset >= this.resetInterval) {
-            this.tokens = 0;
-            this.lastReset = now;
-        }
-        
-        if (this.tokens + requiredTokens > this.maxTokens) {
-            const waitTime = Math.ceil((this.resetInterval - (now - this.lastReset)) / 1000);
-            throw new Error(`Rate limit exceeded. Please wait ${waitTime} seconds.`);
-        }
-        
-        this.tokens += requiredTokens;
-    }
-};
-
-// Token estimation function
-function estimateTokens(text, images = []) {
-    // Rough estimation: 1 token ≈ 4 characters for text
-    const textTokens = Math.ceil(text.length / 4);
-    // Image tokens estimation (if any)
-    const imageTokens = images.length * 1000; // Rough estimate per image
-    return textTokens + imageTokens;
-}
-
 function generateAnalysisMessage(analysisResult) {
-    const { metadata, groupedItems, financials } = analysisResult;
+    const { metadata, items, financials } = analysisResult;
+    
     let message = `I've analyzed your purchase order from ${metadata.vendorName}.\n\n`;
     
-    // Start with a positive summary of what was found
-    const totalItems = Object.values(groupedItems)
-        .reduce((sum, group) => sum + group.length, 0);
-    message += `📦 Found ${totalItems} items in the purchase order.\n\n`;
-
-    // First mention products that are ready to process (if any)
-    if (groupedItems.readyToProcess.length > 0) {
-        message += `✅ ${groupedItems.readyToProcess.length} items are ready to process\n`;
-    }
-
-    // Mention new products as an action item, not an error
-    if (groupedItems.newProducts.length > 0) {
-        message += `📝 ${groupedItems.newProducts.length} new products need to be added to inventory:\n`;
-        groupedItems.newProducts.forEach(product => {
-            message += `   • ${product.productName}\n`;
+    // First check if all products exist in our system
+    if (items.newProducts.length > 0) {
+        message += `⚠️ Before recording this purchase order, ${items.newProducts.length} products need to be added to our inventory system first:\n`;
+        items.newProducts.forEach(product => {
+            message += `   • ${product.productName} (will be recorded with quantity: ${product.orderQuantity})\n`;
         });
-        message += "\n";
+        message += "\nPlease add these products to the inventory system before proceeding.\n\n";
+    } else {
+        message += `✅ All products are registered in the inventory system. We can create the purchase order immediately.\n\n`;
     }
 
-    // Mention stock issues if any
-    if (groupedItems.insufficientStock.length > 0) {
-        message += `⚠️ ${groupedItems.insufficientStock.length} items need stock adjustment:\n`;
-        groupedItems.insufficientStock.forEach(product => {
-            message += `   • ${product.productName} (Current: ${product.currentStock}, Needed: ${product.quantity})\n`;
-        });
-        message += "\n";
-    }
+    // Show all products from the purchase order document
+    message += `📦 Purchase Order Details:\n`;
+    items.existingProducts.forEach(product => {
+        message += `   • ${product.productName}: ${product.orderQuantity} units\n`;
+    });
+    message += "\n";
 
-    // Add financial summary
-    message += "💰 Financial Summary:\n";
-    message += `• Subtotal: RM${financials.subtotal.toFixed(2)}\n`;
-    message += `• Tax (6%): RM${financials.tax.toFixed(2)}\n`;
-    message += `• Shipping: RM${financials.shipping.toFixed(2)}\n`;
-    message += `• Total: RM${financials.grandTotal.toFixed(2)}\n\n`;
-
-    // Add next steps based on what was found
-    message += "📋 Next Steps:\n";
-    if (groupedItems.newProducts.length > 0) {
-        message += "1. Add the new products to inventory\n";
-    }
-    if (groupedItems.insufficientStock.length > 0) {
-        message += `${groupedItems.newProducts.length > 0 ? '2' : '1'}. Update stock levels for insufficient items\n`;
-    }
-    message += `${groupedItems.readyToProcess.length > 0 ? 'Then proceed with processing the order' : 'Once completed, we can process the order'}`;
+    // Financial summary
+    message += "💰 Order Summary:\n";
+    message += `• Subtotal: RM${financials.subtotal}\n`;
+    message += `• Tax (6%): RM${financials.tax}\n`;
+    message += `• Shipping: RM${financials.shipping}\n`;
+    message += `• Total: RM${financials.total}\n`;
 
     return message;
-}
-
-async function validateExtractedData(data, models) {
-    const warnings = [];
-    const { Product, Vendor } = models;
-
-    // Validate vendor
-    if (data.vendor) {
-        const vendor = await Vendor.findOne({ 
-            where: { 
-                vendor_name: { [Op.iLike]: `%${data.vendor.name}%` }
-            }
-        });
-        if (!vendor) {
-            warnings.push({
-                field: 'vendor',
-                message: 'Vendor not found in database'
-            });
-        }
-    }
-
-    // Validate items
-    if (data.items) {
-        for (const item of data.items) {
-            const product = await Product.findOne({
-                where: {
-                    [Op.or]: [
-                        { sku_number: item.sku },
-                        { product_name: { [Op.iLike]: `%${item.name}%` }}
-                    ]
-                }
-            });
-
-            if (!product) {
-                warnings.push({
-                    field: 'item',
-                    item: item.name,
-                    message: 'Product not found in database'
-                });
-            }
-        }
-    }
-
-    // Validate required fields based on document type
-    const requiredFields = {
-        purchase_order: ['vendor', 'items', 'metadata.date'],
-        invoice: ['vendor', 'items', 'metadata.date'],
-        delivery_note: ['vendor', 'items']
-    };
-
-    if (data.documentType in requiredFields) {
-        for (const field of requiredFields[data.documentType]) {
-            if (!getNestedValue(data, field)) {
-                warnings.push({
-                    field,
-                    message: 'Required field missing'
-                });
-            }
-        }
-    }
-
-    return {
-        hasWarnings: warnings.length > 0,
-        warnings,
-        suggestedActions: generateSuggestedActions(warnings)
-    };
 }
 
 async function getContextData(message, username) {
@@ -260,206 +139,164 @@ async function getContextData(message, username) {
     return contextData;
 }
 
-// Helper to extract actions from AI response
-function extractActions(response) {
-    const actions = [];
-    
-    if (response.toLowerCase().includes('upload')) {
-        actions.push('upload');
-    }
-    if (response.toLowerCase().includes('confirm')) {
-        actions.push('confirm');
-    }
-    // Add more action detection as needed
-
-    return actions;
-}
-
-// Helper function for inventory insights
-async function getInventoryInsights(username) {
-  try {
-    const allInventory = await userService.getAllInventory(username);
-    
-    const insights = {
-      lowStockItems: [],
-      expiringItems: [],
-      totalValue: 0,
-      productCount: allInventory.length,
-      categories: {},
-      recentMovement: []
-    };
-    
-    allInventory.forEach(item => {
-      // Track low stock
-      if (item.product_stock < 10) {
-        insights.lowStockItems.push({
-          name: item.product_name,
-          sku: item.sku_number,
-          stock: item.product_stock,
-          reorderPoint: 10 
-        });
-      }
-      
-      // Track expiring items
-      if (item.is_expiry_goods && item.expiry_date) {
-        const daysUntilExpiry = Math.ceil((new Date(item.expiry_date) - new Date()) / (1000 * 60 * 60 * 24));
-        if (daysUntilExpiry <= 30) {
-          insights.expiringItems.push({
-            name: item.product_name,
-            sku: item.sku_number,
-            expiryDate: item.expiry_date,
-            daysRemaining: daysUntilExpiry
-          });
-        }
-      }
-      
-      // Calculate total value
-      insights.totalValue += item.price * item.product_stock;
-      
-      // Group by manufacturer
-      if (!insights.categories[item.manufacturer]) {
-        insights.categories[item.manufacturer] = {
-          count: 0,
-          totalValue: 0
-        };
-      }
-      insights.categories[item.manufacturer].count++;
-      insights.categories[item.manufacturer].totalValue += item.price * item.product_stock;
-    });
-
-    return insights;
-  } catch (error) {
-    console.error('Error getting inventory insights:', error);
-    throw error;
-  }
-}
-
 // File processing endpoint
 router.post('/process-file', authMiddleware, upload.single('file'), async (req, res) => {
     try {
         if (!req.file) {
-            return res.status(400).json({ error: 'No file uploaded' });
+            return res.status(400).json({ 
+                success: false, 
+                error: 'No file uploaded' 
+            });
         }
 
-        // Get username from auth middleware
-        const username = req.user.username;
-
-        // Process the document using the document processor
+        // Process the document
         const processingResult = await documentProcessor.processDocument(req.file);
         
-        // Ensure we have items to process
-        if (!processingResult.extractedItems?.length) {
-            throw new Error('No valid items extracted from document');
+        // Validate the processing result
+        if (!processingResult?.success || !processingResult?.analysisResult) {
+            throw new Error('Document processing failed to return valid results');
         }
 
-        // Classify the extracted items using userService
-        const groupedItems = await classifyItems(processingResult.extractedItems, username);
-        
-        const analysisResult = {
-            metadata: processingResult.metadata,
-            groupedItems,
-            financials: processingResult.financials,
-            warnings: [],
-            suggestedActions: []
+        // Generate response using the analysis result directly
+        const response = {
+            success: true,
+            analysisResult: processingResult.analysisResult,  // Pass the entire analysis result
+            message: generateAnalysisMessage(processingResult.analysisResult),  // Pass just the analysis result part
+            nextSteps: determineNextSteps(processingResult.analysisResult.items),
+            suggestedActions: generateSuggestedActions(processingResult.analysisResult.items)
         };
 
-        // Add warnings based on classification results
-        if (groupedItems.newProducts.length > 0) {
-            analysisResult.warnings.push({
-                type: 'new_products',
-                message: `${groupedItems.newProducts.length} new products need to be added`,
-                items: groupedItems.newProducts
-            });
-        }
-
-        if (groupedItems.insufficientStock.length > 0) {
-            analysisResult.warnings.push({
-                type: 'insufficient_stock',
-                message: `${groupedItems.insufficientStock.length} products have insufficient stock`,
-                items: groupedItems.insufficientStock
-            });
-        }
-
-        res.json({
-            success: true,
-            analysisResult,
-            message: generateAnalysisMessage(analysisResult),
-            nextSteps: determineNextSteps(groupedItems),
-            suggestedActions: generateSuggestedActions(groupedItems, analysisResult.warnings)
-        });
+        res.json(response);
 
     } catch (error) {
         console.error('File processing error:', error);
         res.status(500).json({
             success: false,
             error: error.message,
+            code: error.code || 'PROCESSING_ERROR',
             explanation: generateErrorExplanation(error)
         });
     }
 });
 
 async function classifyItems(items, username) {
+    // First, add defensive validation
+    if (!items) {
+        console.warn('Items parameter is undefined or null');
+        return {
+            newProducts: [],
+            existingProducts: []  
+        };
+    }
+
+    // Ensure items is an array
     if (!Array.isArray(items)) {
         console.warn('Invalid items input:', items);
         return {
             newProducts: [],
-            insufficientStock: [],
-            readyToProcess: []
+            existingProducts: []  
         };
     }
 
     try {
+        // The items should already be classified by DocumentProcessor
+        // Just need to format them properly for the response
         const groupedItems = {
-            newProducts: [],      // Products that need to be added to inventory
-            insufficientStock: [], // Products with insufficient stock
-            readyToProcess: []    // Products ready for processing
+            newProducts: items.filter(item => !item.productId),
+            existingProducts: items.filter(item => item.productId)
         };
 
-        for (const item of items) {
-            try {
-                const existingProduct = await userService.findProductBySku(item.sku);
-                
-                if (!existingProduct) {
-                    console.log(`Product with SKU ${item.sku} not found - will need to be added`);
-                    groupedItems.newProducts.push({
-                        ...item,
-                        suggestedSku: item.sku,
-                        manufacturer: item.productType.includes('Truck') ? 'Truck Battery Co.' : 'Car Battery Co.',
-                        category: `${item.productType} Battery`,
-                        initialStock: item.quantity
-                    });
-                    continue;
-                }
-
-                // Check stock levels
-                if (existingProduct.product_stock < item.quantity) {
-                    console.log(`Insufficient stock for SKU ${item.sku}`);
-                    groupedItems.insufficientStock.push({
-                        ...item,
-                        currentStock: existingProduct.product_stock,
-                        shortageAmount: item.quantity - existingProduct.product_stock,
-                        productId: existingProduct.product_id
-                    });
-                    continue;
-                }
-
-                // Product exists and has sufficient stock
-                groupedItems.readyToProcess.push({
-                    ...item,
-                    productId: existingProduct.product_id,
-                    currentStock: existingProduct.product_stock
-                });
-
-            } catch (error) {
-                console.error(`Error processing item ${item.sku}:`, error);
-            }
-        }
+        // Add any additional business logic here
+        // For example, checking stock levels
+        groupedItems.existingProducts = groupedItems.existingProducts.map(item => {
+            const hasEnoughStock = item.currentStock >= item.quantity;
+            return {
+                ...item,
+                stockStatus: hasEnoughStock ? 'sufficient' : 'insufficient',
+                stockDifference: hasEnoughStock ? 0 : item.quantity - item.currentStock
+            };
+        });
 
         return groupedItems;
 
     } catch (error) {
         console.error('Error in classifyItems:', error);
         throw new Error('System error while classifying items: ' + error.message);
+    }
+}
+
+async function createPurchaseOrder(orderData, groupedItems) {
+    // Start transaction
+    const transaction = await db.sequelize.transaction();
+    
+    try {
+        const purchaseOrder = await db.PurchaseOrder.create({
+            vendor_id: orderData.vendorId,
+            order_date: new Date(),
+            total_amount: orderData.totalAmount,
+            status_id: 1, // Initial status
+            payment_terms: orderData.paymentTerms,
+            delivery_method: orderData.deliveryMethod,
+            user_id: orderData.userId,
+            subtotal: orderData.subtotal,
+            total_tax: orderData.totalTax,
+            grand_total: orderData.grandTotal
+        }, { transaction });
+
+        // Create PO items for both new and existing products
+        const poItems = [...groupedItems.newProducts, ...groupedItems.existingProducts]
+            .map(item => ({
+                purchase_order_id: purchaseOrder.purchase_order_id,
+                product_id: item.productId || null,  // Will be null for new products
+                quantity: item.quantity,
+                unregistered_quantity: item.quantity, // All items start as unregistered
+                total_price: item.price * item.quantity,
+                tax: item.tax || 0,
+                discount: item.discount || 0
+            }));
+
+        await db.PurchaseOrderItem.bulkCreate(poItems, { transaction });
+        
+        await transaction.commit();
+        return purchaseOrder;
+    } catch (error) {
+        await transaction.rollback();
+        throw error;
+    }
+}
+
+async function processPurchaseOrder(orderData, groupedItems, username) {
+    const transaction = await db.sequelize.transaction();
+    
+    try {
+        // First add any new products to inventory
+        if (groupedItems.newProducts.length > 0) {
+            const newProducts = await db.Product.bulkCreate(
+                groupedItems.newProducts.map(product => ({
+                    ...product,
+                    product_stock: 0, // Initial stock is 0
+                    user_id: username,
+                    status_id: 1 // Active status
+                })),
+                { transaction }
+            );
+            
+            // Update groupedItems with new product IDs
+            groupedItems.existingProducts.push(...newProducts.map(p => ({
+                ...p.toJSON(),
+                quantity: groupedItems.newProducts.find(np => np.sku === p.sku_number).quantity
+            })));
+        }
+
+        // Create purchase order
+        const purchaseOrder = await createPurchaseOrder(orderData, groupedItems, transaction);
+
+        await transaction.commit();
+        return purchaseOrder;
+
+    } catch (error) {
+        await transaction.rollback();
+        throw error;
     }
 }
 
@@ -497,44 +334,28 @@ router.post('/chat', authMiddleware, async (req, res) => {
     }
 });
 
-function generateProcessingResponse(analysisResult) {
-  const { metadata, groupedItems, financials, warnings } = analysisResult;
-  
-  let message = `I've analyzed your purchase order from ${metadata.vendorName} dated ${metadata.poDate}.\n\n`;
-  
-  // Add financial summary
-  message += "💰 Financial Summary:\n";
-  message += `• Subtotal: RM${financials.subtotal.toFixed(2)}\n`;
-  message += `• Tax (6%): RM${financials.tax.toFixed(2)}\n`;
-  message += `• Shipping: RM${financials.shipping.toFixed(2)}\n`;
-  message += `• Total: RM${financials.grandTotal.toFixed(2)}\n\n`;
-  
-  // Add item summary
-  const totalItems = Object.values(groupedItems).reduce((sum, group) => sum + group.length, 0);
-  message += `📦 Found ${totalItems} items in total:\n`;
-  
-  if (groupedItems.readyToProcess.length > 0) {
-    message += `• ${groupedItems.readyToProcess.length} items ready for processing\n`;
-  }
-  if (groupedItems.newProducts.length > 0) {
-    message += `• ${groupedItems.newProducts.length} new products to be added\n`;
-  }
-  if (groupedItems.insufficientStock.length > 0) {
-    message += `• ${groupedItems.insufficientStock.length} items with insufficient stock\n`;
-  }
+// Process purchase order endpoint
+router.post('/process-order', authMiddleware, async (req, res) => {
+    try {
+        const { orderData, groupedItems } = req.body;
+        const username = req.user.username;
 
-  // Determine next steps
-  const nextSteps = determineNextSteps(groupedItems);
-  
-  // Generate suggested actions
-  const suggestedActions = generateSuggestedActions(groupedItems, warnings);
+        const purchaseOrder = await processPurchaseOrder(orderData, groupedItems, username);
 
-  return {
-    message,
-    nextSteps,
-    suggestedActions
-  };
-}
+        res.json({
+            success: true,
+            purchaseOrder,
+            message: 'Purchase order created successfully'
+        });
+
+    } catch (error) {
+        console.error('Purchase order processing error:', error);
+        res.status(500).json({
+            success: false,
+            error: error.message
+        });
+    }
+});
 
 // Determine next steps based on analysis
 function determineNextSteps(groupedItems) {
@@ -543,26 +364,16 @@ function determineNextSteps(groupedItems) {
     if (groupedItems.newProducts.length > 0) {
         steps.push({
             type: 'add_products',
-            description: 'Add new products to inventory',
+            description: 'Add new products to inventory system',
             items: groupedItems.newProducts
         });
     }
     
-    if (groupedItems.insufficientStock.length > 0) {
-        steps.push({
-            type: 'review_stock',
-            description: 'Review and update stock levels',
-            items: groupedItems.insufficientStock
-        });
-    }
-    
-    if (groupedItems.readyToProcess.length > 0) {
-        steps.push({
-            type: 'process_order',
-            description: 'Process purchase order',
-            items: groupedItems.readyToProcess
-        });
-    }
+    steps.push({
+        type: 'review_order',
+        description: 'Review purchase order details',
+        items: [...groupedItems.newProducts, ...groupedItems.existingProducts]
+    });
     
     return steps;
 }
@@ -579,19 +390,18 @@ function generateSuggestedActions(groupedItems, warnings) {
         });
     }
     
-    if (groupedItems.insufficientStock.length > 0) {
-        actions.push({
-            type: 'update_stock',
-            label: 'Update Stock Levels',
-            priority: 'high'
-        });
-    }
-    
-    // Always add review action
+    // Replace stock update action with review action
     actions.push({
-        type: 'review',
-        label: 'Review Details',
-        priority: 'normal'
+        type: 'review_order',
+        label: 'Review Purchase Order',
+        priority: groupedItems.newProducts.length > 0 ? 'normal' : 'high'
+    });
+
+    actions.push({
+        type: 'confirm_order',
+        label: 'Confirm Purchase Order',
+        priority: 'normal',
+        disabled: groupedItems.newProducts.length > 0 // Disable until new products are added
     });
     
     return actions;
@@ -630,17 +440,5 @@ router.use((err, req, res, next) => {
         type: err.type || 'server_error'
     });
 });
-
-async function getMinimalContext(message, username) {
-    const contextData = {};
-    const queryType = message.toLowerCase();
-    
-    if (queryType.includes('stock') || queryType.includes('inventory')) {
-        const inventory = await userService.getAllInventory(username);
-        contextData.inventory = inventory.slice(0, 10); // Limit to 10 items
-    }
-    
-    return contextData;
-}
 
 module.exports = router;

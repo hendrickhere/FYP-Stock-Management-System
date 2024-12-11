@@ -52,7 +52,7 @@ function ChatbotUI() {
   );
 }
 
-function Chatbot({ isMobile }) {
+function Chatbot({ isMobile, onProcessingComplete = () => {} }) {
   const [messages, setMessages] = useState(() => {
     try {
       const savedMessages = sessionStorage.getItem(SESSION_MESSAGES_KEY);
@@ -81,6 +81,152 @@ function Chatbot({ isMobile }) {
           stage: null
       }
   });
+
+const [processingError, setProcessingError] = useState(null);
+
+const handleProcessingError = (error) => {
+    setProcessingError(error);
+    // Don't automatically cancel
+    setMessages(prev => [...prev, {
+        type: 'bot',
+        text: 'An error occurred while processing the purchase order. Would you like to try again?',
+        actions: [
+            { label: 'Try Again', action: 'retry' },
+            { label: 'Start Over', action: 'cancel' }
+        ],
+        isError: true,
+        timestamp: new Date().toISOString()
+    }]);
+};
+
+const handleActionClick = (action) => {
+  if (action === 'retry') {
+    setProcessingError(null);
+    
+    // Instead of calling handleProcessOrder directly, we should handle based on current state
+    const currentStep = automationState.currentStep;
+    
+    switch (currentStep) {
+      case 'reviewing_products':
+        handleAddProducts(automationState.processedData.groupedItems.newProducts);
+        break;
+        
+      case 'final_review':
+        handleConfirmOrder(); // We'll define this function
+        break;
+        
+      default:
+        handleProcessingCancel();
+    }
+  } else if (action === 'cancel') {
+    setProcessingError(null);
+    handleProcessingCancel();
+  }
+};
+
+const handleConfirmOrder = async () => {
+    try {
+        setStatus(prev => ({ ...prev, isProcessing: true }));
+        
+        // Get username from localStorage
+        const username = localStorage.getItem('username')?.trim();
+        if (!username) {
+            throw new Error('User not authenticated');
+        }
+
+        // First, validate that we have the required data
+        if (!automationState.processedData) {
+            throw new Error('No purchase order data available');
+        }
+
+        // Extract the required data from automationState
+        const { items, financials } = automationState.processedData;
+        
+        // Validate the data structure
+        if (!items?.existingProducts || !financials?.total) {
+            throw new Error('Invalid purchase order data structure');
+        }
+
+        // Format the data for the backend
+        const purchaseOrderData = {
+            username: username,
+            orderDate: new Date().toISOString(),
+            deliveryMethod: "Standard Shipping",
+            paymentTerms: "Net 30",
+            // Safely access financial data with fallback
+            totalAmount: financials.total || 0,
+            // Map the items with proper type conversion
+            itemsList: items.existingProducts.map(item => ({
+                sku: item.sku,
+                quantity: Number(item.quantity) || 0,
+                price: Number(item.price) || 0
+            }))
+        };
+
+        // Log the data being sent for debugging
+        console.log('Sending purchase order data:', purchaseOrderData);
+
+        // Make the API call with the correct endpoint
+        const response = await axiosInstance.post(
+            `/purchases/automated/${username}`, 
+            purchaseOrderData
+        );
+
+        // Verify the response structure
+        if (!response.data || !response.data.purchaseOrderId) {
+            throw new Error('Invalid response from server');
+        }
+
+        // Show success message
+        toast({
+            title: 'Success',
+            description: `Purchase order #${response.data.purchaseOrderId} has been created successfully!`,
+            duration: 5000
+        });
+
+        // Update the automation state
+        setAutomationState(prev => ({
+            ...prev,
+            state: AUTOMATION_STATES.COMPLETED,
+            currentStep: null,
+            processedData: response.data
+        }));
+
+        // Notify parent component of completion
+        if (onProcessingComplete) {
+            onProcessingComplete(response.data);
+        }
+
+    } catch (error) {
+        console.error('Purchase order processing error:', error);
+        
+        // Show error message to user
+        toast({
+            title: 'Error Creating Purchase Order',
+            description: error.message || 'An unexpected error occurred',
+            variant: 'destructive',
+            duration: 5000
+        });
+        
+        // Update error state
+        handleProcessingError(error);
+        
+    } finally {
+        setStatus(prev => ({ ...prev, isProcessing: false }));
+    }
+};
+
+  const handleProcessingMessage = (message) => {
+      // Prevent duplicate messages
+      setMessages(prev => {
+          const isDuplicate = prev.some(m => 
+              m.timestamp === message.timestamp && 
+              m.text === message.text
+          );
+          if (isDuplicate) return prev;
+          return [...prev, message];
+      });
+  };
 
   const [automationProgress, setAutomationProgress] = useState({
     totalSteps: 0,
@@ -192,18 +338,6 @@ Would you like to start by uploading your purchase order document?`,
     });
   };
 
-  const handleProcessingError = (error, context) => {
-    const errorMessage = {
-      type: 'bot',
-      text: generateErrorMessage(error, context),
-      isError: true,
-      actions: determineRecoveryActions(error, context),
-      timestamp: new Date().toISOString()
-    };
-
-    setMessages(prev => [...prev, errorMessage]);
-  };
-
   const generateErrorMessage = (error, context) => {
     switch (error.code) {
       case 'PRODUCT_VALIDATION_ERROR':
@@ -213,6 +347,108 @@ Would you like to start by uploading your purchase order document?`,
       default:
         return `An error occurred while ${context}: ${error.message}`;
     }
+  };
+
+const handleProcessingComplete = (result) => {
+    if (!result?.purchaseOrder?.purchase_order_id) return;
+    
+    // Update messages to mark the analysis as completed
+    setMessages(prev => prev.map(msg => {
+      if (msg.fileAnalysis && msg.analysisResult) {
+        return {
+          ...msg,
+          fileAnalysis: {
+            ...msg.fileAnalysis,
+            status: { ...msg.fileAnalysis.status, completed: true }
+          },
+          analysisResult: {
+            ...msg.analysisResult,
+            status: { ...msg.analysisResult.status, completed: true }
+          }
+        };
+      }
+      return msg;
+    }));
+
+    // Add success message
+    const successMessage = {
+      type: 'bot',
+      text: `Purchase order #${result.purchaseOrder.purchase_order_id} created successfully. Need anything else?`,
+      timestamp: new Date().toISOString()
+    };
+
+    setMessages(prev => [...prev, successMessage]);
+  };
+
+  const validateAnalysisResult = (result) => {
+  if (!result) {
+    return { 
+      isValid: false, 
+      error: 'No analysis result provided' 
+    };
+  }
+
+  // Define the expected structure based on our backend response
+  const requiredFields = {
+      metadata: {
+        poNumber: 'string',
+        poDate: 'string',
+        vendorName: 'string',
+        paymentTerms: 'string',
+        deliveryMethod: 'string'
+      },
+      items: {
+        existingProducts: ['productId', 'productName', 'sku', 'orderQuantity', 'cost'],
+        newProducts: ['productName', 'suggestedSku', 'orderQuantity', 'cost']
+      },
+      financials: ['subtotal', 'tax', 'shipping', 'total'],
+      status: ['requiresProductCreation', 'canCreatePurchaseOrder']
+    };
+
+    // Validate metadata
+    if (!result.metadata || typeof result.metadata !== 'object') {
+      return {
+        isValid: false,
+        error: 'Missing or invalid metadata'
+      };
+    }
+
+    // Validate items structure
+    if (!result.items || typeof result.items !== 'object') {
+      return {
+        isValid: false,
+        error: 'Missing or invalid items structure'
+      };
+    }
+
+    // Check existingProducts and newProducts arrays
+    if (!Array.isArray(result.items.existingProducts) || !Array.isArray(result.items.newProducts)) {
+      return {
+        isValid: false,
+        error: 'Invalid products arrays structure'
+      };
+    }
+
+    // Validate financials
+    if (!result.financials || typeof result.financials !== 'object') {
+      return {
+        isValid: false,
+        error: 'Missing or invalid financials'
+      };
+    }
+
+    // Validate status flags
+    if (!result.status || typeof result.status !== 'object') {
+      return {
+        isValid: false,
+        error: 'Missing or invalid status flags'
+      };
+    }
+
+    // If all validations pass
+    return {
+      isValid: true
+    };
   };
 
   const isRecoverableError = (error) => {
@@ -229,11 +465,19 @@ Would you like to start by uploading your purchase order document?`,
   const messageEndRef = useRef(null);
 
   useEffect(() => {
+    let isSubscribed = true;
+
     try {
-      sessionStorage.setItem(SESSION_MESSAGES_KEY, JSON.stringify(messages));
+      if (isSubscribed) {
+        sessionStorage.setItem(SESSION_MESSAGES_KEY, JSON.stringify(messages));
+      }
     } catch (error) {
       console.error('Error saving messages:', error);
     }
+
+    return () => {
+      isSubscribed = false;
+    };
   }, [messages]);
 
   const handleRegularFileUpload = async (file) => {
@@ -364,41 +608,37 @@ Would you like to start by uploading your purchase order document?`,
       const formData = new FormData();
       formData.append('file', file);
 
-      // Send file to backend for processing
       const response = await axiosInstance.post("/chatbot/process-file", formData, {
-        headers: {
-          'Content-Type': 'multipart/form-data'
-        }
+        headers: { 'Content-Type': 'multipart/form-data' }
       });
 
-      // Get analysis result from response
-      const { analysisResult, message } = response.data;
+      if (!response.data.success) {
+        throw new Error(response.data.error || 'Failed to process file');
+      }
 
-      // Add the initial analysis message
-      setMessages(prev => [...prev, {
+      // Add validation before creating the message
+      const validationResult = validateAnalysisResult(response.data.analysisResult);
+      if (!validationResult.isValid) {
+        throw new Error(validationResult.error);
+      }
+
+      // Structure the bot message with all required data
+      const botMessage = {
         type: 'bot',
-        text: message,
-        fileAnalysis: analysisResult,
-        analysisResult: analysisResult, // Add this to trigger automation
+        text: response.data.message,
+        fileAnalysis: response.data.analysisResult,
+        analysisResult: response.data.analysisResult,
         showPreview: true,
-        actions: determineAvailableActions(analysisResult),
+        actions: response.data.suggestedActions,
         timestamp: new Date().toISOString()
-      }]);
+      };
 
-      // Set automation state based on analysis
-      setAutomationState({
-        state: AUTOMATION_STATES.ANALYZING,
-        currentStep: getInitialStep(analysisResult),
-        processedData: analysisResult,
-        isActive: true,
-        error: null
-      });
-
+      setMessages(prev => [...prev, botMessage]);
+      
       updateAutomationProgress('documentAnalysis', 'completed');
-      return analysisResult;
+      return response.data.analysisResult;
 
     } catch (error) {
-      console.error('Purchase order processing error:', error);
       handleProcessingError(error);
     } finally {
       setStatus(prev => ({ ...prev, isProcessingFile: false }));
@@ -431,44 +671,17 @@ Would you like to start by uploading your purchase order document?`,
       return validTransitions[currentState]?.includes(nextState) ?? false;
   };
 
-
-  const handleProcessingComplete = (result) => {
-    // Update automation state
-    setAutomationState({
-      state: AUTOMATION_STATES.COMPLETED,
-      currentStep: null,
-      processedData: result,
-      isActive: false,
-      error: null
-    });
-
-    // Add success message
-    setMessages(prev => [...prev, {
-      type: 'bot',
-      text: `Purchase order #${result.purchaseOrderId} has been created successfully. Is there anything else I can help you with?`,
-      timestamp: new Date().toISOString()
-    }]);
-
-    toast({
-      title: 'Success',
-      description: `Purchase order #${result.purchaseOrderId} has been created successfully.`
-    });
-  };
-
   const handleProcessingCancel = () => {
-    setAutomationState({
-      state: AUTOMATION_STATES.IDLE,
-      currentStep: null,
-      processedData: null,
-      isActive: false,
-      error: null
+    setAutomationState(prev => {
+      if (prev.state === AUTOMATION_STATES.IDLE) return prev;
+      return {
+        state: AUTOMATION_STATES.IDLE,
+        currentStep: null,
+        processedData: null,
+        isActive: false,
+        error: null
+      };
     });
-
-    setMessages(prev => [...prev, {
-      type: 'bot',
-      text: 'Purchase order processing has been cancelled. Is there anything else I can help you with?',
-      timestamp: new Date().toISOString()
-    }]);
   };
 
   // Helper function to create analysis message
@@ -657,54 +870,6 @@ Would you like to start by uploading your purchase order document?`,
       data: automationState.data,
       timestamp: new Date().toISOString()
     }]);
-  };
-
-  const handleConfirmOrder = async () => {
-    setStatus(prev => ({ ...prev, isProcessing: true }));
-    
-    try {
-      const response = await axiosInstance.post('/purchase/create', {
-        ...automationState.data,
-        status: 'confirmed'
-      });
-
-      setMessages(prev => [...prev, {
-        type: 'bot',
-        text: `Purchase order has been successfully created!
-        
-  Order Details:
-  • PO Number: ${response.data.poNumber}
-  • Total Amount: RM${response.data.totalAmount.toFixed(2)}
-  • Total Items: ${response.data.items.length}
-
-  What would you like to do next?`,
-        actions: [
-          {
-            label: "View Order Details",
-            action: "view_order",
-            variant: "default"
-          },
-          {
-            label: "Create New Order",
-            action: "new_order",
-            variant: "outline"
-          }
-        ],
-        timestamp: new Date().toISOString()
-      }]);
-
-      setAutomationState({
-        isActive: false,
-        step: null,
-        data: null
-      });
-
-    } catch (error) {
-      console.error('Error confirming order:', error);
-      handleProcessingError(error);
-    } finally {
-      setStatus(prev => ({ ...prev, isProcessing: false }));
-    }
   };
 
   const handleEditOrder = () => {
@@ -1038,8 +1203,9 @@ const handleNextStep = async (action) => {
             isTyping={status.isTyping || status.isProcessingFile}
             isMobile={isMobile}
             automationState={automationState}
-            onProcessingComplete={handleProcessingComplete}
+            onProcessingComplete={handleProcessingComplete}  
             onProcessingCancel={handleProcessingCancel}
+            onMessage={handleProcessingMessage}
             onActionClick={(action) => {
               if (action.handler) {
                 action.handler();

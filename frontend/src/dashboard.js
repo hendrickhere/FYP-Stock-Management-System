@@ -241,9 +241,9 @@ const MainContent = ({ userRole }) => {
             </div>
 
             {/* Sales Order Table - Full width */}
-            <div className="lg:col-span-3">
+            {/* <div className="lg:col-span-3">
               <SalesOrderTable />
-            </div>
+            </div> */}
           </div>
         </div>
       </div>
