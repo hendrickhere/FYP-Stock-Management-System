@@ -49,10 +49,10 @@ function WarrantyMain() {
 
 function MainContent({ isMobile, scrollDirection, isAtTop }) {
     const { username } = useContext(GlobalContext);
-    const navigate = useNavigate();
     const [warranties, setWarranties] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState(null);
+    const navigate = useNavigate();
   
     const navigateToAddWarranty = () => {
       navigate("add_warranty");
