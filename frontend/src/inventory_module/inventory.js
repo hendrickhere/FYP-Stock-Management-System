@@ -56,47 +56,53 @@ function MainContent({ isMobile }) {
   const { scrollDirection, isAtTop } = useScrollDirection();
   const [isTopButtonsVisible, setIsTopButtonsVisible] = useState(true);
   const topButtonsRef = useRef(null);
-  const [searchConfig, setSearchConfig] = useState({ term: '', activeFilters: [] });
+  const [searchConfig, setSearchConfig] = useState({
+    term: "",
+    activeFilters: [],
+  });
 
   const [selectedProduct, setSelectedProduct] = useState(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isEditMode, setIsEditMode] = useState(false);
 
   const filterInventory = useCallback((inventory, searchConfig) => {
-    if (!searchConfig?.term || !inventory?.inventories) return inventory?.inventories;
-    
+    if (!searchConfig?.term || !inventory?.inventories)
+      return inventory?.inventories;
+
     const searchTerm = searchConfig.term.toLowerCase().trim();
     const activeFilters = searchConfig.activeFilters || [];
 
-    return inventory.inventories.filter(product => {
+    return inventory.inventories.filter((product) => {
       const safeCheck = (value) => {
         if (value === null || value === undefined) return false;
         return value.toString().toLowerCase().includes(searchTerm);
       };
 
-      return activeFilters.some(filter => {
+      return activeFilters.some((filter) => {
         switch (filter) {
-          case 'productName':
+          case "productName":
             return safeCheck(product.product_name);
-          case 'skuNumber':
+          case "skuNumber":
             return safeCheck(product.sku_number);
-          case 'brand':
+          case "brand":
             return safeCheck(product.brand);
-          case 'manufacturer':
+          case "manufacturer":
             return safeCheck(product.manufacturer);
-          case 'price':
+          case "price":
             return safeCheck(product.price);
-          case 'stock':
+          case "stock":
             return safeCheck(product.product_stock);
-          case 'expiryDate':
-            return product.is_expiry_goods && 
-                  product.expiry_date && 
-                  safeCheck(new Date(product.expiry_date).toLocaleDateString());
-          case 'dimensions':
+          case "expiryDate":
+            return (
+              product.is_expiry_goods &&
+              product.expiry_date &&
+              safeCheck(new Date(product.expiry_date).toLocaleDateString())
+            );
+          case "dimensions":
             return safeCheck(product.dimensions);
-          case 'weight':
+          case "weight":
             return safeCheck(product.weight);
-          case 'unit':
+          case "unit":
             return safeCheck(product.unit);
           default:
             return false;
@@ -105,10 +111,13 @@ function MainContent({ isMobile }) {
     });
   }, []);
 
-  const filteredData = useMemo(() => ({
-  ...data,
-  inventories: data?.inventories ? filterInventory(data, searchConfig) : []
-  }), [data, searchConfig, filterInventory]);
+  const filteredData = useMemo(
+    () => ({
+      ...data,
+      inventories: data?.inventories ? filterInventory(data, searchConfig) : [],
+    }),
+    [data, searchConfig, filterInventory]
+  );
 
   const handleProductSelect = (product, isEdit = false) => {
     setSelectedProduct(product);
@@ -117,11 +126,13 @@ function MainContent({ isMobile }) {
   };
 
   const handleProductUpdate = (updatedProduct) => {
-    setData(prevData => ({
+    setData((prevData) => ({
       ...prevData,
-      inventories: prevData.inventories.map(product => 
-        product.product_uuid === updatedProduct.product_uuid ? updatedProduct : product
-      )
+      inventories: prevData.inventories.map((product) =>
+        product.product_uuid === updatedProduct.product_uuid
+          ? updatedProduct
+          : product
+      ),
     }));
   };
 
@@ -136,29 +147,28 @@ function MainContent({ isMobile }) {
   }
 
   async function deleteInventory(productUUID) {
-
     try {
       await axiosInstance.put(
         `http://localhost:3002/api/user/${username}/${productUUID}/delete`
       );
       // Update local state to remove the deleted item
-      setData(prevData => ({
+      setData((prevData) => ({
         ...prevData,
-        inventories: prevData.inventories.filter(item => 
-          item.product_uuid !== productUUID
-        )
+        inventories: prevData.inventories.filter(
+          (item) => item.product_uuid !== productUUID
+        ),
       }));
       toast({
         description: "Product deleted successfully",
       });
     } catch (error) {
-      console.error('Delete error:', error);
+      console.error("Delete error:", error);
       toast({
         description: "Failed to delete product",
         variant: "destructive",
       });
     }
-}
+  }
 
   useEffect(() => {
     fetchInventories();
@@ -171,7 +181,7 @@ function MainContent({ isMobile }) {
       },
       {
         root: null,
-        threshold: 0.1
+        threshold: 0.1,
       }
     );
 
@@ -187,48 +197,56 @@ function MainContent({ isMobile }) {
   }, []);
 
   function handleEditData(index) {
-    navigate('/inventory/add_inventory', {
+    navigate("/inventory/add_inventory", {
       state: {
         inventoryuuid: data.inventories[index].product_uuid,
-        isAdd: false
-      }
+        isAdd: false,
+      },
     });
   }
 
   function handleDeleteData(productUUID) {
     deleteInventory(productUUID);
   }
-  
-  function handleFilterChange(event){
+
+  function handleFilterChange(event) {
     setFilter(() => event.target.value);
   }
 
   function navigateToAddProductPage() {
-    navigate('/inventory/add_inventory', {
+    navigate("/inventory/add_inventory", {
       state: {
         inventoryuuid: "",
-        isAdd: true
-      }
+        isAdd: true,
+      },
     });
   }
 
   return (
     <main className="flex-1">
-      <div className={`scroll-container h-[calc(100vh-4rem)] overflow-y-auto ${isMobile ? 'w-full' : ''}`}>
-        <motion.div 
+      <div
+        className={`scroll-container h-[calc(100vh-4rem)] overflow-y-auto ${
+          isMobile ? "w-full" : ""
+        }`}
+      >
+        <motion.div
           className="p-6"
-          animate={{ 
-            marginLeft: isMobile ? '0' : (scrollDirection === 'down' && !isAtTop ? '4rem' : '13rem'),
-            marginTop: scrollDirection === 'down' && !isAtTop ? '0' : '0'
+          animate={{
+            marginLeft: isMobile
+              ? "0"
+              : scrollDirection === "down" && !isAtTop
+              ? "4rem"
+              : "13rem",
+            marginTop: scrollDirection === "down" && !isAtTop ? "0" : "0",
           }}
           transition={springTransition}
         >
           {/* Title and Search Section */}
-          <motion.div 
+          <motion.div
             className="mb-6"
-            animate={{ 
-              opacity: scrollDirection === 'down' && !isAtTop ? 0 : 1,
-              y: scrollDirection === 'down' && !isAtTop ? -20 : 0
+            animate={{
+              opacity: scrollDirection === "down" && !isAtTop ? 0 : 1,
+              y: scrollDirection === "down" && !isAtTop ? -20 : 0,
             }}
             transition={springTransition}
           >
@@ -242,7 +260,7 @@ function MainContent({ isMobile }) {
                     skuNumber: true,
                     brand: true,
                     stock: true,
-                    price: true
+                    price: true,
                   }}
                 />
               </div>
@@ -250,24 +268,24 @@ function MainContent({ isMobile }) {
           </motion.div>
 
           {/* Buttons Section */}
-          <motion.div 
+          <motion.div
             ref={topButtonsRef}
             className="flex flex-row gap-4 mb-6"
-            animate={{ 
-              opacity: scrollDirection === 'down' && !isAtTop ? 0 : 1,
-              y: scrollDirection === 'down' && !isAtTop ? -20 : 0
+            animate={{
+              opacity: scrollDirection === "down" && !isAtTop ? 0 : 1,
+              y: scrollDirection === "down" && !isAtTop ? -20 : 0,
             }}
             transition={springTransition}
           >
-          <Button
-            variant="default"
-            className="flex items-center space-x-2 px-4 py-2 bg-white text-green-700 font-medium rounded-lg shadow hover:bg-green-600 hover:text-white focus:outline-none focus:ring-2 focus:ring-green-400 focus:ring-opacity-75"
-            onClick={navigateToAddProductPage}
-          >
-            <Plus className="w-4 h-4 mr-2" />
-            Add Product
-          </Button>
-            
+            <Button
+              variant="default"
+              className="flex items-center space-x-2 px-4 py-2 bg-white text-green-700 font-medium rounded-lg shadow hover:bg-green-600 hover:text-white focus:outline-none focus:ring-2 focus:ring-green-400 focus:ring-opacity-75"
+              onClick={navigateToAddProductPage}
+            >
+              <Plus className="w-4 h-4 mr-2" />
+              Add Product
+            </Button>
+
             <button className="inline-flex items-center justify-center px-4 py-2 bg-white font-medium rounded-lg shadow">
               <CiExport className="w-5 h-5 mr-2" />
               Export
@@ -275,31 +293,25 @@ function MainContent({ isMobile }) {
           </motion.div>
 
           {/* Content Area */}
-          <motion.div 
+          <motion.div
             className="bg-white rounded-lg shadow-sm relative"
-            animate={{ 
-              width: isMobile 
-                ? '100%'
-                : (scrollDirection === 'down' && !isAtTop 
-                  ? 'calc(100vw - 8rem)'
-                  : '100%'),
-              x: 0
+            animate={{
+              width: isMobile
+                ? "100%"
+                : scrollDirection === "down" && !isAtTop
+                ? "calc(100vw - 8rem)"
+                : "100%",
+              x: 0,
             }}
             transition={springTransition}
           >
-            <motion.div 
-              className="p-4"
-              layout
-            >
+            <motion.div className="p-4" layout>
               {loading ? (
                 <div className="flex justify-center items-center py-8">
                   <p>Loading...</p>
                 </div>
               ) : (
-                <motion.div 
-                  className="grid-container"
-                  layout
-                >
+                <motion.div className="grid-container" layout>
                   <InventoryLayout
                     products={filteredData}
                     handleDeleteData={handleDeleteData}
@@ -315,11 +327,13 @@ function MainContent({ isMobile }) {
                         setSelectedProduct(null);
                       }}
                       product={selectedProduct}
-                      index={data?.inventories?.findIndex(p => p.product_uuid === selectedProduct.product_uuid)}
+                      index={data?.inventories?.findIndex(
+                        (p) => p.product_uuid === selectedProduct.product_uuid
+                      )}
                       handleEditData={handleEditData}
                       handleDeleteData={handleDeleteData}
-                      username={username}  
-                      onProductUpdate={handleProductUpdate}  
+                      username={username}
+                      onProductUpdate={handleProductUpdate}
                     />
                   )}
                 </motion.div>
@@ -330,7 +344,7 @@ function MainContent({ isMobile }) {
       </div>
 
       {/* Floating Action Button */}
-      {(!isTopButtonsVisible && !isAtTop) && (
+      {!isTopButtonsVisible && !isAtTop && (
         <motion.button
           initial={{ scale: 0, opacity: 0 }}
           animate={{ scale: 1, opacity: 1 }}
@@ -346,7 +360,12 @@ function MainContent({ isMobile }) {
             viewBox="0 0 24 24"
             xmlns="http://www.w3.org/2000/svg"
           >
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4v16m8-8H4" />
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth="2"
+              d="M12 4v16m8-8H4"
+            />
           </svg>
         </motion.button>
       )}

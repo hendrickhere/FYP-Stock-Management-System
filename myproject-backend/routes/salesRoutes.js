@@ -29,4 +29,5 @@ router.post('/taxAndDiscount', SalesController.validateSalesOrderRequest, SalesC
 router.get('/products', SalesController.getAvailableProducts);
 router.get('/analytics/fast-moving', SalesController.getFastMovingItems);
 
+
 module.exports = router;

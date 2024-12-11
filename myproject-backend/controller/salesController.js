@@ -8,12 +8,32 @@ exports.getAllSalesOrders = async (req, res) => {
         const username = req.params.username;
         const pageNumber = req.query.pageNumber; 
         const pageSize = req.query.pageSize; 
-
+        let searchConfig = null;
+        if (req.query.searchConfig) {
+            try {
+                searchConfig = JSON.parse(req.query.searchConfig);
+                
+                if (searchConfig && typeof searchConfig === 'object') {
+                    if (!('term' in searchConfig) || typeof searchConfig.term !== 'string') {
+                        searchConfig.term = '';
+                    }
+                    if (!Array.isArray(searchConfig.activeFilters)) {
+                        searchConfig.activeFilters = [];
+                    }
+                }
+            } catch (parseError) {
+                console.error('Error parsing searchConfig:', parseError);
+                return res.status(400).json({ 
+                    message: 'Invalid searchConfig format',
+                    error: parseError.message 
+                });
+            }
+        }
         if (!username) {
             return res.status(400).json({ message: 'Username is required' });
         }
 
-        const salesOrders = await SalesService.getAllSalesOrders(username, pageSize, pageNumber);
+        const salesOrders = await SalesService.getAllSalesOrders(username, pageSize, pageNumber, searchConfig);
         
         if (!salesOrders) {
             return res.status(404).json({ message: 'No sales orders found' });
@@ -22,7 +42,7 @@ exports.getAllSalesOrders = async (req, res) => {
         res.status(200).json( salesOrders ); 
     } catch (err) {
         console.error('Error in getAllSalesOrders:', err);
-        res.status(500).json({ message: err.message }); // Changed from 404 to 500 for server errors
+        res.status(500).json({ message: err.message });
     }
 };
 

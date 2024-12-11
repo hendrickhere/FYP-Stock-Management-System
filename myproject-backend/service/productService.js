@@ -265,3 +265,80 @@ exports.addExistingUnit = async (serialNumbers, productId) => {
       throw new DatabaseOperationException("Failed to add existing units", err);
   }
 };
+
+exports.getProductUnitsWithProductId = async (productId, pageNumber, pageSize, searchTerm) => {
+  const offset = (pageNumber - 1) * pageSize;
+  const itemObj = await getInventoryByUUID(productId);
+  if(!itemObj){
+    throw ProductNotFoundException(productId);
+  }
+  let whereClause = {
+    product_id: itemObj.product_id,
+  };
+  
+  if (searchTerm) {
+    whereClause = {
+      ...whereClause,
+      [Op.or]: {
+        serial_number: {
+          [Op.iLike]: `%${searchTerm}%`,
+        },
+      },
+    };
+  }
+  
+  const { count, rows: productUnits } = await ProductUnit.findAndCountAll({
+    distinct: true,
+    where: whereClause,
+    attributes: [
+      "serial_number",
+      "product_id",
+      "created_at",
+      "updated_at",
+      "source_type",
+      "date_of_purchase",
+      "date_of_sale",
+    ],
+    include: [{
+      model: WarrantyUnit,
+      attributes: [
+        "warranty_unit_id",
+        "warranty_start",
+        "warranty_end",
+        "status",
+        "notification_sent"
+      ],
+      required: false, 
+      include: [{
+        model: Warranty,
+        attributes: [
+          "warranty_type",
+          "description",
+          "terms",
+          "duration"
+        ]
+      }]
+    }],
+    limit: pageSize,
+    offset: offset,
+    order: [["created_at", "DESC"]],
+  }); 
+  
+  const totalPages = Math.ceil(count / pageSize);
+  const hasNextPage = pageNumber < totalPages;
+  const hasPreviousPage = pageNumber > 1;
+
+  const result = {
+    productUnits: productUnits,
+    pagination: {
+      totalItems: count,
+      totalPages,
+      currentPage: parseInt(pageNumber),
+      pageSize: parseInt(pageSize),
+      hasNextPage,
+      hasPreviousPage
+    }
+  };
+  
+  return result;
+};

@@ -59,49 +59,8 @@ const MainContent = ({ isMobile, scrollDirection, isAtTop }) => {
   const [hasNextPage, setHasNextPage] = useState(true);
   const [hasPreviousPage, setHasPreviousPage] = useState(false);
 
-  const filterSalesOrders = (orders, searchConfig) => {
-    if (!searchConfig?.term || !orders) return orders;
-    
-    const searchTerm = searchConfig.term.toLowerCase().trim();
-    const activeFilters = searchConfig.activeFilters || [];
-    
-    return orders.filter(order => {
-      // Helper function to safely check nested properties
-      const safeCheck = (value) => {
-        if (value === null || value === undefined) return false;
-        return value.toString().toLowerCase().includes(searchTerm);
-      };
+  const filteredData = React.useMemo(() => data, [data]);
 
-      // Check each applicable filter
-      return activeFilters.some(filter => {
-        switch (filter) {
-          case 'orderId':
-            return safeCheck(order.sales_order_uuid);
-          case 'customerName':
-            return safeCheck(order.Customer?.customer_name);
-          case 'orderDate':
-            return safeCheck(order.order_date_time);
-          case 'shipmentDate':
-            return safeCheck(order.expected_shipment_date);
-          case 'totalPrice':
-            return safeCheck(order.total_price);
-          case 'deliveryMethod':
-            return safeCheck(order.delivery_method);
-          case 'paymentTerms':
-            return safeCheck(order.payment_terms);
-          case 'status':
-            return safeCheck(order.status_id);
-          default:
-            return false;
-        }
-      });
-    });
-  };
-
-  const filteredData = React.useMemo(() => ({
-    ...data,
-    salesOrders: data?.salesOrders ? filterSalesOrders(data.salesOrders, searchConfig) : []
-  }), [data, searchConfig]);
   const [pageNumber, setPageNumber] = useState(1); 
   const [pageSize, setPageSize] = useState(10);
 
@@ -170,14 +129,21 @@ const MainContent = ({ isMobile, scrollDirection, isAtTop }) => {
   }
 
   useEffect(() => {
-    fetchSalesOrder(pageNumber, pageSize);
-  }, [render]);
+    fetchSalesOrder(pageNumber, pageSize, searchConfig);
+  }, [pageNumber, pageSize, searchConfig, render]);
 
-  async function fetchSalesOrder(pageNumber, pageSize) {
+  async function fetchSalesOrder(pageNumber, pageSize, searchConfig) {
     try {
       setLoading(true);
-      const encodedUsername = encodeURIComponent(username);
-      const response = await axiosInstance.get(`http://localhost:3002/api/sales/${username}/salesOrders?pageNumber=${pageNumber}&pageSize=${pageSize}`);
+      const params = new URLSearchParams({
+        pageNumber: pageNumber,
+        pageSize: pageSize,
+        searchConfig: JSON.stringify(searchConfig) // Include search configuration
+      });
+      
+      const response = await axiosInstance.get(
+        `http://localhost:3002/api/sales/${username}/salesOrders?${params}`
+      );
       
       if (response.data && Array.isArray(response.data.salesOrders)) {
         setData(response.data);
@@ -200,6 +166,8 @@ const MainContent = ({ isMobile, scrollDirection, isAtTop }) => {
     }
   }
 
+  
+
   return (
     <div className="flex-1 overflow-hidden h-screen pb-12"> 
       <div className="h-full overflow-y-auto">
@@ -215,16 +183,16 @@ const MainContent = ({ isMobile, scrollDirection, isAtTop }) => {
             <div className="flex flex-col lg:flex-row lg:items-center gap-4">
               <h1 className="text-2xl font-bold">Sales Orders</h1>
                 <div className="lg:ml-20 flex-1">
-                  <SalesOrderSearch
-                    onFilterChange={setSearchConfig}
-                    initialFilters={{
-                      orderId: true,
-                      customerName: true,
-                      orderDate: true,
-                      shipmentDate: true,
-                      totalPrice: true
-                    }}
-                  />
+                <SalesOrderSearch
+                  onFilterChange={setSearchConfig}
+                  initialFilters={{
+                    orderId: true,
+                    customerName: true,
+                    orderDate: true,
+                    shipmentDate: true,
+                    totalPrice: true
+                  }}
+                />
                 </div>
             </div>
           </div>
@@ -249,7 +217,7 @@ const MainContent = ({ isMobile, scrollDirection, isAtTop }) => {
             ) : (
             data && (
               <SalesTable 
-                salesOrders={filteredData} 
+                salesOrders={data} 
                 selectedOrders={selectedOrders}
                 onSelectionChange={setSelectedOrders}
                 handleDeleteData={handleDeleteData}

@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
+import { useNavigate } from 'react-router-dom';
 import { Card, CardContent } from '../ui/card';
 import { 
   Select,
@@ -14,7 +15,8 @@ import {
   Pencil, 
   Trash2,
   ArrowUpDown,
-  AlertCircle
+  AlertCircle,
+  Box
 } from 'lucide-react';
 import { useToast } from "../ui/use-toast";
 import { 
@@ -137,7 +139,7 @@ const ProductCard = ({ product, onAction, onClick, isFeatured, onUpdate }) => {
 
 // Standard Card Component 
 const StandardCard = ({ product, onAction }) => {
-
+  const navigate = useNavigate();
   const getDisplayImage = (product) => {
     try {
       if (!product?.images) {
@@ -174,13 +176,13 @@ const StandardCard = ({ product, onAction }) => {
         <div className="relative">
           <div className="h-40 w-full">
             {imageUrl ? (
-              <img 
+              <img
                 src={imageUrl}
                 alt={product.product_name}
                 className="w-full h-full object-cover rounded-t-lg"
                 onError={(e) => {
                   e.target.onerror = null; // Prevent infinite loop
-                  e.target.src = '/placeholder-image.jpg';
+                  e.target.src = "/placeholder-image.jpg";
                 }}
               />
             ) : (
@@ -198,31 +200,48 @@ const StandardCard = ({ product, onAction }) => {
           </div>
         </div>
         <div className="p-3">
-          <h3 className="font-medium text-sm mb-1 line-clamp-1">{product.product_name}</h3>
+          <h3 className="font-medium text-sm mb-1 line-clamp-1">
+            {product.product_name}
+          </h3>
           <div className="flex justify-between items-center mb-1">
             <span className="text-base font-bold">RM {product.price}</span>
-            <span className={`text-xs ${
-              product.product_stock <= 10 ? 'text-red-600' : 'text-green-600'
-            }`}>
+            <span
+              className={`text-xs ${
+                product.product_stock <= 10 ? "text-red-600" : "text-green-600"
+              }`}
+            >
               {product.product_stock} in stock
             </span>
           </div>
-          <div className="text-xs text-gray-500 mb-2">SKU: {product.sku_number}</div>
+          <div className="text-xs text-gray-500 mb-2">
+            SKU: {product.sku_number}
+          </div>
           <div className="flex justify-end gap-1">
-            <button 
+            <button
               onClick={(e) => {
                 e.stopPropagation();
-                onAction('edit');
-              }} 
+                navigate(`/inventory/${product.product_uuid}/product-units`);
+              }}
+              className="p-1.5 hover:bg-gray-100 rounded"
+              title="View Product Units"
+            >
+              <Box className="w-3.5 h-3.5 text-blue-500" />{" "}
+              {/* Using Box icon from lucide-react */}
+            </button>
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                onAction("edit");
+              }}
               className="p-1.5 hover:bg-gray-100 rounded"
             >
               <Pencil className="w-3.5 h-3.5" />
             </button>
-            <button 
+            <button
               onClick={(e) => {
                 e.stopPropagation();
-                onAction('delete', e); 
-              }} 
+                onAction("delete", e);
+              }}
               className="p-1.5 hover:bg-gray-100 rounded"
             >
               <Trash2 className="w-3.5 h-3.5 text-red-500" />
@@ -237,21 +256,26 @@ const StandardCard = ({ product, onAction }) => {
 // Featured Card Component (More Compact)
 const FeaturedCard = ({ product, onAction }) => {
   const imageUrl = getImageUrl(product);
-
+  const navigate = useNavigate();
   return (
     <Card className="hover:shadow-xl transition-shadow duration-200">
       <CardContent className="p-0">
         <div className="relative">
           <div className="h-48 w-full">
             {imageUrl ? (
-              <img 
+              <img
                 src={imageUrl}
                 alt={product.product_name}
                 className="w-full h-full object-cover rounded-t-lg"
                 onError={(e) => {
-                  console.error('Image failed to load:', typeof imageUrl === 'string' ? imageUrl.substring(0, 100) + '...' : imageUrl);
+                  console.error(
+                    "Image failed to load:",
+                    typeof imageUrl === "string"
+                      ? imageUrl.substring(0, 100) + "..."
+                      : imageUrl
+                  );
                   e.target.onerror = null; // Prevent infinite loop
-                  e.target.src = '/placeholder-image.jpg';
+                  e.target.src = "/placeholder-image.jpg";
                 }}
               />
             ) : (
@@ -282,9 +306,13 @@ const FeaturedCard = ({ product, onAction }) => {
             </div>
             <div className="text-right">
               <span className="text-xs text-gray-500">Stock Level</span>
-              <div className={`text-sm font-bold ${
-                product.product_stock <= 10 ? 'text-red-600' : 'text-green-600'
-              }`}>
+              <div
+                className={`text-sm font-bold ${
+                  product.product_stock <= 10
+                    ? "text-red-600"
+                    : "text-green-600"
+                }`}
+              >
                 {product.product_stock} units
               </div>
             </div>
@@ -296,24 +324,34 @@ const FeaturedCard = ({ product, onAction }) => {
             </div>
             <div>
               <span className="text-gray-500">Brand</span>
-              <div className="font-medium">{product.brand || 'N/A'}</div>
+              <div className="font-medium">{product.brand || "N/A"}</div>
             </div>
           </div>
           <div className="flex justify-end gap-2">
-            <button 
+            <button
               onClick={(e) => {
                 e.stopPropagation();
-                onAction('edit');
+                navigate(`/product-units/${product.product_uuid}`);
+              }}
+              className="px-2 py-1 bg-blue-50 text-blue-600 hover:bg-blue-100 rounded inline-flex items-center gap-1"
+            >
+              <Box className="w-3.5 h-3.5" />
+              Units
+            </button>
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                onAction("edit");
               }}
               className="px-2 py-1 bg-gray-100 hover:bg-gray-200 rounded inline-flex items-center gap-1"
             >
               <Pencil className="w-3.5 h-3.5" />
               Edit
             </button>
-            <button 
+            <button
               onClick={(e) => {
                 e.stopPropagation();
-                onAction('delete', e); 
+                onAction("delete", e);
               }}
               className="px-2 py-1 bg-red-50 text-red-600 hover:bg-red-100 rounded inline-flex items-center gap-1"
             >

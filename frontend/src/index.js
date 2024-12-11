@@ -25,6 +25,7 @@ import { ProtectedRoute } from './token_expiration_module/protectedRoute';
 import './styles/tailwind.css';
 import './styles/index.css';
 import AddWarranty from './warranty_module/add_warranty';
+import ProductUnits from './inventory_module/productUnit';
 
 ReactDOM.render(
   <React.StrictMode>
@@ -33,101 +34,166 @@ ReactDOM.render(
         <Routes>
           <Route path="/" element={<LoginWrapper />} />
           <Route path="/login" element={<LoginWrapper />} />
-          <Route path="/dashboard" element={
-            <ProtectedRoute>
-              <Dashboard />
-            </ProtectedRoute>
-          } />
-          <Route path="/inventory" element={
-            <ProtectedRoute>
-              <Inventory />
-            </ProtectedRoute>
-          } />
-          <Route path="/sales" element={
-            <ProtectedRoute>
-              <Sales />
-            </ProtectedRoute>
-          } />
-          <Route path="/purchases" element={
-            <ProtectedRoute>
-              <Purchases />
-            </ProtectedRoute>
-          } />
-          <Route path="/customers" element={
-            <ProtectedRoute>
-              <Customers />
-            </ProtectedRoute>
-          } />
-          <Route path="/vendors" element={
-            <ProtectedRoute>
-              <Vendors />
-            </ProtectedRoute>
-          } />
-          <Route path="/staff" element={
-            <ProtectedRoute>
-              <Staff />
-            </ProtectedRoute>
-          } />
-          <Route path="/appointments" element={
-            <ProtectedRoute>
-              <Appointments />
-            </ProtectedRoute>
-          } />
-          <Route path="/sales/add_sales" element={
-            <ProtectedRoute>
-              <AddSales />
-            </ProtectedRoute>
-          } />
-          <Route path="/inventory/add_inventory" element={
-            <ProtectedRoute>
-             <AddInventory/>
-            </ProtectedRoute>
-          } />
-          <Route path="/chatbot" element={
-            <ProtectedRoute>
-             <Chatbot/>
-            </ProtectedRoute>
-          } />
-          <Route path="/purchases/add_purchases" element={
-            <ProtectedRoute>
-              <AddPurchases/>
-            </ProtectedRoute>
-          } />
-          <Route path="/vendors/add_vendor" element={
-            <ProtectedRoute>
-             <AddVendor/>
-            </ProtectedRoute>
-          } />
-          <Route path="/customers/add_customer" element={
-            <ProtectedRoute>
-             <AddCustomer/>
-            </ProtectedRoute>
-          } />
-          <Route path="/appointments/add_appointment" element={
-            <ProtectedRoute>
-             <AddAppointment/>
-            </ProtectedRoute>
-          } />
-          <Route path="/profile" element={
-            <ProtectedRoute>
-              <Profile/>
-            </ProtectedRoute>
-          } />
-          <Route path="/warranty" element={
-            <ProtectedRoute>
-              <WarrantyMain/>
-            </ProtectedRoute>
-          }/>
-          <Route path="/warranty/add_warranty" element={
-            <ProtectedRoute>
-              <AddWarranty/>
-            </ProtectedRoute>
-          }/>
-          <Route path="/settings/*" element={
-            <ProtectedRoute>
-             <Settings />
-            </ProtectedRoute>
-          } />
+          <Route
+            path="/dashboard"
+            element={
+              <ProtectedRoute>
+                <Dashboard />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/inventory"
+            element={
+              <ProtectedRoute>
+                <Inventory />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/sales"
+            element={
+              <ProtectedRoute>
+                <Sales />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/purchases"
+            element={
+              <ProtectedRoute>
+                <Purchases />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/customers"
+            element={
+              <ProtectedRoute>
+                <Customers />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/vendors"
+            element={
+              <ProtectedRoute>
+                <Vendors />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/staff"
+            element={
+              <ProtectedRoute>
+                <Staff />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/appointments"
+            element={
+              <ProtectedRoute>
+                <Appointments />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/sales/add_sales"
+            element={
+              <ProtectedRoute>
+                <AddSales />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/inventory/add_inventory"
+            element={
+              <ProtectedRoute>
+                <AddInventory />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/inventory/:productUuid/product-units"
+            element={
+              <ProtectedRoute>
+                <ProductUnits />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/chatbot"
+            element={
+              <ProtectedRoute>
+                <Chatbot />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/purchases/add_purchases"
+            element={
+              <ProtectedRoute>
+                <AddPurchases />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/vendors/add_vendor"
+            element={
+              <ProtectedRoute>
+                <AddVendor />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/customers/add_customer"
+            element={
+              <ProtectedRoute>
+                <AddCustomer />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/appointments/add_appointment"
+            element={
+              <ProtectedRoute>
+                <AddAppointment />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/profile"
+            element={
+              <ProtectedRoute>
+                <Profile />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/warranty"
+            element={
+              <ProtectedRoute>
+                <WarrantyMain />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/warranty/add_warranty"
+            element={
+              <ProtectedRoute>
+                <AddWarranty />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/settings/*"
+            element={
+              <ProtectedRoute>
+                <Settings />
+              </ProtectedRoute>
+            }
+          />
         </Routes>
       </Router>
     </GlobalProvider>

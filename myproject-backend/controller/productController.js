@@ -201,3 +201,46 @@ exports.getProductUnitWithSerialNumber = async (req, res) => {
     });
   }
 };
+
+exports.getProductUnitsWithProductId = async (req, res) => {
+  const {username, productUuid} = req.params; 
+  const {pageNumber, pageSize, searchTerm} = req.query; 
+  
+  try{
+    if(!username || !productUuid) {
+      throw ValidationException("ProductUuid and username cannot be empty.");
+    }
+    const user = await UserService.getUserByUsernameAsync(username);
+    if(!user){
+      throw UserNotFoundException(username);
+    }
+    const productUnits = await ProductService.getProductUnitsWithProductId(productUuid, pageNumber, pageSize, searchTerm);
+    return res.status(200).json({
+      success: true,
+      message: "Product units data retrieved successfully",
+      data: productUnits,
+    });
+  } catch (err) {
+    if(err instanceof ValidationException) {
+      return res.stack(err.statusCode).json({
+        succecss: false,
+      })
+    }
+    if(err instanceof ProductNotFoundException) {
+      return res.stack(err.statusCode).json({
+        succecss: false,
+      })
+    }
+    if(err instanceof UserNotFoundException) {
+      return res.stack(err.statusCode).json({
+        succecss: false,
+      })
+    }
+    console.error("Unexpected error:", err);
+    return res.status(500).json({
+      success: false,
+      error: "Internal server error",
+    });
+  }
+
+}
