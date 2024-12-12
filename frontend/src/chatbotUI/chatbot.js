@@ -1116,65 +1116,68 @@ const handleNextStep = async (action) => {
   }
   };
 
-  const send = async (text) => {
-      if (!text.trim()) return;
+const send = async (text) => {
+  if (!text.trim()) return;
 
-      // Add user message immediately for better UX
-      setMessages(prev => [...prev, {
-          type: 'user',
-          text: text,
-          timestamp: new Date().toISOString()
-      }]);
-
-      setStatus(prev => ({ ...prev, isTyping: true }));
-
-      try {
-          // Check if we're awaiting a specific response
-          if (messageContext.awaitingResponse) {
-              switch (messageContext.type) {
-                  case 'add_products':
-                      if (text.toLowerCase() === 'yes') {
-                          // Immediately show processing message
-                          setMessages(prev => [...prev, {
-                              type: 'bot',
-                              text: "Great! I'll help you add these products to inventory. Please fill in any additional details needed.",
-                              timestamp: new Date().toISOString()
-                          }]);
-
-                          // Start product addition flow immediately
-                          handleAddProducts(messageContext.data);
-                          
-                          // Clear context since we're handling it
-                          setMessageContext({ type: null, data: null, awaitingResponse: false });
-                          return;
-                      }
-                      break;
-                  // Add other context cases here
-              }
-          }
-
-          // If no special context or not a 'yes', proceed with regular chat
-          const response = await axiosInstance.post("/chatbot/chat", { message: text });
-          
-          setMessages(prev => [...prev, {
-              type: 'bot',
-              text: response.data.message,
-              data: response.data.data,
-              timestamp: new Date().toISOString()
-          }]);
-
-      } catch (error) {
-          console.error('Chat error:', error);
-          setMessages(prev => [...prev, {
-              type: 'bot',
-              text: 'Sorry, I encountered an error. Please try again.',
-              isError: true,
-              timestamp: new Date().toISOString()
-          }]);
-      } finally {
-          setStatus(prev => ({ ...prev, isTyping: false }));
-      }
+  // Add user message immediately for better UX
+  const userMessage = {
+    type: 'user',
+    text: text,
+    timestamp: new Date().toISOString()
   };
+  setMessages(prev => [...prev, userMessage]);
+
+  setStatus(prev => ({ ...prev, isTyping: true }));
+
+  try {
+    // Get username from localStorage for context
+    const username = localStorage.getItem('username')?.trim();
+    if (!username) {
+      throw new Error('User not authenticated');
+    }
+
+    const response = await axiosInstance.post("/chatbot/chat", { 
+      message: text,
+      context: {
+        username,
+        messageType: messageContext.type || null,
+        previousMessages: messages.slice(-3) // Send last 3 messages for context
+      }
+    });
+
+    // Enhanced response handling
+    const botMessage = {
+      type: 'bot',
+      text: response.data.message,
+      data: response.data.data,
+      suggestions: response.data.suggestions,
+      intent: response.data.intent, // New field from intent analysis
+      metrics: response.data.metrics, // New field from query results
+      timestamp: new Date().toISOString()
+    };
+
+    setMessages(prev => [...prev, botMessage]);
+
+    // Handle suggestions if present
+    if (response.data.suggestions?.length > 0) {
+      setMessageContext(prev => ({
+        ...prev,
+        suggestions: response.data.suggestions
+      }));
+    }
+
+  } catch (error) {
+    console.error('Chat error:', error);
+    setMessages(prev => [...prev, {
+      type: 'bot',
+      text: 'Sorry, I encountered an error. Please try again.',
+      isError: true,
+      timestamp: new Date().toISOString()
+    }]);
+  } finally {
+    setStatus(prev => ({ ...prev, isTyping: false }));
+  }
+};
 
   return (
     <div className={`
