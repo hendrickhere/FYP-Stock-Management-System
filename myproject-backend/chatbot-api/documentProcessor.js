@@ -338,6 +338,11 @@ Return a JSON object matching this structure:
     }
 
     async processDocument(file) {
+
+        console.log('ProcessDocument method called with file:', {
+            mimetype: file.mimetype,
+            size: file.size
+        });
         try {
             const extractedText = await this.extractTextFromPDF(file.buffer);
             const analysis = await this.analyzeWithGPT(extractedText);
