@@ -16,59 +16,16 @@ import { PurchaseOrderProvider } from './purchase_order_automation/purchaseOrder
 const BotMessage = ({ 
   text, 
   data,
+  suggestions,
+  intent,
+  metrics,
   fileAnalysis,
   analysisResult, 
-  showPreview,
-  actions,
   isError,
   onActionClick,
   onProcessingComplete,
   onProcessingCancel
 }) => {
-
-  const validateAnalysisResult = (result) => {
-    if (!result) {
-      return { 
-        isValid: false, 
-        error: 'No analysis result provided' 
-      };
-    }
-
-    // Updated structure validation
-    const requiredStructure = {
-      metadata: ['poNumber', 'poDate', 'vendorName'],
-      items: {
-        existingProducts: ['productId', 'productName', 'sku', 'orderQuantity', 'cost'],
-        newProducts: ['productName', 'suggestedSku', 'orderQuantity', 'cost']
-      },
-      financials: ['subtotal', 'tax', 'shipping', 'total'],
-      status: ['requiresProductCreation', 'canCreatePurchaseOrder']
-    };
-
-    // Validate each section
-    const validateSection = (data, structure) => {
-      if (Array.isArray(structure)) {
-        return structure.every(field => data && data[field] !== undefined);
-      }
-      
-      if (typeof structure === 'object') {
-        return Object.entries(structure).every(([key, value]) => 
-          validateSection(data[key], value)
-        );
-      }
-      
-      return true;
-    };
-
-    if (!validateSection(result, requiredStructure)) {
-      return {
-        isValid: false,
-        error: 'Invalid or incomplete data structure'
-      };
-    }
-
-    return { isValid: true };
-  };
 
   // Function to render the appropriate analysis view based on the data
   const renderAnalysisView = () => {
@@ -184,7 +141,76 @@ const BotMessage = ({
       </CardContent>
     </Card>
   );
-};
+  };
+
+  const renderMetrics = () => {
+    if (!metrics) return null;
+
+    return (
+      <Card className="mt-4">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Calculator className="h-5 w-5 text-blue-600" />
+            Analysis Results
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          {/* Render different metric types based on intent */}
+          {intent?.category === 'INVENTORY' && (
+            <div className="space-y-4">
+              {metrics.stock_levels && (
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="p-4 bg-gray-50 rounded-lg">
+                    <h4 className="text-sm font-medium text-gray-500">Total Products</h4>
+                    <p className="text-2xl font-semibold">{metrics.stock_levels.totalProducts}</p>
+                  </div>
+                  <div className="p-4 bg-gray-50 rounded-lg">
+                    <h4 className="text-sm font-medium text-gray-500">Total Value</h4>
+                    <p className="text-2xl font-semibold">
+                      RM{metrics.stock_levels.totalValue.toFixed(2)}
+                    </p>
+                  </div>
+                </div>
+              )}
+              {metrics.low_stock && metrics.low_stock.length > 0 && (
+                <Alert variant="warning">
+                  <AlertTitle>Low Stock Items</AlertTitle>
+                  <AlertDescription>
+                    {metrics.low_stock.map(item => (
+                      <div key={item.sku} className="flex justify-between items-center">
+                        <span>{item.name}</span>
+                        <span className="font-medium">{item.stock} units</span>
+                      </div>
+                    ))}
+                  </AlertDescription>
+                </Alert>
+              )}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+    );
+  };
+
+  // Render suggestions if present
+  const renderSuggestions = () => {
+    if (!suggestions?.length) return null;
+
+    return (
+      <div className="mt-4 flex flex-wrap gap-2">
+        {suggestions.map((suggestion, index) => (
+          <Button
+            key={index}
+            variant="outline"
+            size="sm"
+            onClick={() => onActionClick(suggestion)}
+          >
+            {suggestion.text}
+          </Button>
+        ))}
+      </div>
+    );
+  };
 
   return (
     <div className="flex items-start gap-3 max-w-[80%]"> 
@@ -208,7 +234,9 @@ const BotMessage = ({
             <AlertDescription>{text}</AlertDescription>
           </Alert>
         )}
-
+        
+        {renderMetrics()}
+        {renderSuggestions()}
         {renderAnalysisView()}
       </div>
     </div>
