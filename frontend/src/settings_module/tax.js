@@ -1,32 +1,60 @@
-import React, {useState, useEffect, useContext} from 'react';
+import React, { useState, useContext, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { IoReceipt } from "react-icons/io5";
 import instance from '../axiosConfig';
 import { GlobalContext } from '../globalContext';
-import { AlertCircle } from "lucide-react";
 import { Alert, AlertDescription } from "../ui/alert";
+import { AlertCircle, Save, Ban } from "lucide-react";
+import Header from '../header';
+import Sidebar from '../sidebar';
 import TaxView from './view_tax';
+
 function Tax() {
-  const [userData] = useState(() => {
-    const cached = sessionStorage.getItem('userData');
-    return cached ? JSON.parse(cached) : null;
-  });
-  const navigate = useNavigate();
   const [isMobile, setIsMobile] = useState(window.innerWidth < 1024);
+
+  useEffect(() => {
+    const handleResize = () => {
+      setIsMobile(window.innerWidth < 1024);
+    };
+
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
+  return (
+    <div className="flex flex-col h-screen w-full overflow-hidden">
+      <Header />
+      <div className="flex flex-row flex-grow overflow-hidden">
+        <Sidebar />
+        <MainContent isMobile={isMobile} />
+      </div>
+    </div>
+  );
+}
+
+const MainContent = () => {
+  const navigate = useNavigate();
   const [errors, setErrors] = useState({});
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [apiError, setApiError] = useState("");
   const { organizationId } = useContext(GlobalContext);
+  const [isMobile, setIsMobile] = useState(window.innerWidth < 1024);
+  const [userData] = useState(() => {
+    const cached = sessionStorage.getItem('userData');
+    return cached ? JSON.parse(cached) : null;
+  });
+
   const [formState, setFormState] = useState({
     taxName: "",
     taxRate: 0,
     description: "",
     organizationId: organizationId,
   });
+
   const validateForm = () => {
     const newErrors = {};
     
-    if (!formState.taxRate > 100) {
+    if (formState.taxRate > 100) {
       newErrors.taxRate = "Tax rate cannot be greater than 100%.";
     }
 
@@ -34,9 +62,10 @@ function Tax() {
       newErrors.taxRate = "Tax rate cannot be lesser than 1%.";
     }
 
-    if(!formState.taxName) {
+    if (!formState.taxName) {
       newErrors.taxName = "Tax name cannot be empty!";
     }
+
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
@@ -47,13 +76,15 @@ function Tax() {
       ...prev,
       [name]: value
     }));
+    
     if (errors[name]) {
       setErrors(prev => ({
         ...prev,
         [name]: undefined
       }));
     }
-  } 
+  };
+
   const handleFormSubmit = async (e) => {
     e.preventDefault();
     setIsSubmitting(true);
@@ -70,34 +101,19 @@ function Tax() {
         taxRate: formState.taxRate / 100
       };
       await instance.post(`/tax`, submissionData);
-      navigate(-1);
+      navigate('/settings');
     } catch (error) {
       setApiError(
         error.response?.data?.message ||
-          "Failed to create appointment. Please try again."
+        "Failed to create tax configuration. Please try again."
       );
-      console.error("Error creating appointment:", error);
+      console.error("Error creating tax configuration:", error);
     } finally {
       setIsSubmitting(false);
     }
-  }
-  useEffect(() => {
-    const handleResize = () => {
-      setIsMobile(window.innerWidth < 1024);
-    };
+  };
 
-    window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
-  }, []);
-
-  useEffect(() => {
-    // Only allow admin and manager roles
-    if (!userData || !['admin', 'manager', 'Manager'].includes(userData?.role?.toLowerCase())) {
-      navigate('/settings');
-      return;
-    }
-  }, [userData, navigate]);
-
+  // Permission check
   if (!userData || !['admin', 'manager', 'Manager'].includes(userData?.role?.toLowerCase())) {
     return (
       <Alert variant="destructive">
@@ -109,111 +125,124 @@ function Tax() {
   }
 
   return (
-    <div className="w-full h-[calc(100vh-8rem)] overflow-y-auto">
-      <div className="min-h-full">
-        <div className="flex items-center mb-6">
-          <IoReceipt className="w-6 h-6 mr-2" />
-          <h1 className="text-2xl font-bold">Tax Settings</h1>
-        </div>
-        {apiError && (
-              <Alert variant="destructive" className="mb-6">
+    <main className="flex-1 min-w-0">
+      <div className="h-[calc(100vh-4rem)] overflow-y-auto overflow-x-hidden custom-scrollbar">
+        <div className={`${isMobile ? "" : "ml-[13rem]"}`}>
+          <div className="p-6 space-y-6 max-w-full">
+            {/* Title Section */}
+            <div className="mb-8">
+              <div className="flex items-center ">
+                <IoReceipt className="w-6 h-6 mr-2 flex-shrink-0" />
+                <h1 className="text-2xl font-bold text-gray-900 truncate">Tax Settings</h1>
+              </div>
+              <p className="text-gray-600 mt-1 truncate">Manage your tax rates and configurations</p>
+            </div>
+
+            {/* Error Alert */}
+            {apiError && (
+              <Alert variant="destructive">
                 <AlertCircle className="h-4 w-4" />
                 <AlertDescription>{apiError}</AlertDescription>
               </Alert>
             )}
-        <div className="bg-white rounded-lg shadow-sm p-6">
-          <h2 className="text-xl font-semibold mb-4">Tax Configuration</h2>
-          <form onSubmit={handleFormSubmit}>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div>
-                <label className="block text-sm font-medium text-gray-700">
-                  Default Tax Rate (%)
-                </label>
-                <input
-                  type="number"
-                  className={`mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500  ${
-                    errors.taxRate ? "border-red-500" : "border-gray-300"
-                  }`}
-                  placeholder="0.00"
-                  value={formState.taxRate}
-                  name="taxRate"
-                  onChange={handleFormChange}
-                />{" "}
-                {errors.taxRate && (
-                  <p className="text-red-500 text-sm">{errors.taxRate}</p>
-                )}
-              </div>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700">
-                  Tax Name
-                </label>
-                <input
-                  name="taxName"
-                  type="text"
-                  value={formState.taxName}
-                  className={`mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 ${
-                    errors.taxName ? "border-red-500" : "border-gray-300"
-                  }`}
-                  placeholder="Enter tax registration number"
-                  onChange={handleFormChange}
-                />
-                {errors.taxName && (
-                  <p className="text-red-500 text-sm">{errors.taxName}</p>
-                )}
-              </div>
+            {/* Tax Configuration Form */}
+            <div className="bg-white rounded-xl shadow-sm p-4 md:p-6 mb-6">
+              <h2 className="text-lg font-semibold text-gray-900 mb-4">
+                Tax Configuration
+              </h2>
+              <form className="space-y-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
+                  {/* Tax Rate Input */}
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium text-gray-700">
+                      Default Tax Rate (%)
+                    </label>
+                    <input
+                      type="number"
+                      name="taxRate"
+                      value={formState.taxRate}
+                      onChange={handleFormChange}
+                      className={`w-full p-2 border rounded-md ${
+                        errors.taxRate ? 'border-red-500' : 'border-gray-300'
+                      } focus:ring-2 focus:ring-purple-500 focus:border-transparent`}
+                      placeholder="0.00"
+                    />
+                    {errors.taxRate && (
+                      <p className="text-red-500 text-sm">{errors.taxRate}</p>
+                    )}
+                  </div>
 
-              {/* Additional tax settings */}
-              <div className="md:col-span-2">
-                <label className="block text-sm font-medium text-gray-700">
-                  Description
-                </label>
-                <input
-                  name="description"
-                  value={formState.description}
-                  type="text"
-                  className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
-                  placeholder="Enter tax registration number"
-                  onChange={handleFormChange}
-                />
-              </div>
+                  {/* Tax Name Input */}
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium text-gray-700">
+                      Tax Name
+                    </label>
+                    <input
+                      type="text"
+                      name="taxName"
+                      value={formState.taxName}
+                      onChange={handleFormChange}
+                      className={`w-full p-2 border rounded-md ${
+                        errors.taxName ? 'border-red-500' : 'border-gray-300'
+                      } focus:ring-2 focus:ring-purple-500 focus:border-transparent`}
+                      placeholder="Enter tax name"
+                    />
+                    {errors.taxName && (
+                      <p className="text-red-500 text-sm">{errors.taxName}</p>
+                    )}
+                  </div>
 
-              {/* <div className="md:col-span-2">
-              <label className="block text-sm font-medium text-gray-700">Tax Authority</label>
-              <input
-                type="text"
-                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
-                placeholder="Enter tax authority name"
-              />
-            </div> */}
-
-              <div className="md:col-span-2">
-                <div className="flex justify-end mt-6 space-x-3">
-                  <button
-                    onClick={() => navigate("/settings")}
-                    className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    type="submit"
-                    disabled={isSubmitting}
-                    className="inline-flex justify-center px-4 py-2 text-sm font-medium text-white bg-[#38304C] border border-transparent rounded-md shadow-sm hover:bg-[#2A2338] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#38304C]"
-                  >
-                    Save Changes
-                  </button>
+                  {/* Description Input */}
+                  <div className="col-span-1 md:col-span-2">
+                    <label className="text-sm font-medium text-gray-700">
+                      Description
+                    </label>
+                    <textarea
+                      name="description"
+                      value={formState.description}
+                      onChange={handleFormChange}
+                      rows={3}
+                      className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                      placeholder="Enter tax description"
+                    />
+                  </div>
                 </div>
-              </div>
+              </form>
             </div>
-          </form>
-        </div>
-        <div className='mt-8'>
-        <TaxView/>
 
+            {/* Tax List View with padding for fixed buttons */}
+            <div className="pb-24">
+              <TaxView />
+            </div>
+          </div>
         </div>
       </div>
-    </div>
+
+      {/* Fixed Bottom Action Buttons */}
+      <div className="fixed bottom-0 right-0 bg-white border-t p-4 z-10" 
+           style={{ left: isMobile ? '0' : '13rem' }}>
+        <div className="max-w-7xl mx-auto flex justify-end space-x-4">
+          <button
+            onClick={() => navigate("/settings")}
+            className="flex items-center px-4 py-2 text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50"
+            disabled={isSubmitting}
+          >
+            <Ban className="w-4 h-4 mr-2" />
+            Cancel
+          </button>
+          <button
+            onClick={handleFormSubmit}
+            disabled={isSubmitting}
+            className="flex items-center px-4 py-2 text-white bg-primary hover:bg-primary/90 border border-transparent rounded-md shadow-sm disabled:opacity-50"
+          >
+            <Save className="w-4 h-4 mr-2" />
+            {isSubmitting ? 'Saving...' : 'Save Changes'}
+          </button>
+        </div>
+      </div>
+    </main>
   );
-}
+};
 
 export default Tax;

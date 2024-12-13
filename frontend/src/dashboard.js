@@ -172,7 +172,7 @@ const MainContent = ({ userRole }) => {
   return (
     <main className="flex-1">
       <div
-        className={`h-[calc(100vh-4rem)] overflow-y-auto ${
+        className={`h-[calc(100vh-4rem)] overflow-y-auto custom-scrollbar ${
           isMobile ? "w-full" : "ml-[13rem]"
         }`}
       >
