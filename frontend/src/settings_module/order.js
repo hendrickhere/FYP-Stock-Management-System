@@ -1,14 +1,12 @@
-import React, {useState, useEffect} from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { TbNumbers } from "react-icons/tb";
 import { Alert, AlertDescription } from "../ui/alert";
+import { Ban, Save } from "lucide-react";
+import Header from '../header';
+import Sidebar from '../sidebar';
 
 function OrderSettings() {
-  const [userData] = useState(() => {
-    const cached = sessionStorage.getItem('userData');
-    return cached ? JSON.parse(cached) : null;
-  });
-  const navigate = useNavigate();
   const [isMobile, setIsMobile] = useState(window.innerWidth < 1024);
 
   useEffect(() => {
@@ -20,13 +18,26 @@ function OrderSettings() {
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
-  useEffect(() => {
-    if (!userData || !['admin', 'manager', 'Manager'].includes(userData?.role?.toLowerCase())) {
-      navigate('/settings');
-      return;
-    }
-  }, [userData, navigate]);
+  return (
+    <div className="flex flex-col h-screen w-full overflow-hidden">
+      <Header />
+      <div className="flex flex-row flex-grow overflow-hidden">
+        <Sidebar />
+        <MainContent isMobile={isMobile} />
+      </div>
+    </div>
+  );
+}
 
+const MainContent = ({ isMobile }) => {
+  const navigate = useNavigate();
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [userData] = useState(() => {
+    const cached = sessionStorage.getItem('userData');
+    return cached ? JSON.parse(cached) : null;
+  });
+
+  // Permission check
   if (!userData || !['admin', 'manager', 'Manager'].includes(userData?.role?.toLowerCase())) {
     return (
       <Alert variant="destructive">
@@ -37,112 +48,139 @@ function OrderSettings() {
     );
   }
 
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setIsSubmitting(true);
+    setTimeout(() => setIsSubmitting(false), 1000); // Simulated delay
+  };
+
   return (
-    <div className="w-full h-[calc(100vh-8rem)] overflow-y-auto">
-      <div className="min-h-full">
-        <div className="flex items-center mb-6">
-          <TbNumbers className="w-6 h-6 mr-2" />
-          <h1 className="text-2xl font-bold">Order Number Settings</h1>
-        </div>
-        
-        <div className="bg-white rounded-lg shadow-sm p-6">
-          <div className="space-y-8">
-            {/* Sales Order Section */}
-            <div>
-              <h2 className="text-xl font-semibold mb-4">Sales Order Number Format</h2>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">Prefix</label>
-                  <input
-                    type="text"
-                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
-                    placeholder="SO"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">Starting Number</label>
-                  <input
-                    type="number"
-                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
-                    placeholder="1001"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">Separator</label>
-                  <input
-                    type="text"
-                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
-                    placeholder="-"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">Number Padding</label>
-                  <input
-                    type="number"
-                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
-                    placeholder="4"
-                  />
-                </div>
+    <main className="flex-1 min-w-0">
+      <div className="h-[calc(100vh-4rem)] overflow-y-auto overflow-x-hidden custom-scrollbar">
+        <div className={`${isMobile ? "" : "ml-[13rem]"}`}>
+          <div className="p-6 max-w-full">
+            {/* Title Section */}
+            <div className="mb-8">
+              <div className="flex items-center">
+                <TbNumbers className="w-6 h-6 mr-2 flex-shrink-0" />
+                <h1 className="text-2xl font-bold text-gray-900 truncate">Order Number Settings</h1>
               </div>
+              <p className="text-gray-600 mt-1 truncate">Configure order number formats for sales and purchases</p>
             </div>
 
-            {/* Purchase Order Section */}
-            <div>
-              <h2 className="text-xl font-semibold mb-4">Purchase Order Number Format</h2>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">Prefix</label>
-                  <input
-                    type="text"
-                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
-                    placeholder="PO"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">Starting Number</label>
-                  <input
-                    type="number"
-                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
-                    placeholder="1001"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">Separator</label>
-                  <input
-                    type="text"
-                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
-                    placeholder="-"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">Number Padding</label>
-                  <input
-                    type="number"
-                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
-                    placeholder="4"
-                  />
+            {/* Main Content */}
+            <div className="space-y-6 pb-24">
+              {/* Sales Order Section */}
+              <div className="bg-white rounded-xl shadow-sm p-4 md:p-6">
+                <h2 className="text-lg font-semibold text-gray-900 mb-4">Sales Order Number Format</h2>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 md:gap-6">
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium text-gray-700">Prefix</label>
+                    <input
+                      type="text"
+                      className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                      placeholder="SO"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium text-gray-700">Starting Number</label>
+                    <input
+                      type="number"
+                      className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                      placeholder="1001"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium text-gray-700">Separator</label>
+                    <input
+                      type="text"
+                      className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                      placeholder="-"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium text-gray-700">Number Padding</label>
+                    <input
+                      type="number"
+                      className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                      placeholder="4"
+                    />
+                  </div>
                 </div>
               </div>
-            </div>
 
-            <div className="flex justify-end mt-6 space-x-3">
-              <button 
-                onClick={() => navigate('/settings')}
-                className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
-              >
-                Cancel
-              </button>
-              <button 
-                className="inline-flex justify-center px-4 py-2 text-sm font-medium text-white bg-[#38304C] border border-transparent rounded-md shadow-sm hover:bg-[#2A2338] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#38304C]"
-              >
-                Save Changes
-              </button>
+              {/* Purchase Order Section */}
+              <div className="bg-white rounded-xl shadow-sm p-4 md:p-6">
+                <h2 className="text-lg font-semibold text-gray-900 mb-4">Purchase Order Number Format</h2>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 md:gap-6">
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium text-gray-700">Prefix</label>
+                    <input
+                      type="text"
+                      className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                      placeholder="PO"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium text-gray-700">Starting Number</label>
+                    <input
+                      type="number"
+                      className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                      placeholder="1001"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium text-gray-700">Separator</label>
+                    <input
+                      type="text"
+                      className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                      placeholder="-"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium text-gray-700">Number Padding</label>
+                    <input
+                      type="number"
+                      className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                      placeholder="4"
+                    />
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
         </div>
       </div>
-    </div>
+
+      {/* Fixed Bottom Action Buttons */}
+      <div 
+        className="fixed bottom-0 bg-white border-t border-gray-200 p-4 z-10"
+        style={{ 
+          right: 0,
+          left: isMobile ? 0 : '13rem',
+        }}
+      >
+        <div className="flex justify-end space-x-4 max-w-7xl mx-auto px-4">
+          <button
+            onClick={() => navigate("/settings")}
+            className="flex items-center px-4 py-2 text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50"
+            disabled={isSubmitting}
+          >
+            <Ban className="w-4 h-4 mr-2" />
+            Cancel
+          </button>
+          <button
+            onClick={handleSubmit}
+            disabled={isSubmitting}
+            className="flex items-center px-4 py-2 text-white bg-primary hover:bg-primary/90 border border-transparent rounded-md shadow-sm disabled:opacity-50"
+          >
+            <Save className="w-4 h-4 mr-2" />
+            {isSubmitting ? 'Saving...' : 'Save Changes'}
+          </button>
+        </div>
+      </div>
+    </main>
   );
-}
+};
 
 export default OrderSettings;

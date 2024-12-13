@@ -371,7 +371,7 @@ const MainContent = ({ data, isAdd, isMobile }) => {
 
     <Toaster position="bottom-right" />
     
-    <div className={`h-[calc(100vh-4rem)] pb-8 overflow-y-auto ${isMobile ? 'w-full' : 'ml-[13rem]'}`}>
+    <div className={`h-[calc(100vh-4rem)] pb-8 overflow-y-auto custom-scrollbar ${isMobile ? 'w-full' : 'ml-[13rem]'}`}>
 
         <AlertDialog open={showCancelDialog} onOpenChange={setShowCancelDialog}>
           <AlertDialogContent className="bg-white">

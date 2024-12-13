@@ -18,6 +18,10 @@ import AddCustomer from './customer_module/add_customer';
 import AddAppointment from './appointments_module/add_appointment';
 import Profile from './profile';
 import Settings from './settings_module/settings';
+import DiscountSettings from './settings_module/discount';
+import TaxSettings from './settings_module/tax';
+import OrderSettings from './settings_module/order';
+import UserManagement from './settings_module/userManagement';
 import WarrantyMain from './warranty_module/warranty_main';
 import { GlobalProvider } from './globalContext';
 import Chatbot from './chatbotUI/chatbot';
@@ -187,14 +191,46 @@ ReactDOM.render(
             }
           />
           <Route
-            path="/settings/*"
+            path="/settings"
             element={
               <ProtectedRoute>
                 <Settings />
               </ProtectedRoute>
             }
           />
-        </Routes>
+          <Route
+            path="/settings/tax_settings"
+            element={
+              <ProtectedRoute>
+                <TaxSettings />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/settings/discount_settings"
+            element={
+              <ProtectedRoute>
+                <DiscountSettings />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/settings/order_settings"
+            element={
+              <ProtectedRoute>
+                <OrderSettings/>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/settings/user_management"
+            element={
+              <ProtectedRoute>
+                <UserManagement />
+              </ProtectedRoute>
+            }
+          />
+        </Routes>    
       </Router>
     </GlobalProvider>
   </React.StrictMode>,

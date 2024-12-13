@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate, Link, Routes, Route, Outlet } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import Header from '../header';
 import Sidebar from '../sidebar';
 import { IoSettingsSharp } from "react-icons/io5";
@@ -9,19 +9,6 @@ import { FaUsersCog } from "react-icons/fa";
 import { TbNumbers } from "react-icons/tb";
 import { Alert, AlertDescription } from "../ui/alert";
 import { useScrollDirection } from '../useScrollDirection';
-import { motion } from 'framer-motion';
-import Tax from './tax';
-import Discount from './discount';
-import OrderSettings from './order';
-import UserManagement from './userManagement';
-
-const springTransition = {
-  type: "spring",
-  stiffness: 400,
-  damping: 40,
-  mass: 0.3,
-  restDelta: 0.001
-};
 
 function Settings() {
   const [isMobile, setIsMobile] = useState(window.innerWidth < 1024);
@@ -37,106 +24,49 @@ function Settings() {
   }, []);
 
   return (
-    <div className="flex flex-col h-screen w-full">
+    <div className="flex flex-col h-screen w-full overflow-hidden">
       <Header scrollDirection={scrollDirection} isAtTop={isAtTop} />
-      <div className="flex flex-row flex-grow">
+      <div className="flex flex-row flex-grow overflow-hidden"> 
         <Sidebar scrollDirection={scrollDirection} isAtTop={isAtTop} />
-        <div className="flex-1">
-          <Routes>
-            <Route index element={
-              <MainContent 
-                isMobile={isMobile} 
-                scrollDirection={scrollDirection} 
-                isAtTop={isAtTop} 
-              />
-            } />
-            <Route path="tax" element={
-              <motion.div 
-                className="p-6"
-                animate={{ 
-                  marginLeft: isMobile ? '0' : (scrollDirection === 'down' && !isAtTop ? '4rem' : '13rem'),
-                }}
-                transition={springTransition}
-              >
-                <Tax />
-              </motion.div>
-            } />
-            <Route path="discount" element={
-              <motion.div 
-                className="p-6"
-                animate={{ 
-                  marginLeft: isMobile ? '0' : (scrollDirection === 'down' && !isAtTop ? '4rem' : '13rem'),
-                }}
-                transition={springTransition}
-              >
-                <Discount />
-              </motion.div>
-            } />
-            <Route path="order-settings" element={
-              <motion.div 
-                className="p-6"
-                animate={{ 
-                  marginLeft: isMobile ? '0' : (scrollDirection === 'down' && !isAtTop ? '4rem' : '13rem'),
-                }}
-                transition={springTransition}
-              >
-                <OrderSettings />
-              </motion.div>
-            } />
-            <Route path="user-management" element={
-              <motion.div 
-                className="p-6"
-                animate={{ 
-                  marginLeft: isMobile ? '0' : (scrollDirection === 'down' && !isAtTop ? '4rem' : '13rem'),
-                }}
-                transition={springTransition}
-              >
-                <UserManagement />
-              </motion.div>
-            } />
-          </Routes>
-        </div>
+        <MainContent isMobile={isMobile} />
       </div>
     </div>
   );
 }
 
-function MainContent({ isMobile, scrollDirection, isAtTop }) {
+function MainContent({ isMobile }) {
   const [userData] = useState(() => {
     const cached = sessionStorage.getItem('userData');
     return cached ? JSON.parse(cached) : null;
   });
 
-  const navigate = useNavigate();
-
-  // Define settings cards based on user role
   const settingsCards = [
     {
       title: 'Tax Settings',
       description: 'Configure tax rates and registration details',
       icon: IoReceiptOutline,
-      path: 'tax',
+      path: '/settings/tax_settings', 
       roles: ['admin', 'manager', 'Manager'] 
     },
     {
       title: 'Discount Settings',
       description: 'Manage discount rules and limitations',
       icon: MdDiscount,
-      path: 'discount',
+      path: '/settings/discount_settings', 
       roles: ['admin', 'manager', 'Manager']
     },
     {
       title: 'User Management',
       description: 'Manage user roles and permissions',
       icon: FaUsersCog,
-      path: 'user-management',
+      path: '/settings/user_management', 
       roles: ['admin']
     },
     {
       title: 'Order Settings',
       description: 'Configure order number formats and sequences',
       icon: TbNumbers,
-      path: 'order-settings',
+      path: '/settings/order_settings', 
       roles: ['admin', 'manager', 'Manager']
     }
   ];
@@ -152,58 +82,54 @@ function MainContent({ isMobile, scrollDirection, isAtTop }) {
   }
 
   return (
-    <div className="flex-1 overflow-hidden">
-      <div className="h-full overflow-y-auto">
-        <motion.div 
-          className="p-6"
-          animate={{ 
-            marginLeft: isMobile ? '0' : (scrollDirection === 'down' && !isAtTop ? '4rem' : '13rem'),
-          }}
-          transition={springTransition}
-        >
-          {/* Title Section */}
-          <div className="mb-6">
-            <div className="flex items-center">
-              <IoSettingsSharp className="w-6 h-6 mr-2" />
-              <h1 className="text-2xl font-bold">Settings</h1>
+    <main className="flex-1 min-w-0">
+      <div className="h-[calc(100vh-4rem)] overflow-y-auto overflow-x-hidden">
+        <div className={`${isMobile ? "" : "ml-[13rem]"}`}>
+          <div className="p-6 max-w-full">
+            {/* Title Section */}
+            <div className="mb-8 max-w-full">
+              <div className="flex items-center">
+                <IoSettingsSharp className="w-6 h-6 mr-2 flex-shrink-0" />
+                <h1 className="text-2xl font-bold text-gray-900 sm:line-clamp-1 sm:truncate">Settings</h1>
+              </div>
+              <p className="text-gray-600 mt-1 sm:line-clamp-1 sm:truncate">Configure your system settings and preferences</p>
             </div>
-          </div>
 
-          {/* Settings Cards Grid */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {settingsCards.map((card, index) => (
-            // Only show cards that the user has permission to access
-            card.roles.some(role => role.toLowerCase() === userData?.role?.toLowerCase()) && (
-              <Link
-                key={index}
-                to={card.path}
-                className="bg-white rounded-lg shadow-md p-6 hover:shadow-lg transition-all duration-200 hover:scale-[1.02]"
-              >
-                <div className="flex items-center mb-4">
-                  <card.icon className="w-8 h-8 text-[#38304C]" />
-                  <h2 className="text-xl font-semibold ml-3">{card.title}</h2>
-                </div>
-                <p className="text-gray-600">{card.description}</p>
-              </Link>
-            )
-          ))}
-          </div>
-
-          {/* Show message if user has no access to any settings */}
-          {!settingsCards.some(card => card.roles.some(role => 
-            role.toLowerCase() === userData?.role?.toLowerCase()
-          )) && (
-            <div className="bg-white rounded-lg shadow-md p-6 mt-4">
-              <Alert>
-                <AlertDescription>
-                  You don't have access to any settings. Please contact your administrator.
-                </AlertDescription>
-              </Alert>
+            {/* Settings Cards Grid */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6 min-w-0">
+              {settingsCards.map((card, index) => (
+                card.roles.some(role => role.toLowerCase() === userData?.role?.toLowerCase()) && (
+                  <Link
+                    key={index}
+                    to={card.path}
+                    className="bg-white rounded-lg shadow-md p-4 md:p-6 hover:shadow-lg transition-all duration-200 hover:scale-[1.02] w-full"
+                  >
+                    <div className="flex items-center mb-4 min-w-0">
+                      <card.icon className="w-6 h-6 md:w-8 md:h-8 text-[#38304C] flex-shrink-0" />
+                      <h2 className="text-lg md:text-xl font-semibold ml-3 line-clamp-1">{card.title}</h2>
+                    </div>
+                    <p className="text-gray-600 text-sm md:text-base sm:line-clamp-1 sm:truncate">{card.description}</p>
+                  </Link>
+                )
+              ))}
             </div>
-          )}
-        </motion.div>
+
+            {/* No Access Message */}
+            {!settingsCards.some(card => card.roles.some(role => 
+              role.toLowerCase() === userData?.role?.toLowerCase()
+            )) && (
+              <div className="bg-white rounded-lg shadow-md p-4 md:p-6 mt-4">
+                <Alert>
+                  <AlertDescription>
+                    You don't have access to any settings. Please contact your administrator.
+                  </AlertDescription>
+                </Alert>
+              </div>
+            )}
+          </div>
+        </div>
       </div>
-    </div>
+    </main>
   );
 }
 

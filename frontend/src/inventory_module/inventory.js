@@ -225,7 +225,7 @@ function MainContent({ isMobile }) {
   return (
     <main className="flex-1">
       <div
-        className={`scroll-container h-[calc(100vh-4rem)] overflow-y-auto ${
+        className={`scroll-container h-[calc(100vh-4rem)] overflow-y-auto custom-scrollbar ${
           isMobile ? "w-full" : ""
         }`}
       >
