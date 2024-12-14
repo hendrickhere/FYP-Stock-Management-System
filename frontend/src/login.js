@@ -139,12 +139,15 @@ function Login({ onLoginSuccess }) {
       return;
     }
     
-    const userData = {
-      username: isSignUp ? signUpData.name : signInData.email,
+    const userData = isSignUp ? {
+      username: signUpData.name,
       created_at: new Date().toISOString(),
-      email: isSignUp ? signUpData.email : signInData.email,
-      password: isSignUp ? signUpData.password : signInData.password,
-      role,
+      email: signUpData.email,
+      password: signUpData.password,
+      role
+    } : {
+      email: signInData.email,
+      password: signInData.password
     };
 
     try {

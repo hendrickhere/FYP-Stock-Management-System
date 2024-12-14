@@ -145,7 +145,7 @@ const MainContent = ({ isMobile, scrollDirection, isAtTop }) => {
   };
 
   return (
-    <div className="flex-1 overflow-hidden">
+    <div className="flex-1 h-[calc(100vh-4rem)]">
       <div className="h-full overflow-y-auto">
         <motion.div 
           className="p-6"
