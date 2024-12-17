@@ -309,15 +309,15 @@ const ItemTable = ({ items, setItems }) => {
   };
 
   return (
-    <div className="space-y-6">
-      {/* Main Table */}
-      <div className="overflow-x-auto rounded-lg border border-gray-200">
-        <table className="min-w-full divide-y divide-gray-200">
-          <thead className="bg-gray-50">
+<div className="overflow-x-auto border rounded-lg">
+  <div className="min-w-full inline-block align-middle">
+    <div className="overflow-hidden">
+      <table className="min-w-full divide-y divide-gray-200">
+        <thead>
             <tr>
               <th
                 scope="col"
-                className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                className="sticky left-0 px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
               >
                 Item Details
               </th>
@@ -351,7 +351,7 @@ const ItemTable = ({ items, setItems }) => {
             {items.map((item, index) => (
               <tr key={index} className="hover:bg-gray-50">
                 {/* Item Details Cell */}
-                <td className="px-6 py-4">
+                <td className="sticky left-0 bg-white px-6 py-4">
                   <button
                     type="button"
                     onClick={() => handleItemClick(index)}
@@ -503,11 +503,13 @@ const ItemTable = ({ items, setItems }) => {
                 </td>
               </tr>
             ))}
-          </tbody>
-        </table>
-      </div>
+        </tbody>
+      </table>
+    </div>
+   </div>
+
       {/* Tax and Total Summary */}
-      <div className="flex justify-between items-start mt-6">
+      <div className="mt-4">
         {/* Add Item Button */}
         <button
           type="button"
@@ -748,7 +750,6 @@ const ItemTable = ({ items, setItems }) => {
           </Card>
         </div>
       )}
-      ;
     </div>
   );
 };

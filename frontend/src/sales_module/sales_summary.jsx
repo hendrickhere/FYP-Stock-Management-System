@@ -3,14 +3,14 @@ import { Card, CardContent } from "../ui/card";
 
 function SalesSummary({taxAmount, discountAmount, subTotal, grandTotal, discounts, taxes}) {
   return (
-    <Card className="w-96">
+    <Card className="w-full md:w-96">
       <CardContent className="p-6 bg-white rounded-lg">
         <div className="space-y-4">
           {/* Calculations */}
           <div className="space-y-2 pt-4 border-t">
-            <div className="flex justify-between text-m font-medium">
+            <div className="flex flex-wrap justify-between text-m font-medium gap-2">
               <span className="text-gray-600">Subtotal:</span>
-              <span>
+              <span className="ml-auto">
                 MYR{" "}
                 {subTotal}
               </span>

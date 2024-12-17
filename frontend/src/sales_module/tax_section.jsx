@@ -48,17 +48,17 @@ const MultiTaxSelection = ({taxes = [], selectedTaxes = [], handleTaxChange, isL
         </div>
       </div>
       
-      <div className="grid grid-cols-2 gap-4 mb-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
         {taxes.map(tax => (
           <div 
             key={tax.tax_id} 
-            className={`p-4 rounded-lg border transition-colors ${
+            className={`p-4 rounded-lg border transition-colors min-w-0 overflow-hidden ${
               selectedTaxes.find(t => t.tax_id === tax.tax_id)
                 ? 'bg-blue-50 border-blue-200'
                 : 'bg-gray-50 border-gray-200'
             }`}
           >
-            <div className="flex items-center justify-between mb-2">
+            <div className="flex items-center justify-between mb-2 flex-wrap gap-2">
               <h3 className="text-lg font-medium text-gray-700">{tax.tax_name}</h3>
               <label className="relative inline-flex items-center cursor-pointer">
                 <input

@@ -99,31 +99,6 @@ const handleProcessingError = (error) => {
     }]);
 };
 
-const handleActionClick = (action) => {
-  if (action === 'retry') {
-    setProcessingError(null);
-    
-    // Instead of calling handleProcessOrder directly, we should handle based on current state
-    const currentStep = automationState.currentStep;
-    
-    switch (currentStep) {
-      case 'reviewing_products':
-        handleAddProducts(automationState.processedData.groupedItems.newProducts);
-        break;
-        
-      case 'final_review':
-        handleConfirmOrder(); // We'll define this function
-        break;
-        
-      default:
-        handleProcessingCancel();
-    }
-  } else if (action === 'cancel') {
-    setProcessingError(null);
-    handleProcessingCancel();
-  }
-};
-
 const handleConfirmOrder = async () => {
     try {
         setStatus(prev => ({ ...prev, isProcessing: true }));
@@ -273,35 +248,6 @@ const handleConfirmOrder = async () => {
     isProcessing: false
   });
 
-  const determineRecoveryActions = (error, context) => {
-    const actions = [];
-
-    // Add retry action for recoverable errors
-    if (isRecoverableError(error)) {
-      actions.push({
-        label: "Try Again",
-        action: "retry",
-        variant: "default"
-      });
-    }
-
-    // Always add start over option
-    actions.push({
-      label: "Start Over",
-      action: "restart",
-      variant: "outline"
-    });
-
-    // Add cancel option
-    actions.push({
-      label: "Cancel",
-      action: "cancel",
-      variant: "outline"
-    });
-
-    return actions;
-  };
-
   const getStageDescription = (stage) => {
     const descriptions = {
       documentAnalysis: "Analyzing purchase order document",
@@ -313,40 +259,6 @@ const handleConfirmOrder = async () => {
     };
 
     return descriptions[stage] || stage;
-  };
-
-  const startAutomation = () => {
-    const welcomeMessage = {
-      type: 'bot',
-      text: `I can help you automate your purchase order processing. Here's how it works:
-
-1. First, upload your purchase order document (PDF)
-2. I'll extract and analyze the information
-3. You can review and edit the details
-4. Finally, confirm to process the order
-
-Would you like to start by uploading your purchase order document?`,
-      actions: ['upload'], // To show upload button
-      timestamp: new Date().toISOString()
-    };
-
-    setMessages(prev => [...prev, welcomeMessage]);
-    setAutomationState({
-      isActive: true,
-      step: 'start',
-      data: null
-    });
-  };
-
-  const generateErrorMessage = (error, context) => {
-    switch (error.code) {
-      case 'PRODUCT_VALIDATION_ERROR':
-        return `There were some issues with the product details:\n${error.details.join('\n')}`;
-      case 'STOCK_UPDATE_ERROR':
-        return `Unable to update stock levels: ${error.message}\nCurrent stock levels will remain unchanged.`;
-      default:
-        return `An error occurred while ${context}: ${error.message}`;
-    }
   };
 
 const handleProcessingComplete = (result) => {
@@ -479,126 +391,6 @@ const handleProcessingComplete = (result) => {
       isSubscribed = false;
     };
   }, [messages]);
-
-  const handleRegularFileUpload = async (file) => {
-  const token = localStorage.getItem('accessToken');
-  if (!token) {
-    setStatus(prev => ({ ...prev, authError: true, isOnline: false }));
-    return;
-  }
-
-  setStatus(prev => ({ ...prev, isProcessingFile: true }));
-
-  try {
-    const formData = new FormData();
-    formData.append('file', file);
-
-    // Add file message to chat
-    setMessages(prev => [...prev, {
-      type: 'user',
-      text: `Uploaded file: ${file.name}`,
-      timestamp: new Date().toISOString()
-    }]);
-
-    const response = await axiosInstance.post("/chatbot/process-file", formData, {
-      headers: {
-        'Content-Type': 'multipart/form-data'
-      }
-    });
-
-    setMessages(prev => [...prev, {
-      type: 'bot',
-      text: response.data.message,
-      data: response.data.data,
-      timestamp: new Date().toISOString()
-    }]);
-
-  } catch (error) {
-    console.error('File processing error:', error);
-    setMessages(prev => [...prev, {
-      type: 'bot',
-      text: 'Sorry, I encountered an error processing your file. Please try again.',
-      isError: true,
-      timestamp: new Date().toISOString()
-    }]);
-  } finally {
-    setStatus(prev => ({ ...prev, isProcessingFile: false }));
-  }
-  };
-
-  const calculateFinancials = (items) => {
-    // Calculate all financial aspects of the purchase order
-    const subtotal = items.reduce((sum, item) => 
-      sum + (parseFloat(item.price) * parseInt(item.quantity)), 0
-    );
-    const tax = subtotal * 0.06; // 6% tax rate
-    const shipping = 500; // Default shipping fee
-
-    return {
-      subtotal,
-      tax,
-      shipping,
-      total: subtotal + tax + shipping,
-      itemizedTotals: items.map(item => ({
-        productName: item.productName,
-        lineTotal: parseFloat(item.price) * parseInt(item.quantity)
-      }))
-    };
-  };
-
-  const handleConfirmation = async (data) => {
-    setStatus(prev => ({ ...prev, isProcessing: true }));
-    try {
-      // Format the data for the purchase order
-      const purchaseOrderData = {
-        vendorSn: "VEN-001", // This would come from vendor selection
-        orderDate: new Date().toISOString(),
-        paymentTerms: "Net 30",
-        deliveryMethod: "Standard Shipping",
-        totalAmount: data.extractedItems.reduce(
-          (sum, item) => sum + (item.price * item.quantity), 
-          0
-        ),
-        itemsList: data.extractedItems.map(item => ({
-          uuid: item.sku,
-          quantity: parseInt(item.quantity)
-        }))
-      };
-
-      // Send the purchase order to the backend
-      const response = await axiosInstance.post('/purchase/create', purchaseOrderData);
-      
-      // Add success message
-      setMessages(prev => [...prev, {
-        type: 'bot',
-        text: `Purchase order created successfully! 
-  Order ID: ${response.data.purchase_order_id}
-  Total Amount: RM${response.data.total_amount}
-
-  Would you like to do anything else with this purchase order?`,
-        actions: ['view_details', 'new_order'],
-        timestamp: new Date().toISOString()
-      }]);
-
-      // Reset automation state
-      setAutomationState({
-        isActive: false,
-        step: null,
-        data: null
-      });
-
-    } catch (error) {
-      console.error('Error creating purchase order:', error);
-      setMessages(prev => [...prev, {
-        type: 'bot',
-        text: 'Sorry, I encountered an error creating the purchase order. Please try again or contact support.',
-        isError: true,
-        timestamp: new Date().toISOString()
-      }]);
-    } finally {
-      setStatus(prev => ({ ...prev, isProcessing: false }));
-    }
-  };
 
   const handleFileUpload = async (file) => {
     try {

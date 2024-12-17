@@ -389,11 +389,13 @@ const MainContent = ({ isMobile }) => {
 
   return (
     <main className="flex-1">
+      <div
+        className={`h-[calc(100vh-4rem)] overflow-y-auto custom-scrollbar min-w-[320px] ${
+          isMobile ? "w-full" : "ml-[13rem]"
+        }`}
+      >
 
       <Toaster position="bottom-right" />
-
-      <div className={`h-[calc(100vh-4rem)] overflow-y-auto custom-scrollbar ${isMobile ? 'w-full' : 'ml-[13rem]'}`}>
-
           <AlertDialog open={showCancelDialog} onOpenChange={setShowCancelDialog}>
             <AlertDialogContent className="bg-white">
               <AlertDialogHeader>
@@ -411,8 +413,8 @@ const MainContent = ({ isMobile }) => {
             </AlertDialogContent>
           </AlertDialog>
 
-        <div className="p-4 md:p-6">
-          <div className="max-w-[1400px] mx-auto">
+        <div className="p-6">
+          <div className="mx-auto w-full max-w-[1400px]">
             <div className="mb-6">
               <h1 className="text-2xl font-bold pl-6">Add New Sales Order</h1>
             </div>
@@ -425,14 +427,14 @@ const MainContent = ({ isMobile }) => {
             )}
 
         <form onSubmit={handleSubmit} className="space-y-4 md:space-y-6 pb-24">
-          <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+          <div className="grid grid-cols-1 gap-6 lg:grid-cols-2 min-w-0">
             {/* Customer Information Card */}
-            <Card>
+            <Card className="w-full min-w-0">
               <CardHeader className="pb-2">
                 <CardTitle>Customer Information</CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
-                <div className="grid gap-4">
+                <div className="space-y-2">
                   <label className="text-sm font-medium text-gray-700">
                     Customer Name
                   </label>
@@ -454,27 +456,26 @@ const MainContent = ({ isMobile }) => {
                     {errors.customer && (
                       <p className="text-red-500 text-sm">{errors.customer}</p>
                     )}
-                    {formState.showCustomer && (
-                      <div className="absolute w-full z-10" ref={dropdownRef}>
-                        <div className="mt-1 w-full bg-white border rounded-lg shadow-lg">
-                          <ul className="py-1 max-h-60 overflow-auto">
-                            {formState.customerData?.customers.map(
-                              (customer) => (
-                                <li
-                                  key={customer.customer_uuid}
-                                  className="px-4 py-2 hover:bg-gray-100 cursor-pointer"
-                                  onClick={() => handleCustomerSelect(customer)}
-                                >
-                                  {customer.customer_name}
-                                </li>
-                              )
-                            )}
-                          </ul>
+                      {/* Customer Dropdown */}
+                      {formState.showCustomer && (
+                        <div className="absolute w-full z-10" ref={dropdownRef}>
+                          <div className="mt-1 w-full bg-white border rounded-lg shadow-lg max-h-60 overflow-auto">
+                            {formState.customerData?.customers.map((customer) => (
+                              <button
+                                key={customer.customer_uuid}
+                                type="button"
+                                className="w-full px-4 py-2 text-left hover:bg-gray-50 focus:bg-gray-50 focus:outline-none"
+                                onClick={() => handleCustomerSelect(customer)}
+                              >
+                                <div className="font-medium">{customer.customer_name}</div>
+                                <div className="text-sm text-gray-500">{customer.customer_email}</div>
+                              </button>
+                            ))}
+                          </div>
                         </div>
-                      </div>
-                    )}
+                      )}
+                    </div>
                   </div>
-                </div>
               
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
@@ -486,7 +487,7 @@ const MainContent = ({ isMobile }) => {
                     name="salesOrderRef"
                     value={formState.salesOrderRef}
                     onChange={handleInputChange}
-                    className="w-full p-2 border rounded-md"
+                    className="w-full min-w-0 p-2 border rounded-md"
                   />
                 </div>
               </div>
@@ -532,7 +533,7 @@ const MainContent = ({ isMobile }) => {
             </Card>
 
             {/* Shipping Information Card */}
-            <Card>
+            <Card className="w-full min-w-0">
               <CardHeader className="pb-2">
                 <CardTitle>Shipping Information</CardTitle>
               </CardHeader>
@@ -618,7 +619,7 @@ const MainContent = ({ isMobile }) => {
                             : "")
                         }
                         onChange={handleInputChange}
-                        className="w-full p-2 border rounded-md h-24"
+                        className="w-full min-w-0 p-2 border rounded-md h-24"
                         placeholder="Enter shipping address"
                       />
                     </div>
@@ -633,8 +634,8 @@ const MainContent = ({ isMobile }) => {
               <CardHeader className="pb-2">
                 <CardTitle>Order Items</CardTitle>
               </CardHeader>
-              <CardContent className="overflow-x-auto">
-                <div className="min-w-[600px]">
+              <CardContent>
+                <div className="border rounded-lg overflow-hidden">
                   <ItemTable
                     items={formState.items}
                     setItems={(items) => setFormState((prev) => ({ ...prev, items }))}
@@ -676,8 +677,9 @@ const MainContent = ({ isMobile }) => {
               <CardHeader className="pb-2">
                 <CardTitle>Order Summary</CardTitle>
               </CardHeader>
-              <CardContent>
+              <CardContent className="overflow-x-auto">
                 <SalesSummary
+                  className="min-w-[320px]"
                   subTotal={tempPaymentInfo?.subtotal ?? 0}
                   grandTotal={tempPaymentInfo?.grandtotal ?? 0}
                   discountAmount={tempPaymentInfo?.totalDiscountAmount ?? 0}
@@ -719,11 +721,11 @@ const MainContent = ({ isMobile }) => {
                   "Save"
                 )}
               </button>
-            </div>
           </div>
         </div>
       </div>
     </div>
+   </div>
   </main>
 );
 };
