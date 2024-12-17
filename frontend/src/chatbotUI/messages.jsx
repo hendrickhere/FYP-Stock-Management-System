@@ -45,13 +45,14 @@ export default function Messages({
 
   return (
     <div 
-      className={`absolute inset-0 overflow-y-auto overflow-x-hidden scroll-smooth
-        ${isMobile ? 'px-2' : 'px-4'}`}
+      className={`absolute inset-0 overflow-y-auto overflow-x-hidden scroll-smooth custom-scrollbar
+        ${isMobile ? 'px-2 pb-20' : 'px-4 pb-4'}
+      `}
       ref={scrollContainerRef}
     >
-      <div className="py-4 lg:py-6 space-y-3 lg:space-y-4">
+      <div className="space-y-4">
         {Array.isArray(messages) && messages.length === 0 && (
-          <div className="text-center text-gray-500 py-6 lg:py-8 text-sm lg:text-base">
+          <div className="text-center text-gray-500 py-6 lg:py-8 text-xs lg:text-base">
             Start a conversation by sending a message.
           </div>
         )}

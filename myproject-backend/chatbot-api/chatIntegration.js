@@ -128,7 +128,6 @@ class ChatIntegration {
         return response;
     }
 
-    // Add other formatting methods as needed
 }
 
 module.exports = ChatIntegration;

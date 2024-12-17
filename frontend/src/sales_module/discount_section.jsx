@@ -58,19 +58,19 @@ const MultiDiscountSelection = ({
         </div>
       </div>
       
-      <div className="grid grid-cols-2 gap-4 mb-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
         {discounts.map(discount => (
           <div 
             key={discount.discount_id} 
-            className={`p-4 rounded-lg border transition-colors ${
+            className={`p-4 rounded-lg border transition-colors min-w-0 ${
               selectedDiscounts.find(d => d.discount_id === discount.discount_id)
                 ? 'bg-green-50 border-green-200'
                 : 'bg-gray-50 border-gray-200'
             }`}
           >
-            <div className="flex items-center justify-between mb-2">
-              <div className="flex items-center gap-2">
-                <h3 className="text-lg font-medium text-gray-700">{discount.discount_name}</h3>
+            <div className="flex items-center justify-between mb-2 flex-wrap gap-2">
+              <div className="flex items-center gap-2 flex-wrap">
+                <h3 className="text-lg font-medium text-gray-700 break-words">{discount.discount_name}</h3>
                 {discount.is_special && (
                   <span className="px-2 py-1 text-xs font-medium text-green-700 bg-green-100 rounded-full">
                     Special

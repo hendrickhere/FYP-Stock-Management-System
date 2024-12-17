@@ -4,8 +4,8 @@ const PriceDisplay = ({ price, discountedPrice, discounts, formatCurrency }) => 
   const [showTooltip, setShowTooltip] = useState(false);
 
   return (
-    <td className="px-6 py-4 text-right">
-      <div className="relative inline-block">
+    <td className="px-4 md:px-6 py-4 text-right whitespace-nowrap">
+     <div className="relative inline-block min-w-[100px]">
         <div 
           className="flex flex-col space-y-1 cursor-help"
           onMouseEnter={() => setShowTooltip(true)}
