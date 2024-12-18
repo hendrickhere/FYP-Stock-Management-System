@@ -42,8 +42,8 @@ const AddPurchases = () => {
       <div className="flex flex-row flex-grow">
         <Sidebar />
         <MainContent isMobile={isMobile} />
+        </div>
       </div>
-    </div>
   );
 };
 
@@ -219,7 +219,13 @@ const MainContent = ({ isMobile }) => {
 
   return (
     <main className="flex-1">
-      <div className={`h-[calc(100vh-4rem)] overflow-y-auto custom-scrollbar ${isMobile ? 'w-full' : 'ml-[13rem]'}`}>
+      <div 
+        className={`h-[calc(100vh-4rem)] overflow-y-auto custom-scrollbar ${
+          isMobile 
+            ? 'w-full' 
+            : 'w-[calc(100vw-13rem)] ml-[13rem]' 
+        }`}
+      >
         <AlertDialog open={showCancelDialog} onOpenChange={setShowCancelDialog}>
           <AlertDialogContent className="bg-white">
             <AlertDialogHeader>
@@ -237,8 +243,8 @@ const MainContent = ({ isMobile }) => {
           </AlertDialogContent>
         </AlertDialog>
 
-        <div className="p-6">
-          <div className="max-w-[1400px] mx-auto">
+        <div className="p-4 sm:p-6 min-w-0">
+          <div className="max-w-[1400px] w-full">
             <div className="mb-8">
               <h1 className="text-2xl font-bold pl-6">Add New Purchase Order</h1>
             </div>
@@ -256,7 +262,7 @@ const MainContent = ({ isMobile }) => {
                   <CardTitle>Vendor Information</CardTitle>
                 </CardHeader>
                   <CardContent className="space-y-4">
-                    <div className="space-y-2">
+                    <div className="space-y-2 px-2 sm:px-4">
                       <label className="text-sm font-medium text-gray-700">Vendor Name</label>
                       <div className="relative">
                         <input
@@ -427,7 +433,3 @@ const MainContent = ({ isMobile }) => {
 };
 
 export default AddPurchases;           
-              
-              
-              
-              

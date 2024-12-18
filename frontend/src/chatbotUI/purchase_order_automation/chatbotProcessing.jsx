@@ -745,108 +745,97 @@ const handleInventoryChecks = async (groupedItems) => {
   }
 };
 
+const handleModify = (modifiedData) => {
+  // Update formData with the modified data
+  setFormData(prev => ({
+    ...prev,
+    items: {
+      existingProducts: modifiedData.items,
+      newProducts: []
+    },
+    financials: modifiedData.financials
+  }));
+
+  // Also update processingData to keep them in sync
+  setProcessingData(prev => ({
+    ...prev,
+    items: {
+      existingProducts: modifiedData.items,
+      newProducts: []
+    },
+    financials: modifiedData.financials
+  }));
+};
+
   // Handle final purchase order processing
-const handleProcessOrder = async () => {
-  try {
-    setStatus(prev => ({ ...prev, isProcessing: true }));
-    const username = localStorage.getItem('username')?.trim();
-    if (!username) throw new Error('User not authenticated');
-
-    // Create a map to deduplicate products by SKU
-    const productMap = new Map();
-    
-    // Add existing products first
-    processingData.items.existingProducts.forEach(item => {
-      const sku = item.sku || item.sku_number;
-      productMap.set(sku, {
-        sku: sku,
-        quantity: parseInt(item.orderQuantity || item.quantity),
-        price: parseFloat(item.price || item.cost)
-      });
-    });
-    
-    // Add new products, overwriting any duplicates
-    formData?.items?.existingProducts?.forEach(item => {
-      if (item.type === 'new') {
-        const sku = item.sku || item.sku_number;
-        productMap.set(sku, {
-          sku: sku,
-          quantity: parseInt(item.orderQuantity || item.quantity),
-          price: parseFloat(item.price || item.cost)
-        });
-      }
-    });
-
-    const allItems = Array.from(productMap.values());
-
-    // Calculate financials based on deduplicated items
-    const subtotal = allItems.reduce((sum, item) => 
-      sum + (item.price * item.quantity), 0);
-    const tax = subtotal * 0.06;
-    const shipping = 500;
-    const total = subtotal + tax + shipping;
-    
-    console.log('Sending items to backend:', allItems); // For debugging
-
-    const purchaseOrderData = {
-      username: username,
-      orderDate: new Date().toISOString(),
-      deliveryMethod: "Standard Shipping",
-      paymentTerms: "Net 30",
-      totalAmount: total, // Use calculated total instead of modifiedData
-      itemsList: allItems
-    };
-
-    const response = await instance.post(
-      `/purchases/automated/${username}`, 
-      purchaseOrderData
-    );
-
-      if (response.data) {
-        // Update the messages in session storage to mark this analysis as completed
+  const handleProcessOrder = async (modifiedData) => {
+    if (status.isProcessing) return; // Prevent multiple submissions
+  
+    try {
+      setStatus(prev => ({ ...prev, isProcessing: true }));
+      const username = localStorage.getItem('username')?.trim();
+      if (!username) throw new Error('User not authenticated');
+  
+      // Use the modified data passed from PurchaseOrderPreview
+      const allItems = modifiedData.items.map(item => ({
+        sku: item.sku,
+        quantity: parseInt(item.quantity),
+        price: parseFloat(item.price),
+        productName: item.productName
+      }));
+  
+      const purchaseOrderData = {
+        username,
+        orderDate: new Date().toISOString(),
+        deliveryMethod: "Standard Shipping",
+        paymentTerms: "Net 30",
+        totalAmount: modifiedData.financials.total,
+        itemsList: allItems
+      };
+  
+      const response = await instance.post(
+        `/purchases/automated/${username}`, 
+        purchaseOrderData
+      );
+      
+      if (response.status === 200 || response.status === 201) {
+        // Update session storage
         const currentMessages = JSON.parse(sessionStorage.getItem('stocksavvy_current_messages') || '[]');
         const updatedMessages = currentMessages.map(msg => {
-          // Look for the message containing this specific analysis result
-          if (msg.fileAnalysis && 
-              msg.fileAnalysis.metadata?.poNumber === analysisResult.metadata?.poNumber) {
-            return {
-              ...msg,
-              fileAnalysis: {
-                ...msg.fileAnalysis,
-                status: { completed: true }  // Mark as completed
-              }
-            };
+          if (msg.fileAnalysis?.metadata?.poNumber === analysisResult.metadata?.poNumber) {
+            return { ...msg, fileAnalysis: { ...msg.fileAnalysis, status: { completed: true } } };
           }
           return msg;
         });
-        
         sessionStorage.setItem('stocksavvy_current_messages', JSON.stringify(updatedMessages));
         
-        // Clear processing data
+        // Clear states
         setProcessingData(null);
-
-        const successMessage = {
-          type: 'bot',
-          text: `Purchase order #${response.data.id || response.data.purchaseOrderId} created successfully. Need anything else?`,
-          timestamp: new Date().toISOString()
-        };
-
+        setFormData(null);
+  
+        // Notify completion
         if (onMessage) {
-          onMessage(successMessage);
+          onMessage({
+            type: 'bot',
+            text: `Purchase order #${response.data.orderId} created successfully. Need anything else?`,
+            timestamp: new Date().toISOString()
+          });
         }
-
+  
         if (onProcessingComplete) {
-          onProcessingComplete(response.data);
+          onProcessingComplete({
+            status: 'success',
+            orderId: response.data.orderId,
+            data: purchaseOrderData
+          });
         }
-
-        return null;
       }
-
     } catch (error) {
-      console.error('Purchase order processing error:', error);
+      console.error('Error processing order:', error);
       handleProcessingError(error);
+      throw error; // Re-throw to be caught by PurchaseOrderPreview
     } finally {
-      setIsProcessing(false);
+      setStatus(prev => ({ ...prev, isProcessing: false }));
     }
   };
 

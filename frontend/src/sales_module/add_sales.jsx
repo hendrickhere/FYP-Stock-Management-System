@@ -17,7 +17,6 @@ import Sidebar from "../sidebar";
 import ItemTable from "./addSalesInventoryTable";
 import SalesSummary from "./sales_summary";
 import MultiDiscountSelection from "./discount_section";
-import { FaTemperatureHigh } from "react-icons/fa";
 import { 
   AlertDialog,
   AlertDialogAction,
@@ -414,7 +413,7 @@ const MainContent = ({ isMobile }) => {
           </AlertDialog>
 
         <div className="p-6">
-          <div className="mx-auto w-full max-w-[1400px]">
+          <div className="w-full">
             <div className="mb-6">
               <h1 className="text-2xl font-bold pl-6">Add New Sales Order</h1>
             </div>
@@ -427,7 +426,7 @@ const MainContent = ({ isMobile }) => {
             )}
 
         <form onSubmit={handleSubmit} className="space-y-4 md:space-y-6 pb-24">
-          <div className="grid grid-cols-1 gap-6 lg:grid-cols-2 min-w-0">
+          <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-2">
             {/* Customer Information Card */}
             <Card className="w-full min-w-0">
               <CardHeader className="pb-2">
@@ -679,7 +678,7 @@ const MainContent = ({ isMobile }) => {
               </CardHeader>
               <CardContent className="overflow-x-auto">
                 <SalesSummary
-                  className="min-w-[320px]"
+                  className="w-full sm:w-auto max-w-full sm:max-w-[384px]"
                   subTotal={tempPaymentInfo?.subtotal ?? 0}
                   grandTotal={tempPaymentInfo?.grandtotal ?? 0}
                   discountAmount={tempPaymentInfo?.totalDiscountAmount ?? 0}
