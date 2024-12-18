@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { AlertCircle, Check, Edit2, Save, AlertTriangle, Plus, X } from 'lucide-react';
+import React, { useState, useEffect, useContext } from 'react';
+import { AlertCircle, Check, Edit2, Save, AlertTriangle, Plus, X, Search } from 'lucide-react';
 import {
   Alert,
   AlertTitle,
@@ -7,7 +7,11 @@ import {
 } from "../../ui/alert";
 import { Input } from "../../ui/input";
 import { Button } from "../../ui/button";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "../../ui/dialog";
+import { Dialog, DialogContent } from "../../ui/dialog";
+import { Card, CardHeader, CardTitle, CardContent } from "../../ui/card";
+import ItemTable from "../../purchases_module/addPurchasesInventoryTable";
+import { GlobalContext } from '../../globalContext';
+import instance from '../../axiosConfig';
 
 const PurchaseOrderPreview = ({ 
   extractedData,
@@ -26,6 +30,7 @@ const PurchaseOrderPreview = ({
   };
 
   const [isEditing, setIsEditing] = useState(false);
+  const [showInventoryTable, setShowInventoryTable] = useState(false);
   const [modifiedData, setModifiedData] = useState(() => {
     if (!extractedData?.items) {
       console.warn('No items data provided to PurchaseOrderPreview');
@@ -65,13 +70,64 @@ const PurchaseOrderPreview = ({
     };
   });
   const [validationErrors, setValidationErrors] = useState([]);
-  const [showAddItemDialog, setShowAddItemDialog] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
+
+  // Add inventory state
+  const [inventoryItems, setInventoryItems] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const { username } = useContext(GlobalContext);
+
+  useEffect(() => {
+    if (showInventoryTable) {
+      fetchInventoryItems();
+    }
+  }, [showInventoryTable]);
+
+  const fetchInventoryItems = async () => {
+    setLoading(true);
+    try {
+      const encodedUsername = encodeURIComponent(username);
+      const response = await instance.get(`/user/${encodedUsername}/inventories`);
+      
+      if (response.data?.inventories) {
+        setInventoryItems(response.data.inventories);
+      } else {
+        throw new Error('No inventory data received');
+      }
+    } catch (error) {
+      console.error("Error fetching inventory:", error);
+      // toast({
+      //   variant: "destructive",
+      //   title: "Error",
+      //   description: "Failed to fetch inventory items"
+      // });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleItemSelect = (selectedItem) => {
+    const newItem = {
+      productName: selectedItem.product_name,
+      sku: selectedItem.sku_number,
+      quantity: 1,
+      price: parseFloat(selectedItem.cost || 0),
+      productId: selectedItem.product_id,
+      type: 'existing'
+    };
+
+    setModifiedData(prev => ({
+      ...prev,
+      items: [...prev.items, newItem]
+    }));
+    setShowInventoryTable(false);
+  };
 
   useEffect(() => {
     const items = modifiedData.items;
     const subtotal = calculateSubtotal(items);
     const tax = subtotal * 0.06;
-    const total = subtotal + tax + modifiedData.financials.shipping;
+    const total = subtotal + modifiedData.financials.shipping;
 
     setModifiedData(prev => ({
       ...prev,
@@ -133,6 +189,27 @@ const PurchaseOrderPreview = ({
     return errors;
   };
 
+  const handleAddFromInventory = (selectedItems) => {
+    // Map selected items to our format with default quantity of 1
+    const newItems = selectedItems.map(item => ({
+      productName: item.product_name,
+      sku: item.sku_number,
+      quantity: 1,
+      price: parseFloat(item.cost || 0),
+      productId: item.product_id,
+      type: 'existing'
+    }));
+  
+    // Add new items to existing items
+    setModifiedData(prev => ({
+      ...prev,
+      items: [...prev.items, ...newItems]
+    }));
+  
+    // Close the inventory table
+    setShowInventoryTable(false);
+  };
+
   // Handler for editing items
   const handleEdit = (itemIndex, field, value) => {
     setModifiedData(prev => ({
@@ -166,27 +243,6 @@ const PurchaseOrderPreview = ({
     setIsEditing(false);
   };
 
-  // Handler for adding new item
-  const handleAddItem = () => {
-    if (!newItem.productName || !newItem.sku || !newItem.quantity || !newItem.price) {
-      setValidationErrors(['All fields are required for new items']);
-      return;
-    }
-
-    setModifiedData(prev => ({
-      ...prev,
-      items: [...prev.items, { ...newItem }]
-    }));
-
-    setNewItem({
-      productName: '',
-      sku: '',
-      quantity: '',
-      price: ''
-    });
-    setShowAddItemDialog(false);
-  };
-
   // Handler for removing items
   const handleRemoveItem = (index) => {
     setModifiedData(prev => ({
@@ -214,6 +270,10 @@ const PurchaseOrderPreview = ({
       console.error('Error processing order:', error);
       setValidationErrors([error.message || 'Failed to process order']);
     }
+  };
+
+  const handleSearch = (e) => {
+    setSearchTerm(e.target.value);
   };
 
   return (
@@ -269,15 +329,11 @@ const PurchaseOrderPreview = ({
                 </Button>
                 <Button
                   variant="outline"
-                  size={isMobile ? "sm" : "default"}
-                  onClick={() => setShowAddItemDialog(true)}
-                  disabled={isProcessing || !isEditing}
-                  className={`
-                    ${isMobile ? 'text-xs px-2 py-1 h-8' : ''}
-                    flex items-center
-                  `}
+                  size="sm"
+                  onClick={() => setShowInventoryTable(true)}
+                  className="flex items-center gap-1"
                 >
-                  <Plus className="w-4 h-4 mr-1" />
+                  <Plus className="w-4 h-4" />
                   Add
                 </Button>
               </>
@@ -440,63 +496,77 @@ const PurchaseOrderPreview = ({
       </div>
 
       {/* Add Item Dialog */}
-      <Dialog open={showAddItemDialog} onOpenChange={setShowAddItemDialog}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Add New Item</DialogTitle>
-            <DialogDescription>
-              Enter the details for the new item below.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4 py-4">
-            <div className="grid grid-cols-1 gap-4">
-              <div>
-                <label className="text-sm font-medium">Product Name</label>
-                <Input
-                  value={newItem.productName}
-                  onChange={(e) => setNewItem(prev => ({ ...prev, productName: e.target.value }))}
-                  placeholder="Enter product name"
-                />
+      <Dialog open={showInventoryTable} onOpenChange={setShowInventoryTable}>
+        <DialogContent className="max-w-4xl bg-white">
+          <Card className="border-0 shadow-none">
+            <CardHeader>
+              <CardTitle>Select Items</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                <div className="flex items-center space-x-2">
+                  <Search className="w-4 h-4 text-gray-400" />
+                  <input
+                    type="text"
+                    placeholder="Search items..."
+                    className="w-full p-2 text-sm border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    value={searchTerm}
+                    onChange={handleSearch}
+                  />
+                </div>
+                <div className="h-[500px] overflow-y-auto">
+                  {loading ? (
+                    <div className="flex items-center justify-center h-full">
+                      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+                    </div>
+                  ) : (
+                    <div className="grid gap-3">
+                      {inventoryItems
+                        .filter(item => 
+                          item.product_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                          item.sku_number.toLowerCase().includes(searchTerm.toLowerCase())
+                        )
+                        .map((item) => (
+                          <button
+                            key={item.product_uuid}
+                            onClick={() => handleItemSelect(item)}
+                            className={`w-full text-left p-4 rounded-lg border transition-colors ${
+                              item.product_stock <= 0 
+                                ? 'border-red-200 bg-red-50 cursor-not-allowed'
+                                : 'border-gray-200 hover:border-blue-500'
+                            }`}
+                            disabled={item.product_stock <= 0}
+                          >
+                            <div className="flex justify-between items-start">
+                              <div>
+                                <div className="font-medium">{item.product_name}</div>
+                                <div className="text-sm text-gray-500">
+                                  SKU: {item.sku_number}
+                                  {item.brand && ` • Brand: ${item.brand}`}
+                                </div>
+                                <div className="text-sm text-gray-500">
+                                  Manufacturer: {item.manufacturer || 'N/A'}
+                                </div>
+                                <div className="text-sm mt-1">
+                                  Current Stock: {item.product_stock} units
+                                </div>
+                              </div>
+                              <div className="text-right">
+                                <div className="font-medium text-blue-600">
+                                  Cost: MYR {typeof item.cost === 'number' ? 
+                                    item.cost.toFixed(2) : 
+                                    parseFloat(item.cost || 0).toFixed(2)}
+                                </div>
+                              </div>
+                            </div>
+                          </button>
+                        ))}
+                    </div>
+                  )}
+                </div>
               </div>
-              <div>
-                <label className="text-sm font-medium">SKU</label>
-                <Input
-                  value={newItem.sku}
-                  onChange={(e) => setNewItem(prev => ({ ...prev, sku: e.target.value }))}
-                  placeholder="Enter SKU"
-                />
-              </div>
-              <div>
-                <label className="text-sm font-medium">Quantity</label>
-                <Input
-                  type="number"
-                  value={newItem.quantity}
-                  onChange={(e) => setNewItem(prev => ({ ...prev, quantity: e.target.value }))}
-                  placeholder="Enter quantity"
-                  min="1"
-                />
-              </div>
-              <div>
-                <label className="text-sm font-medium">Unit Price (RM)</label>
-                <Input
-                  type="number"
-                  value={newItem.price}
-                  onChange={(e) => setNewItem(prev => ({ ...prev, price: e.target.value }))}
-                  placeholder="Enter unit price"
-                  step="0.01"
-                  min="0.01"
-                />
-              </div>
-            </div>
-          </div>
-          <div className="flex justify-end gap-2">
-            <Button variant="outline" onClick={() => setShowAddItemDialog(false)}>
-              Cancel
-            </Button>
-            <Button onClick={handleAddItem}>
-              Add Item
-            </Button>
-          </div>
+            </CardContent>
+          </Card>
         </DialogContent>
       </Dialog>
     </div>
