@@ -224,7 +224,7 @@ const Input = ({ onSend, disabled, onFileUpload }) => {
 
       {/* Suggestions Panel */}
       {showSuggestions && (
-        <div className="absolute bottom-full left-0 right-0 mb-2 bg-white rounded-lg shadow-lg border p-4 max-h-80 overflow-y-auto">
+        <div className="absolute bottom-full left-0 right-0 mb-2 bg-white rounded-lg shadow-lg border p-4 max-h-80 overflow-y-auto custom-scrollbar">
           <div className="flex justify-between items-center mb-3">
             <h3 className="font-semibold text-gray-700">Suggested Queries</h3>
             <button 

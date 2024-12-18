@@ -310,14 +310,13 @@ const ItemTable = ({ items, setItems }) => {
 
   return (
 <div className="overflow-x-auto border rounded-lg">
-  <div className="min-w-full inline-block align-middle">
-    <div className="overflow-hidden">
-      <table className="min-w-full divide-y divide-gray-200">
+  <div className="w-full overflow-x-auto">
+    <table className="w-full min-w-[700px] divide-y divide-gray-200 table-auto">
         <thead>
             <tr>
               <th
                 scope="col"
-                className="sticky left-0 px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                className ="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase"
               >
                 Item Details
               </th>
@@ -506,7 +505,7 @@ const ItemTable = ({ items, setItems }) => {
         </tbody>
       </table>
     </div>
-   </div>
+
 
       {/* Tax and Total Summary */}
       <div className="mt-4">

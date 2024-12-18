@@ -33,7 +33,7 @@ export const useScrollDirection = ({ threshold = 10 } = {}) => {
       });
     };
 
-    const throttledHandleScroll = throttle(handleScroll, 100);
+    const throttledHandleScroll = throttle(handleScroll, 50);
     scrollableRef.current?.addEventListener('scroll', throttledHandleScroll);
 
     return () => {
@@ -46,12 +46,13 @@ export const useScrollDirection = ({ threshold = 10 } = {}) => {
 
 // Utility function for throttling scroll events
 function throttle(func, limit) {
-  let inThrottle;
-  return function(...args) {
-    if (!inThrottle) {
-      func.apply(this, args);
-      inThrottle = true;
-      setTimeout(() => inThrottle = false, limit);
+  let timeout;
+  return function (...args) {
+    if (!timeout) {
+      timeout = setTimeout(() => {
+        func.apply(this, args);
+        timeout = null;
+      }, limit); 
     }
   };
 }

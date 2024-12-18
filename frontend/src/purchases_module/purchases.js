@@ -146,7 +146,7 @@ const MainContent = ({ isMobile, scrollDirection, isAtTop }) => {
 
   return (
     <div className="flex-1 h-[calc(100vh-4rem)]">
-      <div className="h-full overflow-y-auto">
+      <div className="h-full overflow-y-auto custom-scrollbar">
         <motion.div 
           className="p-6"
           animate={{ 

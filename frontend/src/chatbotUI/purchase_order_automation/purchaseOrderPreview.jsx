@@ -26,63 +26,63 @@ const PurchaseOrderPreview = ({
   };
 
   const [isEditing, setIsEditing] = useState(false);
-const [modifiedData, setModifiedData] = useState(() => {
-  if (!extractedData?.items) {
-    console.warn('No items data provided to PurchaseOrderPreview');
+  const [modifiedData, setModifiedData] = useState(() => {
+    if (!extractedData?.items) {
+      console.warn('No items data provided to PurchaseOrderPreview');
+      return {
+        items: [],
+        metadata: {},
+        financials: { subtotal: 0, tax: 0, shipping: 500, total: 500 }
+      };
+    }
+
+    // Log incoming data to verify structure
+    console.log('Initializing PurchaseOrderPreview with:', extractedData);
+
+    // Map items while carefully preserving quantities
+    const items = Array.isArray(extractedData.items) ? extractedData.items.map(item => ({
+      productName: item.productName || item.product_name,
+      sku: item.sku || item.sku_number,
+      // Be explicit about quantity sources
+      quantity: parseInt(item.orderQuantity || item.quantity || 0),
+      price: parseFloat(item.cost || 0),
+      productId: item.productId,
+      type: item.type || 'existing'
+    })) : [];
+
+    // Calculate financials based on actual items
+    const subtotal = items.reduce((sum, item) => 
+      sum + (parseFloat(item.price || 0) * parseInt(item.quantity || 0)), 0
+    );
+    const tax = subtotal * 0.06;
+    const shipping = 500;
+    const total = subtotal + tax + shipping;
+
     return {
-      items: [],
-      metadata: {},
-      financials: { subtotal: 0, tax: 0, shipping: 500, total: 500 }
+      items,
+      metadata: extractedData.metadata || {},
+      financials: { subtotal, tax, shipping, total }
     };
-  }
-
-  // Log incoming data to verify structure
-  console.log('Initializing PurchaseOrderPreview with:', extractedData);
-
-  // Map items while carefully preserving quantities
-  const items = Array.isArray(extractedData.items) ? extractedData.items.map(item => ({
-    productName: item.productName || item.product_name,
-    sku: item.sku || item.sku_number,
-    // Be explicit about quantity sources
-    quantity: parseInt(item.orderQuantity || item.quantity || 0),
-    price: parseFloat(item.cost || 0),
-    productId: item.productId,
-    type: item.type || 'existing'
-  })) : [];
-
-  // Calculate financials based on actual items
-  const subtotal = items.reduce((sum, item) => 
-    sum + (parseFloat(item.price || 0) * parseInt(item.quantity || 0)), 0
-  );
-  const tax = subtotal * 0.06;
-  const shipping = 500;
-  const total = subtotal + tax + shipping;
-
-  return {
-    items,
-    metadata: extractedData.metadata || {},
-    financials: { subtotal, tax, shipping, total }
-  };
-});
+  });
   const [validationErrors, setValidationErrors] = useState([]);
   const [showAddItemDialog, setShowAddItemDialog] = useState(false);
 
-    useEffect(() => {
-        const items = modifiedData.items;
-        const subtotal = calculateSubtotal(items);
-        const tax = subtotal * 0.06;
-        const total = subtotal + tax + modifiedData.financials.shipping;
+  useEffect(() => {
+    const items = modifiedData.items;
+    const subtotal = calculateSubtotal(items);
+    const tax = subtotal * 0.06;
+    const total = subtotal + tax + modifiedData.financials.shipping;
 
-        setModifiedData(prev => ({
-            ...prev,
-            financials: {
-                subtotal,
-                tax,
-                shipping: prev.financials.shipping,
-                total
-            }
-        }));
-    }, [modifiedData.items]);
+    setModifiedData(prev => ({
+      ...prev,
+      financials: {
+        subtotal,
+        tax,
+        shipping: prev.financials.shipping,
+        total
+      }
+    }));
+  }, [modifiedData.items]);
 
   const totals = React.useMemo(() => {
     const items = modifiedData.items || [];
@@ -110,18 +110,23 @@ const [modifiedData, setModifiedData] = useState(() => {
   const validateData = (data) => {
     const errors = [];
     
-    data.items?.forEach((item, index) => {
+    if (!data.items || data.items.length === 0) {
+      errors.push('No items in order');
+      return errors;
+    }
+
+    data.items.forEach((item, index) => {
       if (!item.productName) {
-        errors.push(`Item ${index + 1}: Product name is required`);
+        errors.push(`Item ${index + 1}: Missing product name`);
       }
       if (!item.sku) {
-        errors.push(`Item ${index + 1}: SKU is required`);
+        errors.push(`Item ${index + 1}: Missing SKU`);
       }
       if (!item.quantity || item.quantity <= 0) {
-        errors.push(`Item ${index + 1}: Valid quantity is required`);
+        errors.push(`Item ${index + 1}: Invalid quantity`);
       }
       if (!item.price || item.price <= 0) {
-        errors.push(`Item ${index + 1}: Valid price is required`);
+        errors.push(`Item ${index + 1}: Invalid price`);
       }
     });
 
@@ -142,26 +147,23 @@ const [modifiedData, setModifiedData] = useState(() => {
 
   // Handler for saving changes
   const handleSave = () => {
-    try {
-      const errors = validateData(modifiedData);
-      if (errors.length > 0) {
-        setValidationErrors(errors);
-        return;
-      }
-      
-      setIsEditing(false);
-      setValidationErrors([]);
+    if (isProcessing) return;
 
-      try {
-        onModify(modifiedData);
-      } catch (error) {
-        console.warn('Error in onModify callback:', error);
-        setValidationErrors(['Changes saved locally but failed to sync']);
-      }
-    } catch (error) {
-      console.error('Error in handleSave:', error);
-      setValidationErrors(['Failed to save changes']);
+    // Validate the data before saving
+    const errors = validateData(modifiedData);
+    if (errors.length > 0) {
+      setValidationErrors(errors);
+      return;
     }
+
+    // Clear any previous validation errors
+    setValidationErrors([]);
+    
+    // Notify parent of modifications
+    onModify(modifiedData);
+    
+    // Exit edit mode
+    setIsEditing(false);
   };
 
   // Handler for adding new item
@@ -191,6 +193,27 @@ const [modifiedData, setModifiedData] = useState(() => {
       ...prev,
       items: prev.items.filter((_, idx) => idx !== index)
     }));
+  };
+
+  // Handler for processing order
+  const handleProcess = async () => {
+    if (isProcessing) return; // Prevent multiple clicks
+  
+    try {
+      // Validate before processing
+      const errors = validateData(modifiedData);
+      if (errors.length > 0) {
+        setValidationErrors(errors);
+        return;
+      }
+  
+      setValidationErrors([]);
+      await onConfirm(modifiedData); // Pass the modified data to parent
+      setIsEditing(false); // Disable editing after successful processing
+    } catch (error) {
+      console.error('Error processing order:', error);
+      setValidationErrors([error.message || 'Failed to process order']);
+    }
   };
 
   return (
@@ -277,15 +300,21 @@ const [modifiedData, setModifiedData] = useState(() => {
             <Button
               variant="default"
               size={isMobile ? "sm" : "default"}
-              onClick={() => onConfirm(modifiedData)}
-              disabled={isProcessing}
+              onClick={handleProcess}
+              disabled={isProcessing || isEditing}
               className={`
                 ${isMobile ? 'text-xs px-2 py-1 h-8 bg-purple-600 hover:bg-purple-700' : ''}
                 flex items-center
               `}
             >
-                <Check className="w-4 h-4 mr-1" />
-                Confirm & Process
+                {isProcessing ? (
+                  <>Processing...</>
+                ) : (
+                  <>
+                    <Check className="w-4 h-4 mr-1" />
+                    Process
+                  </>
+                )}
               </Button>
             )}
           </div>

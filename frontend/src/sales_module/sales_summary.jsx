@@ -13,7 +13,7 @@ function SalesSummary({taxAmount, discountAmount, subTotal, grandTotal, discount
               <span className="ml-auto">
                 MYR{" "}
                 {subTotal}
-              </span>
+              </span> 
             </div>
             {discounts.map((discount, index) => {
               return (<div className="flex justify-between text-sm">
