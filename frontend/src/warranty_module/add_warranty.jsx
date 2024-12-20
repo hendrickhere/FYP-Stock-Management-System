@@ -554,9 +554,10 @@ const MainContent = ({ isMobile }) => {
               className="fixed bottom-0 right-0 bg-white border-t p-4 z-10"
               style={{
                 left: isMobile ? "0" : "13rem",
+                width: 'auto'
               }}
             >
-              <div className="max-w-[1400px] mx-auto w-full flex justify-end space-x-4">
+              <div className="w-full flex justify-end gap-4 pr-4">
                 <button
                   type="button"
                   onClick={handleCancel}

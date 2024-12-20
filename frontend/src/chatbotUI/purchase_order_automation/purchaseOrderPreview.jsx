@@ -329,7 +329,7 @@ const PurchaseOrderPreview = ({
                 </Button>
                 <Button
                   variant="outline"
-                  size="sm"
+                  size={isMobile ? "sm" : "default"}
                   onClick={() => setShowInventoryTable(true)}
                   className="flex items-center gap-1"
                 >
@@ -339,7 +339,7 @@ const PurchaseOrderPreview = ({
               </>
             ) : (
               <Button
-                variant="primary"
+                variant="outline"
                 size={isMobile ? "sm" : "default"}
                 onClick={handleSave}
                 disabled={isProcessing}

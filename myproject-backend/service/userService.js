@@ -762,6 +762,60 @@ exports.addInventoryBatch = async (userId, products) => {
   }
 };
 
+exports.updateProfile = async (userId, updateData) => {
+  const { username, email } = updateData;
+  
+  // Find user first to verify existence
+  const existingUser = await User.findOne({
+    where: { user_id: userId }
+  });
+
+  if (!existingUser) {
+    throw new Error('User not found');
+  }
+
+  // Check for duplicate email/username excluding current user
+  const duplicateUser = await User.findOne({
+    where: {
+      [Op.or]: [
+        { email: email },
+        { username: username }
+      ],
+      user_id: { [Op.ne]: userId }
+    }
+  });
+
+  if (duplicateUser) {
+    if (duplicateUser.email === email) {
+      throw new Error('EMAIL_EXISTS');
+    }
+    if (duplicateUser.username === username) {
+      throw new Error('USERNAME_EXISTS');
+    }
+  }
+
+  // Update user
+  const [updateCount] = await User.update({
+    username,
+    email,
+    updated_at: sequelize.literal('CURRENT_TIMESTAMP')
+  }, {
+    where: { user_id: userId }
+  });
+
+  if (updateCount === 0) {
+    throw new Error('Failed to update profile');
+  }
+
+  // Fetch updated user
+  const updatedUser = await User.findOne({
+    where: { user_id: userId },
+    attributes: ['username', 'email', 'role']
+  });
+
+  return updatedUser;
+};
+
 exports.getUserById = getUserById;
 exports.storeRefreshToken = storeRefreshToken;
 exports.getUserByRefreshToken = getUserByRefreshToken;

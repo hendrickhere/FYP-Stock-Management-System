@@ -122,7 +122,7 @@ export const MainContent = ({ isMobile, scrollDirection, isAtTop }) => {
               {warranties.map((warranty) => (
                 <Card
                   key={warranty.warranty_id}
-                  className="bg-white rounded-lg p-4 border border-gray-200 hover:shadow-lg transition-shadow"
+                  className="bg-white rounded-lg p-4 border border-gray-200 hover:shadow-xl transition-shadow duration-200"
                 >
                   <div className="flex justify-between items-start mb-4">
                     <div className="text-3xl font-bold text-gray-300">

@@ -213,12 +213,12 @@ const BotMessage = ({
   };
 
   return (
-    <div className="flex items-start gap-3 max-w-[80%]"> 
+    <div className="flex items-start gap-3 max-w-[80%] w-full"> 
       <div className="flex-shrink-0 w-8 h-8 rounded-full bg-purple-100 flex items-center justify-center">
         <Bot className="w-5 h-5 text-purple-600" />
       </div>
 
-      <div className="flex-1 space-y-4">
+      <div className="flex-1 space-y-4 w-full">
         {text && (
           <div className={`px-3 py-2 rounded-2xl rounded-tl-none inline-block ${
             isError ? 'bg-red-50 text-red-600' : 'bg-gray-100'
