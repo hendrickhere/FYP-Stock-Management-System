@@ -50,6 +50,7 @@ function Header({ scrollDirection, isAtTop }) {
     { path: '/staff', icon: FaUsersCog, label: 'Staff' },
     { path: '/appointments', icon: GrSchedules, label: 'Appointments' },
     { path: '/warranty', icon: RiShieldCheckLine, label: 'Warranties' },
+    { path: '/profile', icon: CgProfile, label: 'Profile' },
     { path: '/settings', icon: IoSettingsSharp, label: 'Settings' }, 
   ];
 
@@ -94,6 +95,19 @@ function Header({ scrollDirection, isAtTop }) {
 
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  useEffect(() => {
+    const handleStorageChange = () => {
+      const updatedUserData = JSON.parse(sessionStorage.getItem('userData'));
+      if (updatedUserData) {
+        setUsername(updatedUserData.username);
+        setUserRole(updatedUserData.role);
+      }
+    };
+  
+    window.addEventListener('storage', handleStorageChange);
+    return () => window.removeEventListener('storage', handleStorageChange);
   }, []);
 
   const handleSessionExpired = () => {

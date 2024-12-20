@@ -110,6 +110,7 @@ exports.getCurrentUser = async (req, res) => {
     console.log("User data fetched successfully:", user.username);
     return res.status(200).json({ 
       username: user.username,
+      email: user.email,  
       role: user.role  
     });
   } catch (error) {
@@ -476,6 +477,71 @@ exports.getInventory = async (req, res) => {
       res.status(402), send({ message: err.message });
     } else {
       res.status(500).send({ message: err.message });
+    }
+  }
+};
+
+exports.updateProfile = async (req, res) => {
+  try {
+    console.log('Update Profile Request:', {
+      user: req.user,
+      body: req.body
+    });
+
+    const { id } = req.user;
+    const { username, email } = req.body;
+
+    // Input validation
+    if (!username || !email) {
+      console.log('Validation failed:', { username, email });
+      return res.status(400).json({
+        success: false,
+        message: 'Username and email are required'
+      });
+    }
+
+    // Email format validation
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid email format'
+      });
+    }
+
+    const updatedUser = await UserService.updateProfile(id, { username, email });
+
+    return res.status(200).json({
+      success: true,
+      message: 'Profile updated successfully',
+      user: updatedUser
+    });
+
+  } catch (error) {
+    console.error('Profile update error:', error);
+    
+    // Handle specific errors
+    switch (error.message) {
+      case 'EMAIL_EXISTS':
+        return res.status(409).json({
+          success: false,
+          message: 'Email is already in use'
+        });
+      case 'USERNAME_EXISTS':
+        return res.status(409).json({
+          success: false,
+          message: 'Username is already taken'
+        });
+      case 'User not found':
+        return res.status(404).json({
+          success: false,
+          message: 'User not found'
+        });
+      default:
+        return res.status(500).json({
+          success: false,
+          message: 'An error occurred while updating profile'
+        });
     }
   }
 };

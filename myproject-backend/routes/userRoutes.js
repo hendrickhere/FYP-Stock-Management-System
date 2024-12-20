@@ -20,6 +20,7 @@ router.put('/:username/:inventoryuuid/delete', UserController.deleteInventory);
 router.get("/:username/:inventoryuuid", UserController.getInventory);
 router.post('/inventory/batch', authMiddleware, UserController.addInventoryBatch);
 
+router.put('/profile/update', authMiddleware, UserController.updateProfile);
 
 router.get('/current', authMiddleware, UserController.getCurrentUser);
 router.post('/refresh-token', UserController.refreshToken);

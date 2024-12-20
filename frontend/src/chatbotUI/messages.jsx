@@ -46,7 +46,7 @@ export default function Messages({
   return (
     <div 
       className={`absolute inset-0 overflow-y-auto overflow-x-hidden scroll-smooth custom-scrollbar
-        ${isMobile ? 'px-2 pb-20' : 'px-4 pb-4'}
+        ${isMobile ? 'px-2 pb-20 pt-4' : 'px-4 pb-4 pt-6'}
       `}
       ref={scrollContainerRef}
     >

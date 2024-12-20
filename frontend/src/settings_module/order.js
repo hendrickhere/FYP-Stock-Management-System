@@ -158,9 +158,10 @@ const MainContent = ({ isMobile }) => {
         style={{ 
           right: 0,
           left: isMobile ? 0 : '13rem',
+          width: 'auto'
         }}
       >
-        <div className="flex justify-end space-x-4 max-w-7xl mx-auto px-4">
+        <div className="flex justify-end pr-4 gap-4">
           <button
             onClick={() => navigate("/settings")}
             className="flex items-center px-4 py-2 text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50"
