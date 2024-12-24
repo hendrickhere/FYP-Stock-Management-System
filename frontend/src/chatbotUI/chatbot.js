@@ -1,22 +1,26 @@
 import React, { useState, useEffect, useRef } from "react";
 import Header from "../header";
 import Sidebar from "../sidebar";
-import BotMessage from "./botMessage";
-import UserMessage from "./userMessage";
+import { FaLock } from 'react-icons/fa';
+import { motion } from 'framer-motion';
 import Messages from "./messages";
 import Input from "./input";
 import ChatbotHeader from "./chatbotHeader";
-import ChatLoader from './chatLoader';
 import ChatErrorBoundary from "./chatErrorBoundary";
-import ChatbotProcessing from './purchase_order_automation/chatbotProcessing';
-import { usePurchaseOrder } from './purchase_order_automation/purchaseOrderContext';
 import { PurchaseOrderProvider } from './purchase_order_automation/purchaseOrderContext';
 import axiosInstance from '../axiosConfig';
 import { Alert } from "../ui/alert";
 import { useToast } from '../ui/use-toast';
 
-const CONNECTION_CHECK_INTERVAL = 30000;
 const SESSION_MESSAGES_KEY = 'stocksavvy_current_messages';
+
+const springTransition = {
+  type: "spring",
+  stiffness: 400,
+  damping: 40,
+  mass: 0.3,
+  restDelta: 0.001
+};
 
 const AUTOMATION_STATES = {
   IDLE: 'idle',
@@ -29,6 +33,7 @@ const AUTOMATION_STATES = {
 };
 
 function ChatbotUI() {
+  const userRole = JSON.parse(sessionStorage.getItem('userData'))?.role;
   const [isMobile, setIsMobile] = useState(window.innerWidth < 1024);
 
   useEffect(() => {
@@ -43,9 +48,40 @@ function ChatbotUI() {
       <div className="flex flex-row flex-grow">
         {!isMobile && <Sidebar/>}
         <ChatErrorBoundary>
-          <PurchaseOrderProvider>
-            <Chatbot isMobile={isMobile} />
-          </PurchaseOrderProvider>
+          {userRole?.toLowerCase() === 'staff' ? (
+            <div className="flex-1 overflow-hidden">
+              <div className="h-full overflow-y-auto">
+                <motion.div 
+                  className="p-6 h-full"
+                  animate={{ 
+                    marginLeft: isMobile ? '0' : '13rem',
+                  }}
+                  transition={springTransition}
+                >
+                  <div className="flex items-center justify-center h-full">
+                    <motion.div 
+                      className="text-center"
+                      initial={{ opacity: 0, y: 20 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ duration: 0.3 }}
+                    >
+                      <div className="bg-white/50 rounded-lg p-8">
+                        <FaLock className="w-16 h-16 mx-auto text-gray-400 mb-4" />
+                        <h2 className="text-2xl font-bold text-gray-800 mb-2">Access Restricted</h2>
+                        <p className="text-gray-600 max-w-md">
+                          You don't have permission to access the chatbot. This feature is not available for staff members.
+                        </p>
+                      </div>
+                    </motion.div>
+                  </div>
+                </motion.div>
+              </div>
+            </div>
+          ) : (
+            <PurchaseOrderProvider>
+              <Chatbot isMobile={isMobile} />
+            </PurchaseOrderProvider>
+          )}
         </ChatErrorBoundary>
       </div>
     </div>

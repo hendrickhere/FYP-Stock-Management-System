@@ -247,7 +247,6 @@ function MainContent({ isMobile }) {
             marginTop: scrollDirection === "down" && !isAtTop ? "0" : "0",
           }}
           transition={syncedTransition}
-
         >
           {/* Title and Search Section */}
           <motion.div
@@ -303,7 +302,7 @@ function MainContent({ isMobile }) {
 
           {/* Content Area */}
           <motion.div
-            className="bg-white rounded-lg shadow-sm overflow-hidden" // Added overflow-hidden
+            className="bg-white rounded-lg shadow-sm overflow-hidden" 
             animate={{
               width: isMobile
                 ? "100%"
@@ -313,13 +312,12 @@ function MainContent({ isMobile }) {
             }}
             transition={syncedTransition}
           >
-            <div className="p-4"> {/* Changed from motion.div to regular div */}
+            <div className="p-4"> 
               {loading ? (
                 <div className="flex justify-center items-center py-8">
                   <p>Loading...</p>
                 </div>
               ) : (
-                // Remove the motion.div with grid-container class and its width animation
                 <div className="w-full">
                   <InventoryLayout
                     products={filteredData}
