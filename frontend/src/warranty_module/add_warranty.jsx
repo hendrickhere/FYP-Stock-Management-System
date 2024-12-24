@@ -17,6 +17,7 @@ import { AlertCircle } from "lucide-react";
 import Header from "../header";
 import Sidebar from "../sidebar";
 import instance from "../axiosConfig";
+import toast, { Toaster } from "react-hot-toast";
 
 const AddWarranty = () => {
   const [isMobile, setIsMobile] = useState(window.innerWidth < 1024);
@@ -118,17 +119,20 @@ const MainContent = ({ isMobile }) => {
 
   const validateForm = () => {
     const newErrors = {};
-
+    
     if (!selectedProduct) {
       newErrors.product = "Product selection is required";
+      toast.error("Please select a product"); 
     }
     if (!formState.warranty_type) {
       newErrors.warranty_type = "Warranty type is required";
+      toast.error("Please select a warranty type"); 
     }
     if (!formState.warranty_number) {
       newErrors.warranty_number = "Warranty number is required";
+      toast.error("Please enter a warranty number"); 
     }
-
+  
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
@@ -143,6 +147,7 @@ const MainContent = ({ isMobile }) => {
     if (errors.product) {
       setErrors((prev) => ({ ...prev, product: undefined }));
     }
+    toast.success(`${product.product_name} has been selected`); 
   };
 
   const fetchExistingWarrantyInfo = async (product) => {
@@ -214,32 +219,32 @@ const MainContent = ({ isMobile }) => {
     setIsSubmitting(true);
     setApiError(null);
     setShowSuccess(false);
-
+  
     if (!validateForm()) {
+      toast.error("Please fill in all required fields correctly"); 
       setIsSubmitting(false);
       return;
     }
-
+  
     try {
       const submitData = {
         ...formState,
         warranty_type: parseInt(formState.warranty_type, 10),
       };
-      console.log(submitData);
+  
       const warranty = await instance.post("/warranties/create", submitData);
-
+      console.log('Form submission data:', formState);
+  
       if (warranty.data) {
-        setShowSuccess(true);
+        toast.success("Warranty has been created successfully"); 
+  
         setTimeout(() => {
           navigate(-1);
-        }, 2000);
+        }, 1500);
       }
     } catch (err) {
       console.error(err);
-      setApiError(
-        err.response?.data?.message ||
-          "An error occurred while creating the warranty. Please try again."
-      );
+      toast.error(err.response?.data?.message || "An error occurred while creating the warranty"); 
       setIsSubmitting(false);
       window.scrollTo({ top: 0, behavior: "smooth" });
     }
@@ -247,6 +252,7 @@ const MainContent = ({ isMobile }) => {
 
   return (
     <main className="flex-1">
+      <Toaster position="bottom-right" />
       <div
         className={`h-[calc(100vh-4rem)] overflow-y-auto custom-scrollbar ${
           isMobile ? "w-full" : "ml-[13rem]"
@@ -275,43 +281,6 @@ const MainContent = ({ isMobile }) => {
             <div className="mb-8">
               <h1 className="text-2xl font-bold pl-6">Add New Warranty</h1>
             </div>
-
-            {showSuccess && (
-              <Alert className="mb-6 bg-green-50 border-green-200">
-                <div className="flex items-center gap-2">
-                  <svg
-                    className="h-4 w-4 text-green-600"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      d="M5 13l4 4L19 7"
-                    />
-                  </svg>
-                  <AlertDescription className="text-green-700">
-                    Warranty was successfully created!
-                  </AlertDescription>
-                </div>
-              </Alert>
-            )}
-
-            {apiError && (
-              <Alert
-                variant="destructive"
-                className="mb-6 bg-red-50 border-red-200"
-              >
-                <div className="flex items-center gap-2">
-                  <AlertCircle className="h-4 w-4 text-red-600" />
-                  <AlertDescription className="text-red-700">
-                    {apiError}
-                  </AlertDescription>
-                </div>
-              </Alert>
-            )}
 
             <form onSubmit={handleSubmit} className="space-y-8 pb-24">
               <Card>

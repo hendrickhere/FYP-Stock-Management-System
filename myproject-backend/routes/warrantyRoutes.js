@@ -14,6 +14,7 @@ router.get("/warranties/:id", WarrantyController.getWarrantyById);
 router.post("/warranties/create", WarrantyController.createWarranty);
 router.put("/warranties/:id", WarrantyController.updateWarranty);
 router.get("/warranties/availability/:productId", WarrantyController.getProductWarrantyAvailability);
+router.delete("/warranties/:id", WarrantyController.deleteWarranty);
 
 // Warranty claim routes - using only available methods
 router.post("/warranty-claims/create", WarrantyClaimController.createClaim);

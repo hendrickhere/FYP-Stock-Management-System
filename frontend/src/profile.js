@@ -176,15 +176,6 @@ function MainContent({ isMobile, scrollDirection, isAtTop }) {
     fetchUserData();
   }, []);
 
-  const handleCancel = () => {
-    if (isEditing && hasDataChanged()) {
-      toast.success("Changes have been discarded");
-      setProfileData(originalData);
-    }
-    setIsEditing(false);
-    setErrors({});
-  };
-
   return (
     <main className="flex-1">
       <div className="scroll-container h-[calc(100vh-4rem)] overflow-y-auto custom-scrollbar">

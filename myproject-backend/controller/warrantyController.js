@@ -3,6 +3,7 @@ const { TYPE, CLAIM_STATUS } = require("../models/warrantyConstants");
 const UserService = require("../service/userService");
 const {ValidationException} = require("../errors/validationError");
 const {DatabaseOperationException} = require("../errors/operationError");
+
 exports.getProductWarrantyAvailability = async (req, res) => {
   const { productId } = req.params;
  
@@ -67,6 +68,9 @@ exports.createWarranty = async (req, res) => {
       message: "Warranty created successfully",
       warranty: result
     });
+
+    console.log('Warranty data received:', req.body);
+    console.log('Processed warranty data:', warrantyData);
   } catch (err) {
     console.error(`Error creating warranty by user ${req.user.username}:`, err);
     if (err.name === 'SequelizeValidationError') {
@@ -130,12 +134,21 @@ exports.getAllWarranties = async (req, res) => {
     const username = req.query.username; 
     const user = await UserService.getUserByUsernameAsync(username);
     const warranties = await WarrantyService.getAllWarranties(user.organization_id);
+    
+    console.log('Warranties retrieved:', warranties.map(w => ({
+      id: w.warranty_id,
+      created_at: w.created_at,
+      updated_at: w.updated_at,
+      creator: w.creator?.username,
+      modifier: w.modifier?.username
+    })));
+    
     res.status(200).json({
       warranties,
       message: "Active warranties retrieved successfully"
     });
   } catch (err) {
-    console.error(`Error fetching active warranties for user ${req.user.username}:`, err);
+    console.error(`Error fetching active warranties:`, err);
     res.status(500).json({ message: "Server error", error: err.message });
   }
 };
@@ -170,15 +183,64 @@ exports.getWarrantiesByProduct = async (req, res) => {
 exports.updateWarranty = async (req, res) => {
   try {
     const warrantyId = req.params.id;
-    const updateData = req.body;
+    const username = req.body.username;
+    
+    const user = await UserService.getUserByUsernameAsync(username);
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: "User not found"
+      });
+    }
+
+    const updateData = {
+      warranty_number: req.body.warranty_number,
+      duration: req.body.duration,
+      terms: req.body.terms,
+      description: req.body.description,
+      last_modified_by: user.user_id 
+    };
+
+    if (!updateData.warranty_number || !updateData.duration) {
+      return res.status(400).json({
+        success: false,
+        message: "Warranty number and duration are required fields"
+      });
+    }
+
     const updatedWarranty = await WarrantyService.updateWarranty(warrantyId, updateData);
+
+    const warrantyWithProduct = await WarrantyService.getWarrantyById(warrantyId);
+
     res.status(200).json({
-      warranty: updatedWarranty,
-      message: "Warranty updated successfully"
+      success: true,
+      message: "Warranty updated successfully",
+      warranty: warrantyWithProduct
     });
+
   } catch (err) {
-    console.error(`Error updating warranty for user ${req.user.username}:`, err);
-    res.status(500).json({ message: "Server error", error: err.message });
+    console.error(`Error updating warranty:`, err);
+    
+    if (err.name === 'SequelizeValidationError') {
+      return res.status(400).json({
+        success: false,
+        message: "Validation error",
+        errors: err.errors.map(e => ({ field: e.path, message: e.message }))
+      });
+    }
+
+    if (err.message === "Warranty not found") {
+      return res.status(404).json({
+        success: false,
+        message: err.message
+      });
+    }
+
+    res.status(500).json({
+      success: false,
+      message: "Failed to update warranty",
+      error: err.message
+    });
   }
 };
 
@@ -212,5 +274,50 @@ exports.updateNotificationStatus = async (req, res) => {
   } catch (err) {
     console.error(`Error updating notification status for user ${req.user.username}:`, err);
     res.status(500).json({ message: "Server error", error: err.message });
+  }
+};
+
+exports.deleteWarranty = async (req, res) => {
+  try {
+    const warrantyId = req.params.id;
+    const username = req.query.username;
+    
+    // Get user details
+    const user = await UserService.getUserByUsernameAsync(username);
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: "User not found"
+      });
+    }
+
+    await WarrantyService.deleteWarranty(warrantyId);
+    
+    res.status(200).json({
+      success: true,
+      message: "Warranty deleted successfully"
+    });
+  } catch (err) {
+    console.error(`Error deleting warranty:`, err);
+    
+    if (err instanceof ValidationException) {
+      return res.status(409).json({
+        success: false,
+        message: err.message
+      });
+    }
+
+    if (err.message === "Warranty not found") {
+      return res.status(404).json({
+        success: false,
+        message: err.message
+      });
+    }
+
+    res.status(500).json({
+      success: false,
+      message: "Failed to delete warranty",
+      error: err.message
+    });
   }
 };
