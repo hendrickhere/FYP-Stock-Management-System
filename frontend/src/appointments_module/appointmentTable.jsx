@@ -166,9 +166,9 @@ const AppointmentTable = ({ appointments, searchConfig }) => {
   if (!appointments) return null;
 
   return (
-    <div className="w-full -mt-4 lg:mt-0">
+    <div className="w-full mt-4 lg:mt-0">
       {/* Mobile View - Card Layout */}
-      <div className="block lg:hidden space-y-4 px-4 max-h-[calc(100vh-15rem)] overflow-y-auto">
+      <div className="block lg:hidden space-y-4 max-h-[calc(100vh-15rem)] overflow-y-auto">
         {appointments.length === 0 ? (
           <EmptyState />
         ) : (
