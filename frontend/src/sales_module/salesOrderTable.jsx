@@ -270,7 +270,7 @@ const SalesTable = ({
   if (!salesOrders?.salesOrders) return null;
 
   return (
-    <div className="w-full -mt-4 lg:mt-0">
+    <div className="w-full mt-4 lg:mt-0">
 
       <Toaster position="bottom-right" />
 
@@ -289,7 +289,7 @@ const SalesTable = ({
       )}
 
       {/* Mobile View - Card Layout */}
-      <div className="block lg:hidden space-y-4 px-4 max-h-[calc(100vh-15rem)] overflow-y-auto">
+      <div className="block lg:hidden space-y-4 max-h-[calc(100vh-15rem)] overflow-y-auto">
         {sortedOrders.length === 0 ? (
           <EmptyState />
         ) : (
