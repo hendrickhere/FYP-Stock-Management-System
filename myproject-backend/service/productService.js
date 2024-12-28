@@ -55,7 +55,7 @@ exports.addProductUnit = async (purchaseOrderId, products, username) => {
                 { transaction }
               );
 
-              if (warranty.manufacturer) {
+              if (warranty.manufacturer.length > 0) {
                 const warrantyStartDate = new Date(purchaseDate);
                 const warrantyEndDate = new Date(purchaseDate);
                 warrantyEndDate.setMonth(
@@ -80,6 +80,11 @@ exports.addProductUnit = async (purchaseOrderId, products, username) => {
                 transaction
               });
 
+              await Product.increment('product_stock', {
+                by:1 ,
+                where: {product_id: product.product_id},
+                transaction
+              });
             } catch (error) {
               throw new DatabaseOperationException(
                 `Failed to create product unit for serial number: ${unit.serialNumber}`,

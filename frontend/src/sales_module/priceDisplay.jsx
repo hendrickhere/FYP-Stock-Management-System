@@ -15,7 +15,7 @@ const PriceDisplay = ({ price, discountedPrice, discounts, formatCurrency }) => 
             {formatCurrency(price)}
           </span>
           <span className="font-medium">
-            {formatCurrency(discountedPrice)}
+            {formatCurrency(parseFloat(discountedPrice))}
           </span>
           
           {showTooltip && discounts?.length > 0 && (
