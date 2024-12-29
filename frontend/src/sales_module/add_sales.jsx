@@ -188,7 +188,7 @@ const MainContent = ({ isMobile }) => {
     }
 
     try {
-      const response = await instance.get(`http://localhost:3002/api/stakeholders/customers?username=${username}`);
+      const response = await instance.get(`/stakeholders/customers?username=${username}`);
       setFormState(prev => ({
         ...prev,
         customerData: response.data,
@@ -327,7 +327,7 @@ const MainContent = ({ isMobile }) => {
       console.log("Submitting sales data:", salesData); // Debug log
 
       const response = await instance.post(
-        `http://localhost:3002/api/sales/${username}/salesOrder`,
+        `/api/sales/${username}/salesOrder`,
         salesData
       );
 

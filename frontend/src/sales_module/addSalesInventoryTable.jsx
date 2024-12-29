@@ -133,7 +133,7 @@ const ItemTable = ({ items, setItems }) => {
     setLoading(true);
     try {
       const response = await instance.get(
-        `http://localhost:3002/api/user/${username}/inventories`
+        `/user/${username}/inventories`
       );
       setProductData(response.data);
       setCurrentIndex(index);

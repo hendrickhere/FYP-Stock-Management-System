@@ -74,7 +74,7 @@ app.use((req, res, next) => {
 });
 
 // Routes
-app.post('/api/token/refresh', userController.refreshToken);
+app.post('/api/user/refresh', userController.refreshToken);
 app.post('/api/user/login', userController.login);
 app.post('/api/user/signup', userController.signup);
 

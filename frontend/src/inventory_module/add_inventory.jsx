@@ -47,7 +47,7 @@ const AddInventory = () => {
     const fetchData = async () => {
       try {
         if (!isAdd && inventoryuuid) {
-          const response = await instance.get(`http://localhost:3002/api/user/${username}/${inventoryuuid}`);
+          const response = await instance.get(`/user/${username}/${inventoryuuid}`);
           setData(response.data.status);
         }
       } catch (error) {

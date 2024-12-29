@@ -48,9 +48,9 @@
   },
   "scripts": {
     "start": "set NODE_OPTIONS=--openssl-legacy-provider && concurrently \"npm run start-client\" \"npm run start-server\"",
-    "start-client": "set NODE_OPTIONS=--openssl-legacy-provider && react-scripts start",
+    "start-client": "set NODE_OPTIONS=--openssl-legacy-provider && env-cmd -f .env.development react-scripts start",
     "start-server": "node ../myproject-backend/server.js",
-    "build": "set NODE_OPTIONS=--openssl-legacy-provider && react-scripts build",
+    "build": "set NODE_OPTIONS=--openssl-legacy-provider && env-cmd -f .env.production react-scripts build",
     "build:css": "npx tailwindcss build src/styles/tailwind.css -o public/styles.css",
     "test": "react-scripts test",
     "eject": "react-scripts eject"
@@ -77,6 +77,7 @@
     "autoprefixer": "^10.4.20",
     "concurrently": "^8.2.2",
     "daisyui": "^4.12.2",
+    "env-cmd": "^10.1.0",
     "postcss": "^8.4.47",
     "react-app-rewired": "^2.2.1",
     "tailwindcss": "^3.4.14"

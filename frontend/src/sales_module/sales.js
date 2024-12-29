@@ -100,7 +100,7 @@ const MainContent = ({ isMobile, scrollDirection, isAtTop }) => {
   
   const handleDeleteData = async (salesOrderUUID, managerPassword) => {
     try {
-      await axiosInstance.delete(`http://localhost:3002/api/user/${username}/salesOrder/${salesOrderUUID}`, {
+      await axiosInstance.delete(`/${username}/salesOrder/${salesOrderUUID}`, {
         data: { managerPassword } // Send password in request body
       });
       
@@ -142,7 +142,7 @@ const MainContent = ({ isMobile, scrollDirection, isAtTop }) => {
       });
       
       const response = await axiosInstance.get(
-        `http://localhost:3002/api/sales/${username}/salesOrders?${params}`
+        `/sales/${username}/salesOrders?${params}`
       );
       
       if (response.data && Array.isArray(response.data.salesOrders)) {

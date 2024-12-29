@@ -1,7 +1,24 @@
 import axios from 'axios';
 
+// config/environment.js
+const getApiUrl = () => {
+  const env = process.env.REACT_APP_ENV || process.env.NODE_ENV || 'development';
+  
+  switch (env) {
+    case 'development':
+      return process.env.REACT_APP_API_URL || 'http://localhost:3002/api';
+    case 'staging':
+      return process.env.REACT_APP_API_URL || 'https://api.yourstaging.com';
+    case 'production':
+      return process.env.REACT_APP_API_URL || 'https://uat.stocksavvy.biz/api';
+    default: return ""
+  }
+};
+
+// axiosConfig.js
+
 const instance = axios.create({
-  baseURL: 'http://localhost:3002/api',
+  baseURL: `${getApiUrl()}`,
   maxContentLength: 50000000,
   maxBodyLength: 50000000,
 });
@@ -21,24 +38,21 @@ const processQueue = (error, token = null) => {
 
 instance.interceptors.response.use(
   (response) => {
-      // Log successful responses
-      console.log('Response received:', {
-          status: response.status,
-          data: response.data
-      });
-      return response;
+    console.log('Response received:', {
+      status: response.status,
+      data: response.data
+    });
+    return response;
   },
   async (error) => {
     const originalRequest = error.config;
     console.error('Response error:', {
-        message: error.message,
-        response: error.response?.data,
-        status: error.response?.status
+      message: error.message,
+      response: error.response?.data,
+      status: error.response?.status
     });
     
-    // Check if this is an invalid manager password error
     if (error.response?.status === 401 && error.response?.data?.code === 'INVALID_MANAGER_PASSWORD') {
-      // Don't redirect to login, just reject with the error
       return Promise.reject(error);
     }
     
@@ -49,7 +63,7 @@ instance.interceptors.response.use(
         const refreshToken = localStorage.getItem('refreshToken');
         if (!refreshToken) throw new Error('No refresh token');
 
-        const response = await axios.post('http://localhost:3002/api/user/refresh-token', { refreshToken });
+        const response = await axios.post(`${getApiUrl()}/user/refresh-token`, { refreshToken });
         const { accessToken } = response.data;
         
         localStorage.setItem('accessToken', accessToken);
@@ -59,7 +73,6 @@ instance.interceptors.response.use(
         
         return instance(originalRequest);
       } catch (error) {
-        // Only clear storage and redirect for actual auth failures
         if (!error.response?.data?.code === 'INVALID_MANAGER_PASSWORD') {
           localStorage.clear();
           window.location.href = '/login';
@@ -72,26 +85,25 @@ instance.interceptors.response.use(
 );
 
 instance.interceptors.request.use(
-    async (config) => {
-        const token = localStorage.getItem('accessToken');
-        if (token) {
-            config.headers['Authorization'] = `Bearer ${token}`;
-        }
-        
-        // Log outgoing requests
-        console.log('Outgoing request:', {
-            url: config.url,
-            method: config.method,
-            params: config.params,
-            headers: config.headers
-        });
-        
-        return config;
-    },
-    (error) => {
-        console.error('Request interceptor error:', error);
-        return Promise.reject(error);
+  async (config) => {
+    const token = localStorage.getItem('accessToken');
+    if (token) {
+      config.headers['Authorization'] = `Bearer ${token}`;
     }
+    
+    console.log('Outgoing request:', {
+      url: config.url,
+      method: config.method,
+      params: config.params,
+      headers: config.headers
+    });
+    
+    return config;
+  },
+  (error) => {
+    console.error('Request interceptor error:', error);
+    return Promise.reject(error);
+  }
 );
 
 export default instance;
