@@ -73,10 +73,11 @@ app.use((req, res, next) => {
     next();
 });
 
-// Routes
-app.post('/api/user/refresh', userController.refreshToken);
+// 
 app.post('/api/user/login', userController.login);
 app.post('/api/user/signup', userController.signup);
+app.post('/api/user/refresh', userController.refreshToken);
+
 
 app.use(authMiddleware);
 app.use('/api/user', userRoutes);
