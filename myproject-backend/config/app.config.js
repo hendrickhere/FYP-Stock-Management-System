@@ -7,6 +7,10 @@ const JWT_CONFIG = {
   REFRESH_TOKEN_EXPIRY: '7d'
 };
 
+const getTestDatabaseName = (name) => {
+  return `${name}_test`;
+};
+
 const DB_CONFIG = {
   "development": {
     "username": username,
