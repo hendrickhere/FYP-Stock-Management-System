@@ -11,3 +11,4 @@ myproject-backend/chatbot-api/.env
 !myproject-backend/config/*.template.js
 !myproject-backend/config/*.template.json
 
+/frontend/build
