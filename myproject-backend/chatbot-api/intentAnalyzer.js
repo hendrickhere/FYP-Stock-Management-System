@@ -404,9 +404,8 @@ class IntentAnalyzer {
     }
 
     async analyzeIntent(message) {
-
-        const cacheKey = message.toLowerCase().trim();
-        const cachedIntent = this.intentCache.get(cacheKey);
+        const normalizedMessage = message.toLowerCase().trim().replace(/\s+/g, ' ');
+        const cachedIntent = this.intentCache.get(normalizedMessage);
         if (cachedIntent && Date.now() - cachedIntent.timestamp < this.cacheDuration) {
             return cachedIntent.intent;
         }
@@ -447,7 +446,15 @@ class IntentAnalyzer {
             });
 
             let intent = JSON.parse(completion.choices[0].message.content);
-            return this.validateAndEnrichIntent(intent);
+            intent = this.validateAndEnrichIntent(intent);
+            
+            // Store in cache with timestamp
+            this.intentCache.set(normalizedMessage, {
+                intent,
+                timestamp: Date.now()
+            });
+            
+            return intent;
 
         } catch (error) {
             console.error('Intent analysis error:', error);

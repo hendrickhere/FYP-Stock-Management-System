@@ -52,15 +52,9 @@
     "start-server": "node ../myproject-backend/server.js",
     "build": "set NODE_OPTIONS=--openssl-legacy-provider && react-scripts build",
     "build:css": "npx tailwindcss build src/styles/tailwind.css -o public/styles.css",
-    "test": "jest",
-    "test:watch": "jest --watch",
+    "test": "jest --config jest.config.js",
+    "test:watch": "jest --watch --config jest.config.js",
     "eject": "react-scripts eject"
-  },
-  "jest": {
-    "testEnvironment": "jsdom",
-    "setupFilesAfterEnv": [
-      "<rootDir>/src/__tests__/setup/jest.setup.js"
-    ]
   },
   "eslintConfig": {
     "extends": [
