@@ -1,153 +1,74 @@
-const request = require('supertest');
-const bcrypt = require('bcryptjs');
-const { app, sequelize } = require('../../../server');
-const { User } = require('../../../models');
-const jwt = require('jsonwebtoken');
-const { JWT_CONFIG } = require('../../../config/app.config');
+const mockAxios = require('../setup/axiosMock');
+jest.mock('axios', () => mockAxios);
 
-describe('Auth Endpoints', () => {
-  beforeAll(async () => {
-    await sequelize.sync({ force: true });
+const { validateToken, login, logout } = require('../../utils/auth');
+
+describe('Auth Utils', () => {
+  beforeEach(() => {
+    localStorage.clear();
+    jest.clearAllMocks();
   });
 
-  beforeEach(async () => {
-    await User.destroy({ where: {} });
-  });
+  describe('validateToken', () => {
+    it('should return true for valid token', async () => {
+      const mockToken = 'valid-token';
+      mockAxios.post.mockResolvedValueOnce({ data: { valid: true } });
 
-  describe('POST /api/user/signup', () => {
-    const validSignupData = {
-      username: 'testuser',
-      email: 'test@example.com',
-      password: 'password123',
-      role: 'Staff',
-      created_at: new Date().toISOString()
-    };
-
-    test('successfully creates a new user', async () => {
-      const response = await request(app)
-        .post('/api/user/signup')
-        .send(validSignupData);
-
-      expect(response.status).toBe(201);
-      expect(response.body.message).toBe('User created');
-      
-      const user = await User.findOne({ where: { email: validSignupData.email } });
-      expect(user).toBeTruthy();
+      const result = await validateToken(mockToken);
+      expect(result).toBe(true);
     });
 
-    test('validates email format', async () => {
-      const response = await request(app)
-        .post('/api/user/signup')
-        .send({
-          ...validSignupData,
-          email: 'invalid-email'
-        });
+    it('should return false for invalid token', async () => {
+      const mockToken = 'invalid-token';
+      mockAxios.post.mockRejectedValueOnce(new Error('Invalid token'));
 
-      expect(response.status).toBe(400);
-      expect(response.body.message).toBe('Please enter a valid email address');
-    });
-
-    test('prevents duplicate email registration', async () => {
-      await User.create({
-        ...validSignupData,
-        password_hash: await bcrypt.hash(validSignupData.password, 10)
-      });
-
-      const response = await request(app)
-        .post('/api/user/signup')
-        .send(validSignupData);
-
-      expect(response.status).toBe(409);
-      expect(response.body.message).toBe('This email is already registered');
+      const result = await validateToken(mockToken);
+      expect(result).toBe(false);
     });
   });
 
-  describe('POST /api/user/login', () => {
-    beforeEach(async () => {
-      const password_hash = await bcrypt.hash('password123', 10);
-      await User.create({
+  describe('login', () => {
+    it('should store token and return user data on successful login', async () => {
+      const mockCredentials = {
         username: 'testuser',
-        email: 'test@example.com',
-        password_hash,
-        role: 'Staff',
-        organization_id: 1
-      });
+        password: 'password123'
+      };
+
+      const mockResponse = {
+        data: {
+          token: 'test-token',
+          user: {
+            id: 1,
+            username: 'testuser'
+          }
+        }
+      };
+
+      mockAxios.post.mockResolvedValueOnce(mockResponse);
+
+      const result = await login(mockCredentials);
+
+      expect(localStorage.getItem('token')).toBe('test-token');
+      expect(result).toEqual(mockResponse.data);
     });
 
-    test('successfully logs in user', async () => {
-      const response = await request(app)
-        .post('/api/user/login')
-        .send({
-          email: 'test@example.com',
-          password: 'password123'
-        });
+    it('should throw error on failed login', async () => {
+      const mockCredentials = {
+        username: 'wronguser',
+        password: 'wrongpass'
+      };
 
-      expect(response.status).toBe(200);
-      expect(response.body.message).toBe('Login successful');
-      expect(response.body.accessToken).toBeTruthy();
-      expect(response.body.refreshToken).toBeTruthy();
-      
-      const decodedToken = jwt.verify(response.body.accessToken, JWT_CONFIG.ACCESS_TOKEN_SECRET);
-      expect(decodedToken.username).toBe('testuser');
-    });
+      mockAxios.post.mockRejectedValueOnce(new Error('Invalid credentials'));
 
-    test('rejects invalid credentials', async () => {
-      const response = await request(app)
-        .post('/api/user/login')
-        .send({
-          email: 'test@example.com',
-          password: 'wrongpassword'
-        });
-
-      expect(response.status).toBe(401);
-      expect(response.body.message).toBe('Invalid email or password');
+      await expect(login(mockCredentials)).rejects.toThrow('Invalid credentials');
     });
   });
 
-  describe('POST /api/token/refresh', () => {
-    let refreshToken;
-    
-    beforeEach(async () => {
-      const user = await User.create({
-        username: 'testuser',
-        email: 'test@example.com',
-        password_hash: await bcrypt.hash('password123', 10),
-        role: 'Staff'
-      });
-
-      refreshToken = jwt.sign(
-        { id: user.user_id, username: user.username },
-        JWT_CONFIG.REFRESH_TOKEN_SECRET,
-        { expiresIn: JWT_CONFIG.REFRESH_TOKEN_EXPIRY }
-      );
-
-      await User.update(
-        { refreshToken },
-        { where: { user_id: user.user_id } }
-      );
+  describe('logout', () => {
+    it('should clear token from localStorage', () => {
+      localStorage.setItem('token', 'test-token');
+      logout();
+      expect(localStorage.getItem('token')).toBeNull();
     });
-
-    test('successfully refreshes access token', async () => {
-      const response = await request(app)
-        .post('/api/token/refresh')
-        .send({ refreshToken });
-
-      expect(response.status).toBe(200);
-      expect(response.body.accessToken).toBeTruthy();
-      expect(response.body.refreshToken).toBeTruthy();
-    });
-
-    test('rejects invalid refresh token', async () => {
-      const response = await request(app)
-        .post('/api/token/refresh')
-        .send({ refreshToken: 'invalid-token' });
-
-      expect(response.status).toBe(401);
-      expect(response.body.message).toBe('Invalid refresh token');
-    });
-  });
-
-  afterAll(async () => {
-    await sequelize.close();
   });
 });

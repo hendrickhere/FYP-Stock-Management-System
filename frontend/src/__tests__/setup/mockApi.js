@@ -1,14 +1,14 @@
-import axios from 'axios';
-
-jest.mock('axios', () => ({
+const mockAxios = {
   create: jest.fn(() => ({
-    post: jest.fn(),
-    get: jest.fn(),
     interceptors: {
-      request: { use: jest.fn() },
-      response: { use: jest.fn() }
-    }
+      request: { use: jest.fn(), eject: jest.fn() },
+      response: { use: jest.fn(), eject: jest.fn() }
+    },
+    get: jest.fn(),
+    post: jest.fn(),
+    put: jest.fn(),
+    delete: jest.fn()
   }))
-}));
+};
 
-export const mockAxiosInstance = axios.create();
+export default mockAxios;
