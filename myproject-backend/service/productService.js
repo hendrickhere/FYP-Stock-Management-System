@@ -17,16 +17,15 @@ const WarrantyService = require("./warrantyService");
 const PurchaseService = require("./purchaseService");
 const SalesService = require("./salesService");
 const UserService = require("./userService");
-const { WarrantyNotFoundException, ProductNotFoundException } = require("../errors/notFoundException");
+const { WarrantyNotFoundException, ProductNotFoundException, ProductUnitNotFoundException } = require("../errors/notFoundException");
 const { DatabaseOperationException } = require("../errors/operationError");
-const {ValidationException} = require("../errors/validationError");
+const { ValidationException } = require("../errors/validationError");
 
 exports.addProductUnit = async (purchaseOrderId, products, username) => {
   const transaction = await db.sequelize.transaction();
   try {
     await Promise.all(
       products.map(async (product) => {
-        //const purchaseOrder = await PurchaseService.getPurchaseOrderDetails(purchaseOrderId, username);
         const warranty = await WarrantyService.getWarrantiesByProduct(
           product.product_id
         );
@@ -163,7 +162,7 @@ exports.getProductUnitWithSerialNumber = async (serialNumber) => {
     });
 
     if (!productUnit) {
-      throw new ProductNotFoundException("Product unit not found or already sold");
+      throw new ProductUnitNotFoundException([serialNumber]);
     }
 
     return productUnit.dataValues;
@@ -303,6 +302,7 @@ exports.getProductUnitsWithProductId = async (productId, pageNumber, pageSize, s
       "source_type",
       "date_of_purchase",
       "date_of_sale",
+      "is_sold"
     ],
     include: [{
       model: WarrantyUnit,

@@ -232,6 +232,7 @@ const ItemTable = ({ items, setItems }) => {
 
     } catch (err) {
       console.error(err.message);
+      toast.error(err.response.data.error);
       return undefined; 
     }
   }
@@ -240,7 +241,6 @@ const ItemTable = ({ items, setItems }) => {
 
     const productUnit = await fetchProductUnit(tempSerialNumber);
     if (!productUnit) {
-      toast.error("Serial number does not exist");
       setTempSerialNumber("");
       return;
     }

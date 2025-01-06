@@ -1,5 +1,6 @@
 const SalesService = require('../service/salesService');
 const { SalesError } = require('../errors/salesError.js');
+const invoiceGenerator = require('../service/invoiceGenerator');
 
 exports.getAllSalesOrders = async (req, res) => {
     try {
@@ -232,93 +233,6 @@ exports.deleteSalesOrder = async (req, res) => {
   }
 };
 
-exports.validateSalesOrderRequest = (req, res, next) => {
-    const { itemLists, taxIds, discountIds } = req.body;
-
-    try {
-        if (!itemLists || !Array.isArray(itemLists) || itemLists.length === 0) {
-            return res.status(400).json({
-                success: false,
-                error: 'VALIDATION_ERROR',
-                message: 'Item list cannot be empty'
-            });
-        }
-
-        const invalidItems = itemLists.filter(
-            item => !item.product_id || 
-                   !Number.isInteger(item.quantity) || 
-                   item.quantity <= 0
-        );
-
-        if (invalidItems.length > 0) {
-            return res.status(400).json({
-                success: false,
-                error: 'VALIDATION_ERROR',
-                message: 'Invalid items in the item list',
-                invalidItems: invalidItems
-            });
-        }
-
-        if (taxIds !== undefined) {
-            if (!Array.isArray(taxIds)) {
-                return res.status(400).json({
-                    success: false,
-                    error: 'VALIDATION_ERROR',
-                    message: 'Tax IDs must be an array'
-                });
-            }
-
-            const invalidTaxIds = taxIds.filter(
-                id => !Number.isInteger(Number(id)) || Number(id) <= 0
-            );
-
-            if (invalidTaxIds.length > 0) {
-                return res.status(400).json({
-                    success: false,
-                    error: 'VALIDATION_ERROR',
-                    message: 'Invalid tax IDs provided',
-                    invalidTaxIds: invalidTaxIds
-                });
-            }
-        }
-
-        if (discountIds !== undefined) {
-            if (!Array.isArray(discountIds)) {
-                return res.status(400).json({
-                    success: false,
-                    error: 'VALIDATION_ERROR',
-                    message: 'Discount IDs must be an array'
-                });
-            }
-
-            const invalidDiscountIds = discountIds.filter(
-                id => !Number.isInteger(Number(id)) || Number(id) <= 0
-            );
-
-            if (invalidDiscountIds.length > 0) {
-                return res.status(400).json({
-                    success: false,
-                    error: 'VALIDATION_ERROR',
-                    message: 'Invalid discount IDs provided',
-                    invalidDiscountIds: invalidDiscountIds
-                });
-            }
-        }
-
-        next();
-    } catch (err) {
-        logger.error('Validation error:', {
-            error: err,
-            body: req.body
-        });
-
-        return res.status(400).json({
-            success: false,
-            error: 'VALIDATION_ERROR',
-            message: 'Request validation failed'
-        });
-    }
-};
 
 // Example of a valid request body:
 /*
@@ -443,3 +357,22 @@ exports.getFastMovingItems = async (req, res) => {
         });
     }
 };
+
+exports.generateInvoice = async (req, res) => {
+  const salesOrderId = req.params.salesOrderUuid;
+  try {
+    const pdf = await invoiceGenerator.generateInvoice(salesOrderId);
+    
+    // Ensure proper headers for binary PDF data
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `attachment; filename=invoice-${salesOrderId}.pdf`);
+    res.setHeader('Content-Length', Buffer.byteLength(pdf));
+    
+    // Send as buffer
+    res.send(Buffer.from(pdf));
+
+  } catch (error) {
+    console.error('Error generating invoice:', error);
+    res.status(500).json({ error: error.message });
+  }
+}

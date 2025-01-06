@@ -119,7 +119,7 @@ function Login({ onLoginSuccess }) {
 
   const toggleSignUp = () => {
     setIsSignUp(!isSignUp);
-    setFormErrors({}); // Clear form errors when switching modes
+    setFormErrors({}); 
     const container = document.getElementById('container');
     if (isSignUp) {
       container.classList.remove("active");
@@ -188,7 +188,7 @@ function Login({ onLoginSuccess }) {
       console.error('Login error:', error);
       let errorMessage = 'An error occurred. Please try again.';
       
-        if (error.response) {
+        if (error.status) {
           if (error.response.status === 401) {
             errorMessage = 'Invalid email or password.';
           } else if (error.response.data && error.response.data.message) {

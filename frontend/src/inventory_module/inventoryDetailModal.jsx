@@ -8,6 +8,7 @@ import toast, { Toaster } from "react-hot-toast";
 import axiosInstance from "../axiosConfig";
 import DragDropImageUploader from "../dragDropImageUploader";
 import { Box, Shield, Pencil } from "lucide-react";
+import instance from "../axiosConfig";
 const { Panel, Overlay, Title } = Dialog;
 const ProductDetailModal = ({
   isOpen,
@@ -52,6 +53,31 @@ const ProductDetailModal = ({
   const [hasChanges, setHasChanges] = useState(false);
   const [isSerialModalOpen, setIsSerialModalOpen] = useState(false);
   const [scannedSerials, setScannedSerials] = useState([]);
+
+  const handleSerialInput = async (serial) => {
+    const existingSerial = instance.get()
+    if (
+      serial &&
+      scannedSerials.length <
+        product.unregistered_quantity
+    ) {
+      if (!scannedSerials.includes(serial)) {
+        setScannedSerials([
+          ...scannedSerials,
+          serial,
+        ]);
+      } else {
+        toast.error("Serial number already scanned");
+      }
+    } else if (
+      scannedSerials.length >=
+      product.unregistered_quantity
+    ) {
+      toast.error(
+        "All unregistered items have been scanned"
+      );
+    }
+  }
 
   useEffect(() => {
     if (product) {
@@ -1089,28 +1115,8 @@ const ProductDetailModal = ({
                           onKeyDown={async (e) => {
                             if (e.key === "Enter") {
                               const serial = e.target.value.trim();
-                              if (
-                                serial &&
-                                scannedSerials.length <
-                                  product.unregistered_quantity
-                              ) {
-                                if (!scannedSerials.includes(serial)) {
-                                  setScannedSerials([
-                                    ...scannedSerials,
-                                    serial,
-                                  ]);
-                                  e.target.value = "";
-                                } else {
-                                  toast.error("Serial number already scanned");
-                                }
-                              } else if (
-                                scannedSerials.length >=
-                                product.unregistered_quantity
-                              ) {
-                                toast.error(
-                                  "All unregistered items have been scanned"
-                                );
-                              }
+                              handleSerialInput(serial);
+                              e.target.value = "";
                             }
                           }}
                         />

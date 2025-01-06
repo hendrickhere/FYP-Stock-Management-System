@@ -35,6 +35,7 @@ const warrantyRoutes = require('./routes/warrantyRoutes');
 const taxRoutes = require('./routes/taxesRoutes.js')
 const discountRoutes = require("./routes/discountRoutes.js");
 const staffRoutes = require('./routes/staffRoutes.js');
+const organizationRoutes = require("./routes/organizationRoutes.js");
 
 console.log('\nAfter loading all routes');
 console.log('Final model state:', Object.keys(db).filter(key => key !== 'sequelize' && key !== 'Sequelize'));
@@ -68,7 +69,7 @@ app.use((req, res, next) => {
         path: req.path,
         params: req.params,
         query: req.query,
-        body: req.method === 'POST' ? req.body : undefined
+        body: req.method === 'POST' || req.method === "PUT" ? req.body : undefined
     });
     next();
 });
@@ -91,7 +92,7 @@ app.use('/api', discountRoutes);
 app.use('/api', warrantyRoutes);
 app.use('/api/staff', staffRoutes);
 app.use('/api/products', productsRouter);
-
+app.use('/api', organizationRoutes);
 app.use((err, req, res, next) => {
     console.error('Global error handler:', {
         error: err.message,

@@ -11,6 +11,7 @@ const {
   SalesOrderTax,
   SalesOrderDiscount,
   Organization,
+  WarrantyUnit,
   sequelize,
 } = require("../models");
 const {
@@ -23,6 +24,7 @@ const { ValidationException } = require("../errors/validationError");
 const { ProductUnitNotFoundException } = require("../errors/notFoundException");
 const { ValidationError, Op, where } = require("sequelize");
 const { getDiscountByIdAsync } = require("../service/discountService");
+const WarrantyService = require("./warrantyService");
 // Add debug logging
 console.log("Loaded models:", {
   User: !!User,
@@ -57,14 +59,66 @@ async function verifyManagerPassword(managerPassword) {
   }
 }
 
-async function getSalesOrderByUUID(salesOrderUUID) {
+exports.getSalesOrderByUUID = async (salesOrderUuid) => {
   const salesOrder = await SalesOrder.findOne({
+    where: { sales_order_uuid: salesOrderUuid },
+    include: [
+      {
+        model: Organization,
+        attributes: ['organization_name', 'organization_account_number', 'organization_address', 'organization_contact', 'organization_bank', 'organization_email']
+      },
+      {
+        model: SalesOrderInventory,
+        as: 'items',
+        include: [{
+          model: Product,
+          as: 'Product',
+          attributes: ['product_name']
+        }]
+      },
+      {
+        model: Discount,
+        through: {
+          model: SalesOrderDiscount,
+          attributes: ['applied_discount_rate', 'discount_amount']
+        }
+      },
+      {
+        model: Tax,
+        through: {
+          model: SalesOrderTax,
+          attributes: ['applied_tax_rate', 'tax_amount']
+        }
+      },
+      {
+        model: Customer,
+        attributes: [
+          'customer_name',
+          'customer_email',
+          'customer_company',
+          'billing_address',
+          'shipping_address',
+          'customer_contact'
+        ]
+      }
+    ]
+  });
+  if (!salesOrder) {
+    throw new SalesError('Sales order not found');
+  }
+  return salesOrder
+}
+
+exports.getSalesOrdersByUUID = async (salesOrderIds) => {
+  const salesOrders = await SalesOrder.findAll({
     where: {
-      sales_order_uuid: salesOrderUUID,
-    },
+      sales_order_uuid: {
+        [Op.in]: salesOrderIds
+      }
+    }
   });
 
-  return salesOrder.dataValues;
+  return salesOrders.map(order => order.dataValues);
 }
 
 async function getUserByUsername(username) {
@@ -187,17 +241,17 @@ exports.getSalesOrderTotal = async (username, salesOrderUUID) => {
 
 const validateItemLists = (itemLists) => {
   if (!Array.isArray(itemLists) || itemLists.length === 0) {
-    throw new ValidationSalesError("Item list must be a non-empty array");
+    throw new ValidationException("Item list must be a non-empty array");
   }
 
   itemLists.forEach((item, index) => {
     if (!item.product_id) {
-      throw new ValidationSalesError(
+      throw new ValidationException(
         `Missing product_id in item at index ${index}`
       );
     }
     if (!Number.isInteger(item.quantity) || item.quantity <= 0) {
-      throw new ValidationSalesError(
+      throw new ValidationException(
         `Invalid quantity for product ${item.product_id}. Must be a positive integer.`
       );
     }
@@ -207,13 +261,13 @@ const validateItemLists = (itemLists) => {
 exports.calculateSalesOrderTotal = async (reqBody) => {
   try {
     if (!reqBody || typeof reqBody !== "object") {
-      throw new ValidationSalesError("Invalid request body");
+      throw new ValidationException("Invalid request body");
     }
 
     const { itemLists, taxIds = [], discountIds = [] } = reqBody;
 
     if (!itemLists) {
-      throw new ValidationSalesError("Item list is required");
+      throw new ValidationException("Item list is required");
     }
     validateItemLists(itemLists);
 
@@ -839,6 +893,22 @@ exports.createSalesOrder = async (username, salesData) => {
           orderItems.push(salesOrderItem);
           const currentDate = new Date();
           if (item.serialNumbers) {
+            const productUnits = await ProductUnit.findAll({
+              where: {
+                product_id: itemObj.product_id,
+                serial_number: {
+                  [Op.in]: item.serialNumbers,
+                },
+                is_sold: false  
+              },
+              lock: true,  
+              transaction
+            });
+          
+            if (productUnits.length !== item.serialNumbers.length) {
+              throw new SalesError("Some serial numbers are not available or already sold");
+            }
+          
             await ProductUnit.update(
               {
                 is_sold: true,
@@ -847,19 +917,45 @@ exports.createSalesOrder = async (username, salesData) => {
               },
               {
                 where: {
-                  product_id: itemObj.product_id,
-                  serial_number: {
-                    [Op.in]: item.serialNumbers,
-                  },
+                  product_unit_id: {
+                    [Op.in]: productUnits.map(unit => unit.product_unit_id)
+                  }
                 },
+                fields: ['is_sold', 'sales_order_item_id', 'date_of_sale'],
                 transaction,
-                validate: false,
+                validate: false
               }
             );
+          
+            try {
+              const warranty = await WarrantyService.getWarrantiesByProduct(
+                itemObj.product_id
+              );
+          
+              if (warranty && warranty.consumer && warranty.consumer.length > 0) {
+                const warrantyStartDate = new Date();
+                const warrantyEndDate = new Date();
+                warrantyEndDate.setMonth(
+                  warrantyEndDate.getMonth() + warranty.consumer[0].duration
+                );
+          
+                const warrantyUnits = productUnits.map(productUnit => ({
+                  product_unit_id: productUnit.product_unit_id,
+                  warranty_id: warranty.consumer[0].warranty_id,
+                  warranty_start: warrantyStartDate,
+                  warranty_end: warrantyEndDate,
+                  status: "ACTIVE",
+                }));
+          
+                await WarrantyUnit.bulkCreate(warrantyUnits, { transaction });
+              }
+            } catch (error) {
+              console.error('Error creating warranty units:', error);
+              throw new Error('Failed to create warranty units: ' + error.message);
+            }
           }
         })
       );
-      //await SalesOrderInventory.bulkCreate(orderItems, { transaction });
     }
 
     if (salesData.taxes && salesData.taxes.length > 0) {
@@ -1346,6 +1442,8 @@ exports.getFastMovingItemsAnalytics = async (username, options) => {
     throw error;
   }
 };
+
+
 
 // Helper functions
 function getSortExpression(sortBy) {

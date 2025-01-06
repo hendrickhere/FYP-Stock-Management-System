@@ -327,7 +327,7 @@ const MainContent = ({ isMobile }) => {
       console.log("Submitting sales data:", salesData); // Debug log
 
       const response = await instance.post(
-        `/api/sales/${username}/salesOrder`,
+        `/sales/${username}/salesOrder`,
         salesData
       );
 

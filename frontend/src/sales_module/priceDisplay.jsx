@@ -11,11 +11,11 @@ const PriceDisplay = ({ price, discountedPrice, discounts, formatCurrency }) => 
           onMouseEnter={() => setShowTooltip(true)}
           onMouseLeave={() => setShowTooltip(false)}
         >
-          <span className="text-gray-500 line-through">
+          {(discountedPrice && <span className="text-gray-500 line-through">
             {formatCurrency(price)}
-          </span>
+          </span> )}
           <span className="font-medium">
-            {formatCurrency(parseFloat(discountedPrice))}
+            {formatCurrency(parseFloat(discountedPrice ?? price))}
           </span>
           
           {showTooltip && discounts?.length > 0 && (

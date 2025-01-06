@@ -80,6 +80,7 @@ module.exports = (db) => {
         through: SalesOrderDiscount,
         foreignKey: "sales_order_id",
     });
+    
     Discount.belongsToMany(SalesOrder, {
         through: SalesOrderDiscount,
         foreignKey: "discount_id",
