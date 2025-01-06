@@ -8,6 +8,7 @@ import toast, { Toaster } from "react-hot-toast";
 import axiosInstance from "../axiosConfig";
 import DragDropImageUploader from "../dragDropImageUploader";
 import { Box, Shield, Pencil } from "lucide-react";
+import SerialList from "./serial_list";
 import instance from "../axiosConfig";
 const { Panel, Overlay, Title } = Dialog;
 const ProductDetailModal = ({
@@ -53,9 +54,35 @@ const ProductDetailModal = ({
   const [hasChanges, setHasChanges] = useState(false);
   const [isSerialModalOpen, setIsSerialModalOpen] = useState(false);
   const [scannedSerials, setScannedSerials] = useState([]);
+  
+  const submitSerialNumber = async (productId, username) => {
+    try {
+      const response = await instance.post('/products/unit/existing', {
+        serialNumbers: scannedSerials,
+        productId: productId,
+        username: username
+      });
+
+  
+      if (!response.status === 200) {
+        toast.error('Failed to submit serial numbers');
+        return false;
+      }
+  
+      // Success case
+      toast.success(response.data.message || 'Serial numbers submitted successfully');
+      setScannedSerials([]); 
+      setIsSerialModalOpen(false);
+      return true;
+  
+    } catch (error) {
+      console.error('Error submitting serial numbers:', error);
+      toast.error(error.response.data.error);
+      return false;
+    }
+  };
 
   const handleSerialInput = async (serial) => {
-    const existingSerial = instance.get()
     if (
       serial &&
       scannedSerials.length <
@@ -357,6 +384,7 @@ const ProductDetailModal = ({
           onProductUpdate(response.data.inventory);
         }
       }
+      setIsSaving(false);
     } catch (error) {
       console.error("Update error:", error);
       if (error.response?.status === 413) {
@@ -366,6 +394,7 @@ const ProductDetailModal = ({
           error.response?.data?.message || "Failed to update product"
         );
       }
+      setIsSaving(false);
     }
   };
 
@@ -809,6 +838,14 @@ const ProductDetailModal = ({
                         >
                           Register Serial Numbers
                         </button>
+                        <SerialList
+                          scannedSerials={scannedSerials}
+                          setScannedSerials={setScannedSerials}
+                          onSubmit={() => {
+                            submitSerialNumber(product.product_uuid, username);
+                          }}
+                          disabled={scannedSerials.length > product?.unregistered_quantity}
+                        />
                         {product?.unregistered_quantity === 0 && (
                           <p className="text-xs text-gray-500">
                             No unregistered items to process
@@ -1154,6 +1191,7 @@ const ProductDetailModal = ({
       )}
     </>
   );
+  
 };
 
 export default ProductDetailModal;

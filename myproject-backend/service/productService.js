@@ -242,8 +242,8 @@ exports.addExistingUnit = async (serialNumbers, productId) => {
             await WarrantyUnit.create({
               product_unit_id: productUnit.product_unit_id,
               warranty_id: warranty.manufacturer[0].warranty_id,
-              warranty_start: productUnit.warranty_start_date,
-              warranty_end: productUnit.warranty_end_date,
+              warranty_start: unitData.warranty_start_date,
+              warranty_end: unitData.warranty_end_date,
               status: "ACTIVE",
             }, { transaction });
           }

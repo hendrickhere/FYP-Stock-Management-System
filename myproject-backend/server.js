@@ -91,7 +91,7 @@ app.use('/api', taxRoutes);
 app.use('/api', discountRoutes);
 app.use('/api', warrantyRoutes);
 app.use('/api/staff', staffRoutes);
-app.use('/api/products', productsRouter);
+app.use('/api/  ', productsRouter);
 app.use('/api', organizationRoutes);
 app.use((err, req, res, next) => {
     console.error('Global error handler:', {
