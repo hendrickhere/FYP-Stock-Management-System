@@ -82,11 +82,17 @@ class InvoiceGenerator {
     async convertToPDF(html) {
         let browser;
         try {
-            browser = await puppeteer.launch({
+            const browser = await puppeteer.launch({
                 headless: 'new',
-                args: ['--no-sandbox', '--disable-setuid-sandbox']
+                args: [
+                    '--no-sandbox',
+                    '--disable-setuid-sandbox',
+                    '--disable-gpu',
+                    '--disable-dev-shm-usage',
+                    '--single-process'
+                ],
+                executablePath: '/usr/bin/google-chrome'
             });
-            
             const page = await browser.newPage();
             
             // Set viewport size for consistent rendering
