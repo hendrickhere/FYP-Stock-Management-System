@@ -92,15 +92,15 @@ exports.getAllSalesOrderWithTimeRange = async (req, res, next) => {
 
 exports.getSalesOrderTotal = async (req, res) => {
     try {
-        const username = req.params.username; // Changed from req.body to req.params
-        const salesOrderUUID = req.params.salesOrderUUID; // Changed from res.params to req.params
+        const username = req.params.username; 
+        const salesOrderUUID = req.params.salesOrderUUID; 
         
         if (!username || !salesOrderUUID) {
             return res.status(400).json({ message: 'Username and salesOrderUUID are required' });
         }
 
-        const total = await SalesService.getSalesOrderTotal(username, salesOrderUUID); // Added await
-        res.status(200).json({ total: total }); // Changed from send to json
+        const total = await SalesService.getSalesOrderTotal(username, salesOrderUUID); 
+        res.status(200).json({ total: total }); 
     } catch (err) {
         console.error('Error getting sales order total:', err);
         res.status(500).json({ message: err.message });

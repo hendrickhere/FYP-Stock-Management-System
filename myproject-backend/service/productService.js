@@ -39,13 +39,26 @@ exports.addProductUnit = async (purchaseOrderId, products, username) => {
         if (product.units.length > purchaseOrderItem.unregistered_quantity) {
           throw new Error(`Cannot register more units than available unregistered quantity for product ${product.product_id}`);
         }
+        
 
         await Promise.all(
           product.units.map(async (unit) => {
+            const existingUnits = await ProductUnit.findAll({
+              where: {
+                serial_number: unit.serialNumber,
+                product_id: product.product_id
+              }
+            });
+
+            if (existingUnits.length > 0) {
+              throw new ValidationException(
+                `Serial numbers already exist: ${existingUnits.map(unit => unit.serial_number).join(', ')}`
+              );
+            }
             try {
               const productUnit = await ProductUnit.create(
                 {
-                  warranty_id: warranty?.warranty_id || null, 
+                  warranty_id: warranty?.warranty_id || null,
                   purchase_order_item_id: purchaseOrderItem.purchase_order_item_id,
                   product_id: product.product_id,
                   serial_number: unit.serialNumber,
@@ -102,6 +115,9 @@ exports.addProductUnit = async (purchaseOrderId, products, username) => {
     console.error("Error adding product units:", err);
 
     if (err instanceof DatabaseOperationException) {
+      throw err;
+    }
+    if(err instanceof ValidationException){
       throw err;
     }
 

@@ -8,6 +8,7 @@ import {
 } from "../ui/dialog";
 import instance from '../axiosConfig';
 import { GlobalContext } from '../globalContext';
+import toast , {Toaster} from 'react-hot-toast';
 const PurchaseOrderProducts = ({ 
   statusId,
   products, 
@@ -99,9 +100,9 @@ const PurchaseOrderProducts = ({
       
       if(response)
       setSerialNumbers({}); 
-      alert('Serial numbers submitted successfully');
+      toast.success('Serial numbers submitted successfully');
     } catch (error) {
-      alert(`Failed to submit: ${error.message}`);
+      toast.error(`Failed to submit: ${error.response.data.error}`);
     }
     setSubmitting(false);
   };
@@ -279,6 +280,7 @@ const PurchaseOrderProducts = ({
 
   return (
     <div className="space-y-4">
+      <Toaster position='bottom-right'></Toaster>
       <div className="grid grid-cols-12 gap-4 text-sm font-medium text-gray-500 border-b pb-2">
         <div className="col-span-4">Product</div>
         <div className="col-span-2 text-center">SKU</div>
