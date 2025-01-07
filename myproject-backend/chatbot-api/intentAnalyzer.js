@@ -463,6 +463,16 @@ class IntentAnalyzer {
     }
 
     validateAndEnrichIntent(intent) {
+        // Get valid metrics for the category
+        const validMetrics = this.intentPatterns[intent.category]?.metrics || [];
+        const validSubCategoryMetrics = Object.values(this.intentPatterns[intent.category]?.subCategories || {})
+            .flatMap(subCategory => subCategory.metrics || []);
+        
+        // Filter out invalid metrics and keep only unique ones
+        intent.metrics = [...new Set(intent.metrics)].filter(metric => 
+            validMetrics.includes(metric) || validSubCategoryMetrics.includes(metric)
+        );
+
         // Add business logic validation
         if (intent.category === 'INVENTORY' && intent.metrics.includes('stock_levels')) {
             intent.parameters.requiresStockAlert = true;

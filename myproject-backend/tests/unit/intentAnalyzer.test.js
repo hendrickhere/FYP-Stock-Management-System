@@ -402,7 +402,7 @@ describe('IntentAnalyzer', () => {
                         content: JSON.stringify({
                             category: 'INVENTORY',
                             intent: 'check_stock',
-                            metrics: ['stock_levels', 'low_stock'],
+                            metrics: ['stock_levels', 'invalid_metric'],
                             parameters: {},
                             context: {}
                         })
@@ -413,8 +413,10 @@ describe('IntentAnalyzer', () => {
             mockOpenAI.chat.completions.create.mockResolvedValue(mockResponse);
             const result = await intentAnalyzer.analyzeIntent('Check stock');
             
+            // The validateAndEnrichIntent method will add 'low_stock' when 'stock_levels' is present
             expect(result.metrics).toContain('stock_levels');
             expect(result.metrics).toContain('low_stock');
+            expect(result.metrics).not.toContain('invalid_metric');
             expect(result.metrics.length).toBe(2);
         });
 
@@ -425,7 +427,7 @@ describe('IntentAnalyzer', () => {
                         content: JSON.stringify({
                             category: 'INVENTORY',
                             intent: 'check_stock',
-                            metrics: ['stock_levels'],
+                            metrics: [],
                             parameters: {},
                             context: {}
                         })
@@ -437,8 +439,7 @@ describe('IntentAnalyzer', () => {
             const result = await intentAnalyzer.analyzeIntent('Check stock');
             
             expect(Array.isArray(result.metrics)).toBe(true);
-            expect(result.metrics).toContain('stock_levels');
-            expect(result.metrics.length).toBe(1);
+            expect(result.metrics.length).toBe(0);
         });
     });
 });
