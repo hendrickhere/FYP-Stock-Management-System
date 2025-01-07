@@ -4,7 +4,7 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
+    "test": "cross-env NODE_ENV=test jest --config jest.config.js",
     "dev": "node database.js",
     "debug": "nodemon --inspect database.js"
   },
@@ -34,5 +34,13 @@
     "sequelize": "^6.37.3",
     "tesseract.js": "^5.1.1",
     "uuid": "^11.0.2"
+  },
+  "devDependencies": {
+    "@babel/core": "^7.26.0",
+    "@babel/plugin-transform-modules-commonjs": "^7.26.3",
+    "@babel/preset-env": "^7.26.0",
+    "babel-jest": "^29.7.0",
+    "sinon-chai": "^4.0.0",
+    "sqlite3": "^5.1.7"
   }
 }

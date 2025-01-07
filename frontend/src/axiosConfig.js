@@ -26,60 +26,71 @@ const instance = axios.create({
 let failedQueue = [];
 
 const processQueue = (error, token = null) => {
-  failedQueue.forEach(prom => {
+  failedQueue.forEach((prom) => {
     if (error) {
       prom.reject(error);
     } else {
       prom.resolve(token);
     }
   });
+
   failedQueue = [];
 };
 
 instance.interceptors.response.use(
   (response) => {
+    // Log successful responses
     console.log('Response received:', {
+      url: response.config.url,
       status: response.status,
-      data: response.data
+      statusText: response.statusText
     });
     return response;
   },
   async (error) => {
     const originalRequest = error.config;
-    console.error('Response error:', {
-      message: error.message,
-      response: error.response?.data,
-      status: error.response?.status
-    });
-    
-    if (error.response?.status === 401 && error.response?.data?.code === 'INVALID_MANAGER_PASSWORD') {
-      return Promise.reject(error);
-    }
-    
     if (error.response?.status === 401 && !originalRequest._retry) {
       originalRequest._retry = true;
 
       try {
-        const refreshToken = localStorage.getItem('refreshToken');
-        if (!refreshToken) throw new Error('No refresh token');
+        // Add request to queue
+        const retryOriginal = new Promise((resolve, reject) => {
+          failedQueue.push({ resolve, reject });
+        });
 
-        const response = await axios.post(`${getApiUrl()}/user/refresh-token`, { refreshToken });
-        const { accessToken } = response.data;
-        
-        localStorage.setItem('accessToken', accessToken);
-        
-        instance.defaults.headers.common['Authorization'] = `Bearer ${accessToken}`;
-        originalRequest.headers['Authorization'] = `Bearer ${accessToken}`;
-        
-        return instance(originalRequest);
-      } catch (error) {
-        if (!error.response?.data?.code === 'INVALID_MANAGER_PASSWORD') {
-          localStorage.clear();
-          window.location.href = '/login';
+        if (failedQueue.length === 1) {
+          // Only refresh token for first failed request
+          const refreshToken = localStorage.getItem('refreshToken');
+          if (!refreshToken) {
+            processQueue(new Error('No refresh token'));
+            return Promise.reject(error);
+          }
+
+          try {
+            const response = await axios.post('/api/auth/refresh', { refreshToken });
+            const { accessToken } = response.data;
+            
+            localStorage.setItem('accessToken', accessToken);
+            
+            // Update authorization header
+            originalRequest.headers['Authorization'] = `Bearer ${accessToken}`;
+            
+            processQueue(null, accessToken);
+            
+            // Retry original request
+            return axios(originalRequest);
+          } catch (refreshError) {
+            processQueue(refreshError);
+            return Promise.reject(refreshError);
+          }
         }
-        return Promise.reject(error);
+
+        return retryOriginal;
+      } catch (refreshError) {
+        return Promise.reject(refreshError);
       }
     }
+
     return Promise.reject(error);
   }
 );
