@@ -86,7 +86,7 @@ const MainContent = ({ isMobile, scrollDirection, isAtTop }) => {
     try {
       setLoading(true);
       const response = await axiosInstance.get(
-        `http://localhost:3002/api/purchases/${username}`
+        `/purchases/${username}`
       );
       setData(response.data);
     } catch (error) {
@@ -106,7 +106,7 @@ const MainContent = ({ isMobile, scrollDirection, isAtTop }) => {
     if (confirm) {
       try {
         await axiosInstance.put(
-          `http://localhost:3002/api/user/${username}/${data.purchases[index].purchase_order_id}/delete`
+          `/user/${username}/${data.purchases[index].purchase_order_id}/delete`
         );
         window.alert("Purchase Order successfully deleted");
         fetchPurchases();

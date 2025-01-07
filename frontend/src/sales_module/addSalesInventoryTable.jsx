@@ -133,7 +133,7 @@ const ItemTable = ({ items, setItems }) => {
     setLoading(true);
     try {
       const response = await instance.get(
-        `http://localhost:3002/api/user/${username}/inventories`
+        `/user/${username}/inventories`
       );
       setProductData(response.data);
       setCurrentIndex(index);
@@ -232,6 +232,7 @@ const ItemTable = ({ items, setItems }) => {
 
     } catch (err) {
       console.error(err.message);
+      toast.error(err.response.data.error);
       return undefined; 
     }
   }
@@ -240,7 +241,6 @@ const ItemTable = ({ items, setItems }) => {
 
     const productUnit = await fetchProductUnit(tempSerialNumber);
     if (!productUnit) {
-      toast.error("Serial number does not exist");
       setTempSerialNumber("");
       return;
     }

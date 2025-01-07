@@ -18,6 +18,30 @@ class Organization extends Model {
                 type: DataTypes.STRING,
                 allowNull: false,
             },
+            organization_address: {
+                type: DataTypes.STRING, 
+                allowNull: false,
+            },
+            organization_contact: {
+                type: DataTypes.STRING, 
+                allowNull: false
+            },
+            organization_email: {
+                type: DataTypes.STRING, 
+                allowNull: false
+            }, 
+            organization_bank: {
+                type:DataTypes.STRING, 
+                allowNull: false,
+            },
+            organization_account_number: {
+                type: DataTypes.STRING, 
+                allowNull: false,
+            },
+            organization_routing_number: {
+                type: DataTypes.STRING, 
+                allowNull: false
+            },
             created_at: {
                 type: DataTypes.DATE,
                 allowNull: false,

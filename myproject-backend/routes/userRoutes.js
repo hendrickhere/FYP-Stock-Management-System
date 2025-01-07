@@ -7,8 +7,8 @@ const InventoryAnalyticsService = require('../service/inventoryAnalyticsService'
 //add here, and then construct the controller and service method, service is 
 //data access layer, while controller is the presentation layer
 router.get('/:username/stock-report', authMiddleware, UserController.getStockReport);
-router.post('/signup', UserController.signup);
-router.post('/login', UserController.login);
+// router.post('/signup', UserController.signup);
+// router.post('/login', UserController.login);
 
 router.get('/:username/salesOrders', UserController.getSalesOrder);
 

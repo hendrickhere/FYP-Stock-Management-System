@@ -432,7 +432,7 @@ exports.updateInventory = async (username, inventoryUUID, updateData) => {
           where: {
               product_uuid: inventoryUUID,
               user_id: user.user_id,
-          },
+          },  
           returning: true
       });
 

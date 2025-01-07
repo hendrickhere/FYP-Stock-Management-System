@@ -17,16 +17,15 @@ const WarrantyService = require("./warrantyService");
 const PurchaseService = require("./purchaseService");
 const SalesService = require("./salesService");
 const UserService = require("./userService");
-const { WarrantyNotFoundException, ProductNotFoundException } = require("../errors/notFoundException");
+const { WarrantyNotFoundException, ProductNotFoundException, ProductUnitNotFoundException } = require("../errors/notFoundException");
 const { DatabaseOperationException } = require("../errors/operationError");
-const {ValidationException} = require("../errors/validationError");
+const { ValidationException } = require("../errors/validationError");
 
 exports.addProductUnit = async (purchaseOrderId, products, username) => {
   const transaction = await db.sequelize.transaction();
   try {
     await Promise.all(
       products.map(async (product) => {
-        //const purchaseOrder = await PurchaseService.getPurchaseOrderDetails(purchaseOrderId, username);
         const warranty = await WarrantyService.getWarrantiesByProduct(
           product.product_id
         );
@@ -40,13 +39,43 @@ exports.addProductUnit = async (purchaseOrderId, products, username) => {
         if (product.units.length > purchaseOrderItem.unregistered_quantity) {
           throw new Error(`Cannot register more units than available unregistered quantity for product ${product.product_id}`);
         }
+        
+        const serialNumberValidations = await Promise.all(
+          product.units.map(async (unit) => {
+            const existingUnit = await ProductUnit.findOne({
+              where: {
+                serial_number: unit.serialNumber,
+                product_id: product.product_id
+              }
+            });
 
+            if (existingUnit) {
+              return {
+                serialNumber: unit.serialNumber,
+                exists: true,
+                product_id: product.product_id
+              };
+            }
+            return {
+              serialNumber: unit.serialNumber,
+              exists: false,
+              product_id: product.product_id
+            };
+          })
+        );
+
+        const existingSerialNumbers = serialNumberValidations.filter(validation => validation.exists);
+        if (existingSerialNumbers.length > 0) {
+          throw new ValidationException(
+            `Serial numbers already exist: ${existingSerialNumbers.map(v => v.serialNumber).join(', ')}`
+          );
+        }
         await Promise.all(
           product.units.map(async (unit) => {
             try {
               const productUnit = await ProductUnit.create(
                 {
-                  warranty_id: warranty?.warranty_id || null, 
+                  warranty_id: warranty?.warranty_id || null,
                   purchase_order_item_id: purchaseOrderItem.purchase_order_item_id,
                   product_id: product.product_id,
                   serial_number: unit.serialNumber,
@@ -103,6 +132,9 @@ exports.addProductUnit = async (purchaseOrderId, products, username) => {
     console.error("Error adding product units:", err);
 
     if (err instanceof DatabaseOperationException) {
+      throw err;
+    }
+    if(err instanceof ValidationException){
       throw err;
     }
 
@@ -163,7 +195,7 @@ exports.getProductUnitWithSerialNumber = async (serialNumber) => {
     });
 
     if (!productUnit) {
-      throw new ProductNotFoundException("Product unit not found or already sold");
+      throw new ProductUnitNotFoundException([serialNumber]);
     }
 
     return productUnit.dataValues;
@@ -243,8 +275,8 @@ exports.addExistingUnit = async (serialNumbers, productId) => {
             await WarrantyUnit.create({
               product_unit_id: productUnit.product_unit_id,
               warranty_id: warranty.manufacturer[0].warranty_id,
-              warranty_start: productUnit.warranty_start_date,
-              warranty_end: productUnit.warranty_end_date,
+              warranty_start: unitData.warranty_start_date,
+              warranty_end: unitData.warranty_end_date,
               status: "ACTIVE",
             }, { transaction });
           }
@@ -303,6 +335,7 @@ exports.getProductUnitsWithProductId = async (productId, pageNumber, pageSize, s
       "source_type",
       "date_of_purchase",
       "date_of_sale",
+      "is_sold"
     ],
     include: [{
       model: WarrantyUnit,

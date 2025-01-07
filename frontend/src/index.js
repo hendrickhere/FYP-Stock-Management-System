@@ -30,6 +30,7 @@ import './styles/tailwind.css';
 import './styles/index.css';
 import AddWarranty from './warranty_module/add_warranty';
 import ProductUnits from './inventory_module/productUnit';
+import OrganizationSettings from './settings_module/organizationSettings';
 
 ReactDOM.render(
   <React.StrictMode>
@@ -227,6 +228,14 @@ ReactDOM.render(
             element={
               <ProtectedRoute>
                 <UserManagement />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/settings/organization_settings"
+            element={
+              <ProtectedRoute>
+                <OrganizationSettings/>
               </ProtectedRoute>
             }
           />

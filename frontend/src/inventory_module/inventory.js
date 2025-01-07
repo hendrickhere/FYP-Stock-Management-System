@@ -145,7 +145,7 @@ function MainContent({ isMobile }) {
 
   async function fetchInventories() {
     await axiosInstance
-      .get(`http://localhost:3002/api/user/${username}/inventories`)
+      .get(`/user/${username}/inventories`)
       .then((response) => {
         setData(() => response.data);
         console.log(`response is here! + ${response.data}`);
@@ -156,7 +156,7 @@ function MainContent({ isMobile }) {
   async function deleteInventory(productUUID) {
     try {
       await axiosInstance.put(
-        `http://localhost:3002/api/user/${username}/${productUUID}/delete`
+        `/user/${username}/${productUUID}/delete`
       );
       // Update local state to remove the deleted item
       setData((prevData) => ({

@@ -11,3 +11,19 @@ myproject-backend/chatbot-api/.env
 !myproject-backend/config/*.template.js
 !myproject-backend/config/*.template.json
 
+frontend/build/asset-manifest.json
+frontend/build/favicon.ico
+frontend/build/index.html
+frontend/build/logo.png
+frontend/build/manifest.json
+frontend/build/robots.txt
+frontend/build/static/css/main.a33749f1.css
+frontend/build/static/css/main.a33749f1.css.map
+frontend/build/static/js/main.b212576f.js
+frontend/build/static/js/main.b212576f.js.LICENSE.txt
+frontend/build/static/js/main.b212576f.js.map
+frontend/build/static/media/logo.64163def9788d1c09209.png
+frontend/build/styles.css
+/frontend/build
+frontend/package-lock.json
+frontend/package-lock.json

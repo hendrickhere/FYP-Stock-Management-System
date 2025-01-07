@@ -105,7 +105,7 @@ const MainContent = ({ isMobile }) => {
     }
 
     try {
-      const response = await instance.get(`http://localhost:3002/api/stakeholders/vendors?username=${username}`);
+      const response = await instance.get(`/stakeholders/vendors?username=${username}`);
       setFormState(prev => ({
         ...prev,
         vendorData: response.data,

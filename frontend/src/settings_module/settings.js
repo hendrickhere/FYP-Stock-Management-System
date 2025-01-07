@@ -6,7 +6,7 @@ import { IoSettingsSharp } from "react-icons/io5";
 import { IoReceiptOutline } from "react-icons/io5";
 import { MdDiscount } from "react-icons/md";
 import { FaUsersCog } from "react-icons/fa";
-import { TbNumbers } from "react-icons/tb";
+import { TbNumbers, TbBuilding } from "react-icons/tb";
 import { Alert, AlertDescription } from "../ui/alert";
 import { useScrollDirection } from '../useScrollDirection';
 
@@ -67,6 +67,13 @@ function MainContent({ isMobile }) {
       description: 'Configure order number formats and sequences',
       icon: TbNumbers,
       path: '/settings/order_settings', 
+      roles: ['admin', 'manager', 'Manager']
+    },
+    {
+      title: 'Organization Settings',
+      description: 'Edit organization settings',
+      icon: TbBuilding,
+      path: '/settings/organization_settings', 
       roles: ['admin', 'manager', 'Manager']
     }
   ];

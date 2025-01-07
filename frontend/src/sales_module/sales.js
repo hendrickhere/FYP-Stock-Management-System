@@ -11,7 +11,8 @@ import { useScrollDirection } from '../useScrollDirection';
 import { motion } from 'framer-motion';
 import SalesOrderSearch from './salesOrderSearch';
 import Pagination from "../pagination_component/pagination";
-const springTransition = {
+import instance from "../axiosConfig";
+import toast, { Toaster } from "react-hot-toast";const springTransition = {
   type: "spring",
   stiffness: 400,
   damping: 40,
@@ -67,7 +68,64 @@ const MainContent = ({ isMobile, scrollDirection, isAtTop }) => {
   // Document generation handlers
   const handleGenerateInvoice = async () => {
     console.log('Generating invoice for orders:', selectedOrders);
-    // TODO: Implement invoice generation logic
+    try {
+      const orderUuid = selectedOrders[0];
+      const response = await instance.get(`/sales/generate-invoice/${orderUuid}`, {
+        responseType: 'arraybuffer',  // Changed from 'blob' to 'arraybuffer'
+        headers: {
+          'Accept': 'application/pdf',
+        }
+      });
+  
+      // Create blob from array buffer
+      const blob = new Blob([response.data], { type: 'application/pdf' });
+      const url = window.URL.createObjectURL(blob);
+      
+      // Create and trigger download
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', `invoice-${orderUuid}.pdf`);
+      
+      // Append to body, click, and cleanup
+      document.body.appendChild(link);
+      link.click();
+      
+      // Cleanup after small delay to ensure download starts
+      setTimeout(() => {
+        document.body.removeChild(link);
+        window.URL.revokeObjectURL(url);
+      }, 100);
+  
+      toast.success('Invoice generated successfully', {
+        duration: 4000,
+        position: 'bottom-right',
+      });
+  
+    } catch (error) {
+      // Handle error if response is arraybuffer
+      if (error.response?.data instanceof ArrayBuffer) {
+        try {
+          const decoder = new TextDecoder('utf-8');
+          const errorText = decoder.decode(error.response.data);
+          const errorData = JSON.parse(errorText);
+          toast.error(errorData.message || 'Failed to generate invoice', {
+            duration: 4000,
+            position: 'bottom-right',
+          });
+        } catch (decodeError) {
+          toast.error('Failed to generate invoice', {
+            duration: 4000,
+            position: 'bottom-right',
+          });
+        }
+      } else {
+        toast.error('Failed to generate invoice', {
+          duration: 4000,
+          position: 'bottom-right',
+        });
+      }
+      console.error('Error generating invoice:', error);
+    }
   };
 
   const handleGenerateQuotation = async () => {
@@ -100,7 +158,7 @@ const MainContent = ({ isMobile, scrollDirection, isAtTop }) => {
   
   const handleDeleteData = async (salesOrderUUID, managerPassword) => {
     try {
-      await axiosInstance.delete(`http://localhost:3002/api/user/${username}/salesOrder/${salesOrderUUID}`, {
+      await axiosInstance.delete(`/${username}/salesOrder/${salesOrderUUID}`, {
         data: { managerPassword } // Send password in request body
       });
       
@@ -142,7 +200,7 @@ const MainContent = ({ isMobile, scrollDirection, isAtTop }) => {
       });
       
       const response = await axiosInstance.get(
-        `http://localhost:3002/api/sales/${username}/salesOrders?${params}`
+        `/sales/${username}/salesOrders?${params}`
       );
       
       if (response.data && Array.isArray(response.data.salesOrders)) {

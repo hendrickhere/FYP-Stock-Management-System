@@ -1,7 +1,24 @@
 import axios from 'axios';
 
+// config/environment.js
+const getApiUrl = () => {
+  const env = process.env.REACT_APP_ENV || process.env.NODE_ENV || 'development';
+  
+  switch (env) {
+    case 'development':
+      return process.env.REACT_APP_API_URL || 'http://localhost:3002/api';
+    case 'staging':
+      return process.env.REACT_APP_API_URL || 'https://api.yourstaging.com';
+    case 'production':
+      return process.env.REACT_APP_API_URL || 'https://uat.stocksavvy.biz/api';
+    default: return ""
+  }
+};
+
+// axiosConfig.js
+
 const instance = axios.create({
-  baseURL: 'http://localhost:3002/api',
+  baseURL: `${getApiUrl()}`,
   maxContentLength: 50000000,
   maxBodyLength: 50000000,
 });
@@ -32,7 +49,6 @@ instance.interceptors.response.use(
   },
   async (error) => {
     const originalRequest = error.config;
-
     if (error.response?.status === 401 && !originalRequest._retry) {
       originalRequest._retry = true;
 
@@ -80,26 +96,25 @@ instance.interceptors.response.use(
 );
 
 instance.interceptors.request.use(
-    async (config) => {
-        const token = localStorage.getItem('accessToken');
-        if (token) {
-            config.headers['Authorization'] = `Bearer ${token}`;
-        }
-        
-        // Log outgoing requests
-        console.log('Outgoing request:', {
-            url: config.url,
-            method: config.method,
-            params: config.params,
-            headers: config.headers
-        });
-        
-        return config;
-    },
-    (error) => {
-        console.error('Request interceptor error:', error);
-        return Promise.reject(error);
+  async (config) => {
+    const token = localStorage.getItem('accessToken');
+    if (token) {
+      config.headers['Authorization'] = `Bearer ${token}`;
     }
+    
+    console.log('Outgoing request:', {
+      url: config.url,
+      method: config.method,
+      params: config.params,
+      headers: config.headers
+    });
+    
+    return config;
+  },
+  (error) => {
+    console.error('Request interceptor error:', error);
+    return Promise.reject(error);
+  }
 );
 
 export default instance;

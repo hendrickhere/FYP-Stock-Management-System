@@ -33,11 +33,6 @@ class ProductUnitNotFoundException extends NotFoundException {
     if (!Array.isArray(productUnitIds)) {
       throw new TypeError('productUnitIds must be an array');
     }
-
-    // if (!productUnitIds.every(id => Number.isInteger(id) && id >= 0)) {
-    //   throw new TypeError('All product unit IDs must be non-negative integers');
-    // }
-
     const formattedIds = productUnitIds.join(', ');
     
     super(
