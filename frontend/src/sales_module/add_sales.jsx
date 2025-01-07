@@ -56,7 +56,7 @@ const MainContent = ({ isMobile }) => {
   const { username } = useContext(GlobalContext);
   const dropdownRef = useRef(null);
   const {organizationId} = useContext(GlobalContext);
-
+  const [createdSalesOrderUuid, setCreatedSalesOrderUuid] = useState("");
   const [loading, setLoading] = useState(false);
   const [apiError, setApiError] = useState(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -72,7 +72,7 @@ const MainContent = ({ isMobile }) => {
   const [discountError, setDiscountError] = useState(null);
   const [tempPaymentInfo, setTempPaymentInfo] = useState(null);
   const [showCancelDialog, setShowCancelDialog] = useState(false);
-
+  const [showInvoiceGenerationDialog, setShowInvoiceGenerationDialog] = useState(false);
   const [formState, setFormState] = useState({
     customerData: null,
     selectedCustomer: null,
@@ -267,6 +267,67 @@ const MainContent = ({ isMobile }) => {
     return Object.keys(newErrors).length === 0;
 };
 
+  const generateInvoice = async (salesOrderUuid) => {
+    try {
+      const response = await instance.get(`/sales/generate-invoice/${salesOrderUuid}`, {
+        responseType: 'arraybuffer',  // Changed from 'blob' to 'arraybuffer'
+        headers: {
+          'Accept': 'application/pdf',
+        }
+      });
+  
+      // Create blob from array buffer
+      const blob = new Blob([response.data], { type: 'application/pdf' });
+      const url = window.URL.createObjectURL(blob);
+      
+      // Create and trigger download
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', `invoice-${salesOrderUuid}.pdf`);
+      
+      // Append to body, click, and cleanup
+      document.body.appendChild(link);
+      link.click();
+      
+      // Cleanup after small delay to ensure download starts
+      setTimeout(() => {
+        document.body.removeChild(link);
+        window.URL.revokeObjectURL(url);
+      }, 100);
+  
+      toast.success('Invoice generated successfully', {
+        duration: 4000,
+        position: 'bottom-right',
+      });
+      navigate(-1);
+  
+    } catch (error) {
+      // Handle error if response is arraybuffer
+      if (error.response?.data instanceof ArrayBuffer) {
+        try {
+          const decoder = new TextDecoder('utf-8');
+          const errorText = decoder.decode(error.response.data);
+          const errorData = JSON.parse(errorText);
+          toast.error(errorData.message || 'Failed to generate invoice', {
+            duration: 4000,
+            position: 'bottom-right',
+          });
+        } catch (decodeError) {
+          toast.error('Failed to generate invoice', {
+            duration: 4000,
+            position: 'bottom-right',
+          });
+        }
+      } else {
+        toast.error('Failed to generate invoice', {
+          duration: 4000,
+          position: 'bottom-right',
+        });
+      }
+      console.error('Error generating invoice:', error);
+      navigate(-1);
+    }
+  }
   const handleSubmit = async (e) => {
     e?.preventDefault();
 
@@ -332,12 +393,12 @@ const MainContent = ({ isMobile }) => {
       );
 
       if (response.data) {
-        // Show success toast
+        setCreatedSalesOrderUuid(response.data.data.sales_order_uuid);
         toast.success('Sales order created successfully!', {
           duration: 3000,
           position: 'bottom-right',
         });
-        navigate(-1);
+        setShowInvoiceGenerationDialog(true);
       }
     } catch (error) {
       console.error("Error details:", error.response?.data);
@@ -411,6 +472,23 @@ const MainContent = ({ isMobile }) => {
               </AlertDialogFooter>
             </AlertDialogContent>
           </AlertDialog>
+          <AlertDialog open={showInvoiceGenerationDialog} onOpenChange={setShowInvoiceGenerationDialog}>
+            <AlertDialogContent className="bg-white">
+              <AlertDialogHeader>
+                <AlertDialogTitle>Generate Invoice?</AlertDialogTitle>
+                <AlertDialogDescription>
+                  Do you want to generate the invoice for this sales order? You can still generate it through sales order page later. 
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel onClick={() => generateInvoice(createdSalesOrderUuid)}>Yes</AlertDialogCancel>
+                <AlertDialogAction onClick={() => navigate(-1)}>
+                  No
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
+          
 
         <div className="p-6">
           <div className="w-full">

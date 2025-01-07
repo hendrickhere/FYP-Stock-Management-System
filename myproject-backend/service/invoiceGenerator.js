@@ -4,7 +4,7 @@ const path = require('path');
 const handlebars = require('handlebars');
 const fs = require('fs').promises;
 const SalesService = require("./salesService");
-
+const chromePath = process.env.CHROME_PATH
 
 class InvoiceGenerator {
     constructor() {
@@ -82,7 +82,7 @@ class InvoiceGenerator {
     async convertToPDF(html) {
         let browser;
         try {
-            const browser = await puppeteer.launch({
+            browser = await puppeteer.launch({
                 headless: 'new',
                 args: [
                     '--no-sandbox',
@@ -91,7 +91,7 @@ class InvoiceGenerator {
                     '--disable-dev-shm-usage',
                     '--single-process'
                 ],
-                executablePath: '/usr/bin/google-chrome'
+                executablePath: chromePath
             });
             const page = await browser.newPage();
             
