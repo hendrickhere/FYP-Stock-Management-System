@@ -14,6 +14,7 @@ import { Button } from "../ui/button";
 import WarrantySearch from './warranty_search'; 
 import WarrantyDetailModal from "./warranty_detail_modal";
 import toast, { Toaster } from "react-hot-toast";
+import WarrantyClaimModal from "./claim_modal";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -50,7 +51,7 @@ const formatWarrantyDate = (dateString, formatStr = 'MMM dd, yyyy') => {
 };
 
 export const MainContent = ({ isMobile, scrollDirection, isAtTop }) => {
-  const { username } = useContext(GlobalContext);
+  const { username, organizationId } = useContext(GlobalContext);
   const [warranties, setWarranties] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -59,6 +60,8 @@ export const MainContent = ({ isMobile, scrollDirection, isAtTop }) => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [warrantyToDelete, setWarrantyToDelete] = useState(null);
+  const [isClaimModalOpen, setIsClaimModalOpen] = useState(false);
+
   const [searchConfig, setSearchConfig] = useState({
     term: '',
     activeFilters: ['id', 'product', 'type', 'duration', 'status']
@@ -277,6 +280,22 @@ export const MainContent = ({ isMobile, scrollDirection, isAtTop }) => {
               Add Warranty
             </Button>
             <Button
+              variant="default"
+              className="flex items-center space-x-2 px-4 py-2 bg-white text-green-700 font-medium rounded-lg shadow hover:bg-green-600 hover:text-white focus:outline-none focus:ring-2 focus:ring-green-400 focus:ring-opacity-75"
+              onClick={() => setIsClaimModalOpen(true)}
+            >
+              <Plus className="w-4 h-4 mr-2" />
+              Create Warranty Claim
+            </Button>
+            <Button
+              variant="default"
+              className="flex items-center space-x-2 px-4 py-2 bg-white text-green-700 font-medium rounded-lg shadow hover:bg-green-600 hover:text-white focus:outline-none focus:ring-2 focus:ring-green-400 focus:ring-opacity-75"
+              onClick={() => navigate("/warranty/warranty_claim")}
+            >
+              <Plus className="w-4 h-4 mr-2" />
+              View Warranty Claim
+            </Button>
+            <Button
               variant="outline"
               className="flex items-center space-x-2"
               onClick={() => {/* Implement export functionality */}}
@@ -293,6 +312,12 @@ export const MainContent = ({ isMobile, scrollDirection, isAtTop }) => {
               <AlertDescription>{error}</AlertDescription>
             </Alert>
           )}
+          <WarrantyClaimModal
+            isOpen={isClaimModalOpen}
+            onClose={() => setIsClaimModalOpen(false)}
+            username={username}
+            organizationId={organizationId}
+          />
 
           {isLoading ? (
             <div className="flex justify-center items-center py-8">

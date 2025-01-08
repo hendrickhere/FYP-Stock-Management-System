@@ -39,6 +39,14 @@ class SalesOrder extends Model {
                     key: "organization_id"
                 }
             },
+            customer_id: {
+                type: DataTypes.INTEGER,
+                allowNull: false,
+                references:{
+                    model: "customers",
+                    key: "customer_id"
+                }
+            },
             status_id: {
                 type: DataTypes.INTEGER,
                 allowNull: false,
