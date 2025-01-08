@@ -12,6 +12,7 @@ router.get('/:username/stock-report', authMiddleware, UserController.getStockRep
 
 router.get('/:username/salesOrders', UserController.getSalesOrder);
 
+router.get('/all/:organizationId', UserController.getAllUsers);
 router.get("/inventory/count", UserController.getInventoryCount);
 router.post('/:username/addInventory', UserController.addInventory);
 router.get('/:username/inventories', UserController.getAllInventory);
@@ -19,7 +20,6 @@ router.put('/:username/:inventoryuuid/editInventory', UserController.updateInven
 router.put('/:username/:inventoryuuid/delete', UserController.deleteInventory);
 router.get("/:username/:inventoryuuid", UserController.getInventory);
 router.post('/inventory/batch', authMiddleware, UserController.addInventoryBatch);
-
 router.put('/profile/update', authMiddleware, UserController.updateProfile);
 
 router.get('/current', authMiddleware, UserController.getCurrentUser);

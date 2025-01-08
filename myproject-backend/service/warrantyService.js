@@ -37,7 +37,7 @@ class WarrantyService {
       const warranty = await Warranty.create(createData, {
         transaction,
         include: [{ model: Product, as: "product" }],
-      });
+  });
 
       console.log('Created warranty:', warranty.toJSON());
 

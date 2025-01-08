@@ -31,6 +31,7 @@ import './styles/index.css';
 import AddWarranty from './warranty_module/add_warranty';
 import ProductUnits from './inventory_module/productUnit';
 import OrganizationSettings from './settings_module/organizationSettings';
+import WarrantyClaimsMain from './warranty_module/view_warranty_claim';
 
 ReactDOM.render(
   <React.StrictMode>
@@ -188,6 +189,14 @@ ReactDOM.render(
             element={
               <ProtectedRoute>
                 <AddWarranty />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/warranty/warranty_claim"
+            element={
+              <ProtectedRoute>
+                <WarrantyClaimsMain />
               </ProtectedRoute>
             }
           />

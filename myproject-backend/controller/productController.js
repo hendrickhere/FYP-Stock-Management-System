@@ -50,6 +50,33 @@ exports.addProductUnit = async (req, res) => {
   }
 };
 
+exports.getProductUnitWithWarrantyUnit = async (req, res) => {
+  const { serialNumber, productId } = req.query;
+
+  try {
+    if (!serialNumber) {
+    throw new ValidationException("Missing serial number");
+    }
+    productWithWarranty = await ProductService.getProductUnitWithWarrantyUnit(serialNumber, productId); 
+    res.status(200).json({
+      data: productWithWarranty, 
+      message: "Product unit with warranty information retrieved successfully."
+    });
+  } catch (err) {
+    if (err instanceof ValidationException) {
+      return res.status(err.statusCode).json({
+        succecss: false,
+        error: err.message,
+      });
+    }
+    return res.status(500).json({
+      success: false,
+      error: "Internal server error",
+    });
+  }
+}
+
+
 exports.addExistingUnit = async (req, res) => {
   const { serialNumbers, productId, username } = req.body;
 

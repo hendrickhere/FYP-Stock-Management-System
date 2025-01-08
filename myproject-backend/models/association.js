@@ -281,7 +281,15 @@ module.exports = (db) => {
 
     WarrantyClaim.belongsTo(User, { foreignKey: 'created_by', as: 'creator', onDelete: 'SET NULL' });
     WarrantyClaim.belongsTo(User, { foreignKey: 'last_modified_by', as: 'modifier', onDelete: 'SET NULL' });
+    WarrantyClaim.belongsTo(User, {foreignKey: "assigned_to", as: "assignee", onDelete: "CASCADE"});
+
     console.log('✓ User <-> WarrantyClaim associations established');
+
+    WarrantyClaim.belongsTo(WarrantyUnit, { foreignKey: 'warranty_unit_id', onDelete: "CASCADE" });
+    WarrantyUnit.hasMany(WarrantyClaim, { foreignKey: 'warranty_unit_id', onDelete: "CASCADE" });
+
+    WarrantyClaim.belongsTo(Organization, { foreignKey: "organization_id", onDelete: "CASCADE" });
+    Organization.hasMany(WarrantyClaim, { foreignKey: "organization_id", onDelete: "CASCADE" });
 
     WarrantyClaim.belongsTo(Customer, { 
     foreignKey: 'customer_id', 

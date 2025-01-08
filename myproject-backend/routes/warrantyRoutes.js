@@ -20,7 +20,7 @@ router.delete("/warranties/:id", WarrantyController.deleteWarranty);
 router.post("/warranty-claims/create", WarrantyClaimController.createClaim);
 router.put("/warranty-claims/:id/status", WarrantyClaimController.updateClaimStatus);
 router.put("/warranty-claims/:id/reassign", WarrantyClaimController.reassignClaim);
-
+router.get("/warranty-claims", WarrantyClaimController.viewWarrantyClaim);
 // Warranty notification routes - using only available methods
 router.get("/notifications/unread", WarrantyNotificationController.getUnreadNotifications);
 router.get("/notifications/warranty/:warrantyId", WarrantyNotificationController.getNotificationsByWarranty);

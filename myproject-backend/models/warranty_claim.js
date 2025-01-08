@@ -18,12 +18,28 @@ class WarrantyClaim extends Model {
                     key: "warranty_id"
                 }
             },
+            warranty_unit_id: {
+                type: DataTypes.INTEGER,
+                allowNull: false,
+                references: {
+                    model: "warranty_units",
+                    key: "warranty_unit_id"
+                }
+            },
             customer_id: {  
                 type: DataTypes.INTEGER,
                 allowNull: false,
                 references: {
                     model: "customers",
                     key: "customer_id"
+                }
+            },
+            organization_id: {  
+                type: DataTypes.INTEGER,
+                allowNull: false,
+                references: {
+                    model: "organizations",
+                    key: "organization_id"
                 }
             },
             created_by: {

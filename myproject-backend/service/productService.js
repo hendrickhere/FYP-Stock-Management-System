@@ -142,6 +142,7 @@ exports.addProductUnit = async (purchaseOrderId, products, username) => {
   }
 };
 
+
 exports.sellProductUnit = async (salesOrderId, products) => {
   const transaction = await db.sequelize.transaction();
   try {
@@ -379,4 +380,44 @@ exports.getProductUnitsWithProductId = async (productId, pageNumber, pageSize, s
   };
   
   return result;
+};
+
+exports.getProductUnitWithWarrantyUnit = async (serialNumber, product_id) => {
+  try {
+    const productUnitsWithWarranty = await ProductUnit.findAll({
+      where: {
+        serial_number: {
+          [Op.like]: `%${serialNumber}%`  // This will match any serial number containing the input string
+        },
+        product_id: product_id,
+      },
+      include: [{
+        model: WarrantyUnit,
+        required: false,
+        where: {
+          status: 'ACTIVE'
+        },
+        include: [{
+          model: Warranty,
+          attributes: ['warranty_type', 'duration', 'warranty_number']
+        }]
+      }, {
+        model: Product,
+        attributes: ['product_name', 'sku_number']
+      }],
+      // Limit the results to prevent too many matches
+      limit: 10
+    });
+
+    if (!productUnitsWithWarranty || productUnitsWithWarranty.length === 0) {
+      throw new Error('No product units found matching the search criteria');
+    }
+
+    // Map the results to get clean data values
+    const results = productUnitsWithWarranty.map(unit => unit.dataValues);
+    
+    return results;
+  } catch (error) {
+    throw error;
+  }
 };

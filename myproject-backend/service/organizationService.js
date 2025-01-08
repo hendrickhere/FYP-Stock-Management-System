@@ -3,6 +3,7 @@ const {
     Organization,
     sequelize 
   } = require("../models");
+  
 exports.getOrganization = async (organizationId) => {
     try {
         const organization = await Organization.findOne({
