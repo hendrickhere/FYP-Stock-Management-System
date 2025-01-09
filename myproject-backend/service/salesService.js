@@ -162,6 +162,44 @@ exports.getSalesOrderTotal = async (username, salesOrderUUID) => {
   return total;
 };
 
+exports.getSalesOrderReturn = async (organizationId, pageSize, pageNumber) => {
+  let whereClause = {
+    organization_id: organizationId
+  };
+  const offset = (pageNumber - 1) * pageSize;
+  const returns = await ReturnRecord.findAndCountAll({
+    where: whereClause,
+    include: [{
+      model: ProductUnitReturn,
+      include: [{
+        model: ProductUnit,
+        include: [{
+          model: Product,
+          attributes: ['product_name', 'sku_number']
+        }]
+      }]
+    }],
+    order: [['created_at', 'DESC']],
+    limit: pageSize,
+    offset: offset,
+    distinct: true
+  });
+  const totalPages = Math.ceil(returns.count / pageSize);
+  const hasNextPage = pageNumber < totalPages;
+  const hasPreviousPage = pageNumber > 1;
+
+  return {
+    returns: returns.rows,
+    pagination: {
+      totalItems: returns.count,
+      totalPages,
+      currentPage: parseInt(pageNumber),
+      pageSize: parseInt(pageSize),
+      hasNextPage,
+      hasPreviousPage
+    }
+  };
+}
 // exports.getAllSalesOrders = async (username, pageNumber, pageSize) => {
 //   const offset = (pageNumber - 1) * pageSize;
 //   try {
@@ -319,8 +357,14 @@ exports.returnSalesOrder = async (validatedData) => {
     }
     const existingReturns = await ProductUnitReturn.findAll({
       where: {
-        product_unit_id: productUnitIds
+        product_unit_id: productUnitIds,
       },
+      include: [{
+        model: ReturnRecord,
+        where: {
+          sales_order_id: salesOrder.sales_order_id
+        }
+      }],
       transaction
     });
     
@@ -331,6 +375,7 @@ exports.returnSalesOrder = async (validatedData) => {
       {
         is_sold: false,
         date_of_sale: null, 
+        sales_order_id: null,
         updated_at: new Date()
       },
       {
@@ -409,8 +454,26 @@ exports.returnSalesOrder = async (validatedData) => {
       refund_amount: totalRefundAmount,
       reason: reason,
       processed_by: processorUser.user_id,
-      refunded_tax: refundedTax
+      refunded_tax: refundedTax,
+      organization_id: processorUser.organization_id,
     }, { transaction });
+
+    const productUnitReturns = await Promise.all(
+      products.flatMap(product => {
+        const salesOrderItem = salesOrder.items.find(item => item.product_id === product.product_id);
+        const unitPrice = salesOrderItem.discounted_price || salesOrderItem.price;
+        const unitTax = (unitPrice * taxRate);
+  
+        return product.product_units.map(unit => 
+          ProductUnitReturn.create({
+            return_record_id: returnRecord.return_record_id,
+            product_unit_id: unit.product_unit_id,
+            refund_amount: unitPrice,
+            refunded_tax: unitTax
+          }, { transaction })
+        );
+      })
+    );
     await transaction.commit();
     return returnRecord;
   } catch (err) {

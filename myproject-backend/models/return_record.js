@@ -42,6 +42,14 @@ class ReturnRecord extends Model {
                 allowNull: false,
                 defaultValue: 0.00
             },
+            organization_id: {
+                type: DataTypes.INTEGER, 
+                allowNull: false,
+                references: {
+                    model: "organizations",
+                    key: "organization_id"
+                }
+            },
             created_at: {
                 type: DataTypes.DATE,
                 allowNull: false,

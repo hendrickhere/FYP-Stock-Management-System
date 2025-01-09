@@ -323,6 +323,9 @@ module.exports = (db) => {
     console.log('✓ Return Record <-> Sales Order associations established');
     ReturnRecord.belongsTo(User, {foreignKey: "processed_by", onDelete: "CASCADE"});
     console.log('✓ Return Record <-> Sales Order associations established');
+    ReturnRecord.belongsTo(Organization, {foreignKey: "organization_id", onDelete: "CASCADE"});
+    Organization.hasMany(ReturnRecord, {foreignKey: "organization_id", onDelete: "CASCADE"});
+    console.log('✓ Return Record <-> Organization associations established');
     ProductUnitReturn.belongsTo(ReturnRecord, {foreignKey: "return_record_id"});
     ReturnRecord.hasMany(ProductUnitReturn, {foreignKey: "return_record_id"});
     console.log('✓ Return Record <-> Product Unit associations established');

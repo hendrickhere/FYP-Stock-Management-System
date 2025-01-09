@@ -2,6 +2,8 @@ const SalesService = require('../service/salesService');
 const { SalesError } = require('../errors/salesError.js');
 const invoiceGenerator = require('../service/invoiceGenerator');
 const Joi = require('joi');
+const { ValidationError } = require('sequelize');
+const { ValidationException } = require('../errors/validationError.js');
 
 exports.getAllSalesOrders = async (req, res) => {
     try {
@@ -163,6 +165,24 @@ exports.getSalesOrderTotal = async (req, res) => {
     }
 };
 
+exports.viewSalesOrderReturn = async (req, res) => {
+  try{
+    const {organizationId, pageSize, pageNumber} = req.query; 
+
+    if(!organizationId){
+      throw new ValidationException("Organization id cannot be null");
+    }
+
+    var returns = await SalesService.getSalesOrderReturn(organizationId, pageSize, pageNumber);
+    
+    res.status(200).json({data: returns, message: "Returns retrieved successfully"});
+  } catch (err) {
+    if (err instanceof ValidationException){
+      res.status(err.statusCode).json({message: err.message});
+    }
+    res.status(500).json({ message: err.message });
+  }
+}
 exports.createSalesOrder = async (req, res) => {
     try {
         const username = req.params.username;

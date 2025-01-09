@@ -32,5 +32,5 @@ router.get('/products', SalesController.getAvailableProducts);
 router.get('/analytics/fast-moving', SalesController.getFastMovingItems);
 router.get('/generate-invoice/:salesOrderUuid', SalesController.generateInvoice)
 router.post('/return', SalesController.returnSalesOrder);
-
+router.get('/return', SalesController.viewSalesOrderReturn);
 module.exports = router;
