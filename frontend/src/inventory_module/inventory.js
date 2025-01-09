@@ -293,11 +293,6 @@ function MainContent({ isMobile }) {
               <Plus className="w-4 h-4 mr-2" />
               Add Product
             </Button>
-
-            <button className="inline-flex items-center justify-center px-4 py-2 bg-white font-medium rounded-lg shadow">
-              <CiExport className="w-5 h-5 mr-2" />
-              Export
-            </button>
           </motion.div>
 
           {/* Content Area */}

@@ -778,6 +778,8 @@ exports.getAllSalesOrders = async (
             "customer_name",
             "customer_contact",
             "customer_designation",
+            "customer_email",
+            "customer_contact",
             "customer_company",
             "shipping_address",
           ],
@@ -786,7 +788,7 @@ exports.getAllSalesOrders = async (
           model: Product,
           through: {
             model: SalesOrderInventory,
-            as: "items", // Changed from 'sales_order_items' to 'items'
+            as: "items",
             attributes: ["quantity", "price", "discounted_price"],
           },
           attributes: [
@@ -799,7 +801,7 @@ exports.getAllSalesOrders = async (
         },
         {
           model: SalesOrderInventory,
-          as: "items", // Changed from 'sales_order_items' to 'items'
+          as: "items",
           include: [
             {
               model: ProductUnit,

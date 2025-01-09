@@ -303,14 +303,6 @@ export const MainContent = ({ isMobile, scrollDirection, isAtTop }) => {
                 <FileText className="w-4 h-4 mr-2" />
                 View Warranty Claim
               </Button>
-              <Button
-                variant="outline"
-                className="flex items-center space-x-2 whitespace-nowrap flex-1 justify-center max-w-[130px]"
-                onClick={() => {/* Implement export functionality */}}
-              >
-                <Download className="w-4 h-4 mr-2" />
-                Export
-              </Button>
             </div>
 
             {/* Mobile Dropdown Menu */}
@@ -350,15 +342,8 @@ export const MainContent = ({ isMobile, scrollDirection, isAtTop }) => {
                     className="flex items-center px-4 py-2.5 hover:bg-green-50 rounded-md cursor-pointer transition-colors duration-200"
                     onClick={() => navigate("/warranty/warranty_claim")}
                   >
-                    <Plus className="w-4 h-4 mr-2 text-green-600" />
+                    <FileText className="w-4 h-4 mr-2" />
                     <span className="text-gray-700">View Warranty Claim</span>
-                  </DropdownMenuItem>
-                  <DropdownMenuItem 
-                    className="flex items-center px-4 py-2.5 hover:bg-green-50 rounded-md cursor-pointer transition-colors duration-200"
-                    onClick={() => {/* Implement export functionality */}}
-                  >
-                    <Download className="w-4 h-4 mr-2 text-green-600" />
-                    <span className="text-gray-700">Export</span>
                   </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>

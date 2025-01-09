@@ -262,7 +262,7 @@ const MainContent = ({ isMobile }) => {
                   <CardTitle>Vendor Information</CardTitle>
                 </CardHeader>
                   <CardContent className="space-y-4">
-                    <div className="space-y-2 px-2 sm:px-4">
+                    <div className="space-y-2">
                       <label className="text-sm font-medium text-gray-700">Vendor Name</label>
                       <div className="relative">
                         <input
