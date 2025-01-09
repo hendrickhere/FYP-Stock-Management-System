@@ -21,6 +21,7 @@
     "express": "^4.19.2",
     "express-validator": "^7.2.1",
     "handlebars": "^4.7.8",
+    "joi": "^17.13.3",
     "jsonwebtoken": "^9.0.2",
     "multer": "^1.4.5-lts.1",
     "myproject-backend": "file:",

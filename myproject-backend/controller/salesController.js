@@ -1,6 +1,7 @@
 const SalesService = require('../service/salesService');
 const { SalesError } = require('../errors/salesError.js');
 const invoiceGenerator = require('../service/invoiceGenerator');
+const Joi = require('joi');
 
 exports.getAllSalesOrders = async (req, res) => {
     try {
@@ -47,6 +48,60 @@ exports.getAllSalesOrders = async (req, res) => {
     }
 };
 
+const returnSchema = Joi.object({
+  products: Joi.array().items(
+    Joi.object({
+      product_id: Joi.number().integer().positive().required(),
+      product_units: Joi.array().items(
+        Joi.object({
+          serial_number: Joi.string().trim().required(),
+          product_unit_id: Joi.number().integer().positive().required()
+        })
+      ).min(1).required()
+    })
+  ).min(1).required(),
+  date_of_return: Joi.date().iso().required(),
+  sales_order_uuid: Joi.string().uuid().required(),
+  processed_by: Joi.string().trim().required(),
+  reason: Joi.string().trim().min(1).required()
+});
+
+exports.returnSalesOrder = async (req, res) => {
+  try {
+    const validated = await returnSchema.validateAsync(req.body, {
+      abortEarly: false,
+      stripUnknown: true
+    });
+
+    const returnRecord = await SalesService.returnSalesOrder(validated);
+
+    return res.status(201).json({
+      status: 'success',
+      data: returnRecord,
+      message: "Product return successfully processed."
+    });
+
+  } catch (error) {
+    if (error.isJoi) {
+      // Validation error
+      return res.status(400).json({
+        status: 'error',
+        message: 'Validation failed',
+        errors: error.details.map(err => ({
+          field: err.path.join('.'),
+          message: err.message
+        }))
+      });
+    }
+
+    // Service/Database error
+    console.error('Error processing return:', error);
+    return res.status(500).json({
+      status: 'error',
+      message: error.message || 'Internal server error'
+    });
+  }
+}
 exports.getAllSalesOrderWithTimeRange = async (req, res, next) => {
     try {
       const { username } = req.params;
