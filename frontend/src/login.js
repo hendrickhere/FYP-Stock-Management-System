@@ -119,7 +119,7 @@ function Login({ onLoginSuccess }) {
 
   const toggleSignUp = () => {
     setIsSignUp(!isSignUp);
-    setFormErrors({}); // Clear form errors when switching modes
+    setFormErrors({}); 
     const container = document.getElementById('container');
     if (isSignUp) {
       container.classList.remove("active");
@@ -139,12 +139,15 @@ function Login({ onLoginSuccess }) {
       return;
     }
     
-    const userData = {
-      username: isSignUp ? signUpData.name : signInData.email,
+    const userData = isSignUp ? {
+      username: signUpData.name,
       created_at: new Date().toISOString(),
-      email: isSignUp ? signUpData.email : signInData.email,
-      password: isSignUp ? signUpData.password : signInData.password,
-      role,
+      email: signUpData.email,
+      password: signUpData.password,
+      role
+    } : {
+      email: signInData.email,
+      password: signInData.password
     };
 
     try {
@@ -185,7 +188,7 @@ function Login({ onLoginSuccess }) {
       console.error('Login error:', error);
       let errorMessage = 'An error occurred. Please try again.';
       
-        if (error.response) {
+        if (error.status) {
           if (error.response.status === 401) {
             errorMessage = 'Invalid email or password.';
           } else if (error.response.data && error.response.data.message) {

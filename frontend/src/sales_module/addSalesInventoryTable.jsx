@@ -133,7 +133,7 @@ const ItemTable = ({ items, setItems }) => {
     setLoading(true);
     try {
       const response = await instance.get(
-        `http://localhost:3002/api/user/${username}/inventories`
+        `/user/${username}/inventories`
       );
       setProductData(response.data);
       setCurrentIndex(index);
@@ -232,6 +232,7 @@ const ItemTable = ({ items, setItems }) => {
 
     } catch (err) {
       console.error(err.message);
+      toast.error(err.response.data.error);
       return undefined; 
     }
   }
@@ -240,7 +241,6 @@ const ItemTable = ({ items, setItems }) => {
 
     const productUnit = await fetchProductUnit(tempSerialNumber);
     if (!productUnit) {
-      toast.error("Serial number does not exist");
       setTempSerialNumber("");
       return;
     }
@@ -309,15 +309,14 @@ const ItemTable = ({ items, setItems }) => {
   };
 
   return (
-    <div className="space-y-6">
-      {/* Main Table */}
-      <div className="overflow-x-auto rounded-lg border border-gray-200">
-        <table className="min-w-full divide-y divide-gray-200">
-          <thead className="bg-gray-50">
+<div className="overflow-x-auto border rounded-lg">
+  <div className="w-full overflow-x-auto">
+    <table className="w-full min-w-[700px] divide-y divide-gray-200 table-auto">
+        <thead>
             <tr>
               <th
                 scope="col"
-                className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                className ="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase"
               >
                 Item Details
               </th>
@@ -351,7 +350,7 @@ const ItemTable = ({ items, setItems }) => {
             {items.map((item, index) => (
               <tr key={index} className="hover:bg-gray-50">
                 {/* Item Details Cell */}
-                <td className="px-6 py-4">
+                <td className="sticky left-0 bg-white px-6 py-4">
                   <button
                     type="button"
                     onClick={() => handleItemClick(index)}
@@ -503,11 +502,13 @@ const ItemTable = ({ items, setItems }) => {
                 </td>
               </tr>
             ))}
-          </tbody>
-        </table>
-      </div>
+        </tbody>
+      </table>
+    </div>
+
+
       {/* Tax and Total Summary */}
-      <div className="flex justify-between items-start mt-6">
+      <div className="mt-4">
         {/* Add Item Button */}
         <button
           type="button"
@@ -748,7 +749,6 @@ const ItemTable = ({ items, setItems }) => {
           </Card>
         </div>
       )}
-      ;
     </div>
   );
 };

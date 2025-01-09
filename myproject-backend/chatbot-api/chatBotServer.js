@@ -4,71 +4,17 @@ const { OpenAI } = require("openai");
 const userService = require("../service/userService");
 const { Op } = require("sequelize");
 const authMiddleware = require("../backend-middleware/authMiddleware");
+const { chatbotServiceMiddleware } = require("../backend-middleware/chatbotServiceMiddleware");
 const multer = require('multer');
 const PDFParser = require('pdf-parse');
 const { createChatbotServices } = require('./serviceFactory');
 const services = createChatbotServices();
-const { documentProcessor, chatbotService, chatbotIntelligence } = services;
+const db = require('../models');
 const conversations = new Map();
 
-const SYSTEM_PROMPT = `You are StockSavvy, an intelligent inventory management assistant specializing in purchase order analysis. Your tasks include:
-
-DOCUMENT ANALYSIS CAPABILITIES:
-1. Purchase Order Structure Recognition:
-   - Identify standard PO components (header, line items, totals)
-   - Extract vendor information and payment terms
-   - Recognize item specifications and pricing
-
-2. Product Information Extraction:
-   - Parse battery model numbers in format "BAT-[MODEL]"
-   - Identify product categories (Car Battery, Truck Battery)
-   - Extract quantities, unit prices, and totals
-   - Validate price calculations
-
-3. Validation Rules:
-   - Verify total = quantity × unit price
-   - Check for reasonable quantity ranges (1-1000)
-   - Validate price ranges (100-10000)
-   - Ensure model numbers follow standard formats
-
-RESPONSE GUIDELINES:
-1. Always provide structured analysis:
-   - Product details with confidence scores
-   - Financial calculations with verification
-   - Identified issues or discrepancies
-   - Suggested actions for resolution
-
-2. When reporting issues:
-   - Explain the specific problem
-   - Provide the relevant section from the document
-   - Suggest potential corrections
-   - List required actions
-
-3. Format responses with:
-   - Clear section headings
-   - Itemized findings
-   - Highlighted warnings
-   - Actionable next steps
-
-Current context: {contextData}`;
-
-// Usage in chat completion
-const chatCompletion = async (messages, contextData = {}) => {
-    const systemMessage = {
-        role: "system",
-        content: ENHANCED_SYSTEM_PROMPT.replace('{contextData}', 
-            JSON.stringify(contextData, null, 2))
-    };
-
-    return await openai.chat.completions.create({
-        model: "gpt-4",
-        messages: [systemMessage, ...messages],
-        temperature: 0.7,
-        max_tokens: 1000,
-        presence_penalty: 0.1,
-        frequency_penalty: 0.1
-    });
-};
+const openai = new OpenAI({
+    apiKey: process.env.OPENAI_API_KEY
+});
 
 // Configure file upload settings with error handling
 const upload = multer({
@@ -86,9 +32,22 @@ const upload = multer({
     }
 });
 
-const openai = new OpenAI({
-    apiKey: process.env.OPENAI_API_KEY
+router.use(async (req, res, next) => {
+    try {
+        // Check database connection
+        await db.sequelize.authenticate();
+        next();
+    } catch (error) {
+        console.error('Unable to connect to database:', error);
+        return res.status(500).json({
+            success: false,
+            error: 'Database connection error'
+        });
+    }
 });
+
+router.use(authMiddleware);
+router.use(chatbotServiceMiddleware);
 
 function generateAnalysisMessage(analysisResult) {
     const { metadata, items, financials } = analysisResult;
@@ -123,25 +82,11 @@ function generateAnalysisMessage(analysisResult) {
     return message;
 }
 
-async function getContextData(message, username) {
-    const contextData = {};
-    
-    if (message.toLowerCase().includes('inventory') || 
-        message.toLowerCase().includes('stock')) {
-        contextData.inventory = await userService.getAllInventory(username);
-    }
-    
-    if (message.toLowerCase().includes('purchase') || 
-        message.toLowerCase().includes('order')) {
-        contextData.recentOrders = await userService.getRecentPurchaseOrders(username);
-    }
-
-    return contextData;
-}
-
 // File processing endpoint
-router.post('/process-file', authMiddleware, upload.single('file'), async (req, res) => {
+router.post('/process-file', authMiddleware, chatbotServiceMiddleware, upload.single('file'), async (req, res) => {
     try {
+
+        console.log('Processing file request started');
         if (!req.file) {
             return res.status(400).json({ 
                 success: false, 
@@ -149,13 +94,36 @@ router.post('/process-file', authMiddleware, upload.single('file'), async (req, 
             });
         }
 
+        console.log('Request state:', {
+            hasServices: !!req.services,
+            hasDocumentProcessor: req.services && !!req.services.documentProcessor,
+            fileType: req.file.mimetype,
+            fileSize: req.file.size
+        });
+
+        if (!req.services) {
+            throw new Error('Services not found on request object');
+        }
+
+        if (!req.services.documentProcessor) {
+            throw new Error('DocumentProcessor not found in services');
+        }
+
         // Process the document
+        const { documentProcessor } = req.services;
+
+        if (typeof documentProcessor.processDocument !== 'function') {
+            throw new Error('processDocument is not a function');
+        }
+
+        console.log('Starting document processing');
+
         const processingResult = await documentProcessor.processDocument(req.file);
         
-        // Validate the processing result
-        if (!processingResult?.success || !processingResult?.analysisResult) {
-            throw new Error('Document processing failed to return valid results');
-        }
+        console.log('Document processing completed:', {
+            success: !!processingResult,
+            hasAnalysis: !!processingResult?.analysisResult
+        });
 
         // Generate response using the analysis result directly
         const response = {
@@ -169,61 +137,23 @@ router.post('/process-file', authMiddleware, upload.single('file'), async (req, 
         res.json(response);
 
     } catch (error) {
-        console.error('File processing error:', error);
-        res.status(500).json({
-            success: false,
-            error: error.message,
-            code: error.code || 'PROCESSING_ERROR',
-            explanation: generateErrorExplanation(error)
-        });
+            console.error('Route handler error:', {
+                message: error.message,
+                stack: error.stack,
+                requestServices: req.services ? Object.keys(req.services) : 'no services',
+                fileInfo: req.file ? {
+                    mimetype: req.file.mimetype,
+                    size: req.file.size
+                } : 'no file'
+            });
+
+            res.status(500).json({
+                success: false,
+                error: error.message,
+                code: 'PROCESSING_ERROR'
+            });
     }
 });
-
-async function classifyItems(items, username) {
-    // First, add defensive validation
-    if (!items) {
-        console.warn('Items parameter is undefined or null');
-        return {
-            newProducts: [],
-            existingProducts: []  
-        };
-    }
-
-    // Ensure items is an array
-    if (!Array.isArray(items)) {
-        console.warn('Invalid items input:', items);
-        return {
-            newProducts: [],
-            existingProducts: []  
-        };
-    }
-
-    try {
-        // The items should already be classified by DocumentProcessor
-        // Just need to format them properly for the response
-        const groupedItems = {
-            newProducts: items.filter(item => !item.productId),
-            existingProducts: items.filter(item => item.productId)
-        };
-
-        // Add any additional business logic here
-        // For example, checking stock levels
-        groupedItems.existingProducts = groupedItems.existingProducts.map(item => {
-            const hasEnoughStock = item.currentStock >= item.quantity;
-            return {
-                ...item,
-                stockStatus: hasEnoughStock ? 'sufficient' : 'insufficient',
-                stockDifference: hasEnoughStock ? 0 : item.quantity - item.currentStock
-            };
-        });
-
-        return groupedItems;
-
-    } catch (error) {
-        console.error('Error in classifyItems:', error);
-        throw new Error('System error while classifying items: ' + error.message);
-    }
-}
 
 async function createPurchaseOrder(orderData, groupedItems) {
     // Start transaction
@@ -310,23 +240,30 @@ router.post('/chat', authMiddleware, async (req, res) => {
             return res.status(400).json({ error: 'Message is required' });
         }
 
-        // Get services from request object
+        // Get services from middleware
         const { chatbotIntelligence } = req.services;
+        
+        // Validate chatbotIntelligence service
+        if (!chatbotIntelligence || typeof chatbotIntelligence.handleUserResponse !== 'function') {
+            throw new Error('Chat service not properly initialized');
+        }
 
-        // Get context for the chat
-        const contextData = await getContextData(message, username);
-
-        // Get response from chatbot
-        const response = await chatbotIntelligence.handleUserMessage(message, contextData);
+        const response = await chatbotIntelligence.handleUserResponse(username, message);
 
         res.json({
             success: true,
             message: response.message,
+            data: response.data,
             suggestions: response.suggestions
         });
 
     } catch (error) {
-        console.error('Chat error:', error);
+        console.error('Chat error:', {
+            message: error.message,
+            stack: error.stack,
+            serviceStatus: req.services ? 'initialized' : 'not initialized'
+        });
+        
         res.status(error.status || 500).json({
             success: false,
             error: error.message || 'Internal server error'
@@ -420,17 +357,6 @@ function generateErrorExplanation(error) {
   return `${errorTypes[errorType]}: ${error.message}`;
 }
 
-// Helper function to get context data for chat
-async function getContextData(message, username) {
-    const contextData = {};
-    
-    if (message.toLowerCase().includes('inventory') || 
-        message.toLowerCase().includes('stock')) {
-        contextData.inventory = await userService.getAllInventory(username);
-    }
-    
-    return contextData;
-}
 
 // Error handling middleware
 router.use((err, req, res, next) => {

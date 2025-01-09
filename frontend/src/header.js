@@ -11,6 +11,7 @@ import { GrSchedules, GrLogout } from "react-icons/gr";
 import { RiShieldCheckLine } from "react-icons/ri";
 import { CgProfile } from "react-icons/cg";
 import { TbNumbers } from "react-icons/tb";
+import HeaderButtons from './header_buttons';
 import { useNavigate, Link, useLocation } from 'react-router-dom';
 import { Alert, AlertDescription } from "./ui/alert";
 import instance from "./axiosConfig";
@@ -49,6 +50,7 @@ function Header({ scrollDirection, isAtTop }) {
     { path: '/staff', icon: FaUsersCog, label: 'Staff' },
     { path: '/appointments', icon: GrSchedules, label: 'Appointments' },
     { path: '/warranty', icon: RiShieldCheckLine, label: 'Warranties' },
+    { path: '/profile', icon: CgProfile, label: 'Profile' },
     { path: '/settings', icon: IoSettingsSharp, label: 'Settings' }, 
   ];
 
@@ -93,6 +95,19 @@ function Header({ scrollDirection, isAtTop }) {
 
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  useEffect(() => {
+    const handleStorageChange = () => {
+      const updatedUserData = JSON.parse(sessionStorage.getItem('userData'));
+      if (updatedUserData) {
+        setUsername(updatedUserData.username);
+        setUserRole(updatedUserData.role);
+      }
+    };
+  
+    window.addEventListener('storage', handleStorageChange);
+    return () => window.removeEventListener('storage', handleStorageChange);
   }, []);
 
   const handleSessionExpired = () => {
@@ -158,12 +173,6 @@ function Header({ scrollDirection, isAtTop }) {
     localStorage.removeItem('accessToken');
     sessionStorage.removeItem('userData');
     navigate('/login');
-  };
-
-  const handleSettingsClick = (e) => {
-    e.stopPropagation();
-    setShowSettingsMenu(!showSettingsMenu);
-    setShowUserMenu(false);
   };
 
   const handleChatClick = () => {
@@ -253,14 +262,6 @@ function Header({ scrollDirection, isAtTop }) {
             <button className="p-2 hover:bg-gray-200 rounded-full transition-colors">
               <IoIosNotificationsOutline className="w-6 h-6" />
             </button>
-            {userData && (userData.role === 'admin' || userData.role === 'manager') && (
-              <button 
-                onClick={handleSettingsClick}
-                className="p-2 hover:bg-gray-200 rounded-full transition-colors"
-              >
-                <IoSettingsSharp className="w-6 h-6" />
-              </button>
-            )}
           </div>
         </div>
 
@@ -372,30 +373,16 @@ function Header({ scrollDirection, isAtTop }) {
 
           {/* Desktop Actions */}
           <div className="hidden lg:flex items-center space-x-4">
-            <button 
-              className="p-2 hover:bg-gray-100 rounded-full transition-colors relative"
-              aria-label="Notifications"
-            >
-              <IoIosNotificationsOutline className="w-7 h-7" />
-              <span className="absolute top-0 right-0 w-2 h-2 bg-red-500 rounded-full hidden"></span>
-            </button>
-
-            <button 
-              className="p-2 hover:bg-gray-100 rounded-full transition-colors"
-              onClick={handleChatClick}
-              aria-label="Chat"
-            >
-              <IoChatbubbleEllipsesOutline className="w-6 h-6" />
-            </button>
+            <HeaderButtons onChatClick={handleChatClick} />
 
             <div className="relative user-menu-container">
               <button 
-                className="flex items-center space-x-2 p-2 hover:bg-gray-100 rounded-lg transition-colors"
+                className="flex items-center space-x-2 p-2 hover:bg-purple-50 rounded-full transition-all duration-200 cursor-pointer"
                 onClick={() => setShowUserMenu(!showUserMenu)}
                 aria-label="User menu"
                 aria-expanded={showUserMenu}
               >
-                <CgProfile className="w-6 h-6 text-gray-600" />
+                <CgProfile className="w-6 h-6 text-gray-600 group-hover:text-purple-600 transition-colors duration-200" />
                 <div className="flex items-center space-x-2">
                   <span className="font-semibold max-w-[150px] truncate">
                     {username}

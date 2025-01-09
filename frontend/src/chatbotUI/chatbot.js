@@ -1,22 +1,26 @@
 import React, { useState, useEffect, useRef } from "react";
 import Header from "../header";
 import Sidebar from "../sidebar";
-import BotMessage from "./botMessage";
-import UserMessage from "./userMessage";
+import { FaLock } from 'react-icons/fa';
+import { motion } from 'framer-motion';
 import Messages from "./messages";
 import Input from "./input";
 import ChatbotHeader from "./chatbotHeader";
-import ChatLoader from './chatLoader';
 import ChatErrorBoundary from "./chatErrorBoundary";
-import ChatbotProcessing from './purchase_order_automation/chatbotProcessing';
-import { usePurchaseOrder } from './purchase_order_automation/purchaseOrderContext';
 import { PurchaseOrderProvider } from './purchase_order_automation/purchaseOrderContext';
 import axiosInstance from '../axiosConfig';
 import { Alert } from "../ui/alert";
 import { useToast } from '../ui/use-toast';
 
-const CONNECTION_CHECK_INTERVAL = 30000;
 const SESSION_MESSAGES_KEY = 'stocksavvy_current_messages';
+
+const springTransition = {
+  type: "spring",
+  stiffness: 400,
+  damping: 40,
+  mass: 0.3,
+  restDelta: 0.001
+};
 
 const AUTOMATION_STATES = {
   IDLE: 'idle',
@@ -29,6 +33,7 @@ const AUTOMATION_STATES = {
 };
 
 function ChatbotUI() {
+  const userRole = JSON.parse(sessionStorage.getItem('userData'))?.role;
   const [isMobile, setIsMobile] = useState(window.innerWidth < 1024);
 
   useEffect(() => {
@@ -43,9 +48,40 @@ function ChatbotUI() {
       <div className="flex flex-row flex-grow">
         {!isMobile && <Sidebar/>}
         <ChatErrorBoundary>
-          <PurchaseOrderProvider>
-            <Chatbot isMobile={isMobile} />
-          </PurchaseOrderProvider>
+          {userRole?.toLowerCase() === 'staff' ? (
+            <div className="flex-1 overflow-hidden">
+              <div className="h-full overflow-y-auto">
+                <motion.div 
+                  className="p-6 h-full"
+                  animate={{ 
+                    marginLeft: isMobile ? '0' : '13rem',
+                  }}
+                  transition={springTransition}
+                >
+                  <div className="flex items-center justify-center h-full">
+                    <motion.div 
+                      className="text-center"
+                      initial={{ opacity: 0, y: 20 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ duration: 0.3 }}
+                    >
+                      <div className="bg-white/50 rounded-lg p-8">
+                        <FaLock className="w-16 h-16 mx-auto text-gray-400 mb-4" />
+                        <h2 className="text-2xl font-bold text-gray-800 mb-2">Access Restricted</h2>
+                        <p className="text-gray-600 max-w-md">
+                          You don't have permission to access the chatbot. This feature is not available for staff members.
+                        </p>
+                      </div>
+                    </motion.div>
+                  </div>
+                </motion.div>
+              </div>
+            </div>
+          ) : (
+            <PurchaseOrderProvider>
+              <Chatbot isMobile={isMobile} />
+            </PurchaseOrderProvider>
+          )}
         </ChatErrorBoundary>
       </div>
     </div>
@@ -97,31 +133,6 @@ const handleProcessingError = (error) => {
         isError: true,
         timestamp: new Date().toISOString()
     }]);
-};
-
-const handleActionClick = (action) => {
-  if (action === 'retry') {
-    setProcessingError(null);
-    
-    // Instead of calling handleProcessOrder directly, we should handle based on current state
-    const currentStep = automationState.currentStep;
-    
-    switch (currentStep) {
-      case 'reviewing_products':
-        handleAddProducts(automationState.processedData.groupedItems.newProducts);
-        break;
-        
-      case 'final_review':
-        handleConfirmOrder(); // We'll define this function
-        break;
-        
-      default:
-        handleProcessingCancel();
-    }
-  } else if (action === 'cancel') {
-    setProcessingError(null);
-    handleProcessingCancel();
-  }
 };
 
 const handleConfirmOrder = async () => {
@@ -273,35 +284,6 @@ const handleConfirmOrder = async () => {
     isProcessing: false
   });
 
-  const determineRecoveryActions = (error, context) => {
-    const actions = [];
-
-    // Add retry action for recoverable errors
-    if (isRecoverableError(error)) {
-      actions.push({
-        label: "Try Again",
-        action: "retry",
-        variant: "default"
-      });
-    }
-
-    // Always add start over option
-    actions.push({
-      label: "Start Over",
-      action: "restart",
-      variant: "outline"
-    });
-
-    // Add cancel option
-    actions.push({
-      label: "Cancel",
-      action: "cancel",
-      variant: "outline"
-    });
-
-    return actions;
-  };
-
   const getStageDescription = (stage) => {
     const descriptions = {
       documentAnalysis: "Analyzing purchase order document",
@@ -313,40 +295,6 @@ const handleConfirmOrder = async () => {
     };
 
     return descriptions[stage] || stage;
-  };
-
-  const startAutomation = () => {
-    const welcomeMessage = {
-      type: 'bot',
-      text: `I can help you automate your purchase order processing. Here's how it works:
-
-1. First, upload your purchase order document (PDF)
-2. I'll extract and analyze the information
-3. You can review and edit the details
-4. Finally, confirm to process the order
-
-Would you like to start by uploading your purchase order document?`,
-      actions: ['upload'], // To show upload button
-      timestamp: new Date().toISOString()
-    };
-
-    setMessages(prev => [...prev, welcomeMessage]);
-    setAutomationState({
-      isActive: true,
-      step: 'start',
-      data: null
-    });
-  };
-
-  const generateErrorMessage = (error, context) => {
-    switch (error.code) {
-      case 'PRODUCT_VALIDATION_ERROR':
-        return `There were some issues with the product details:\n${error.details.join('\n')}`;
-      case 'STOCK_UPDATE_ERROR':
-        return `Unable to update stock levels: ${error.message}\nCurrent stock levels will remain unchanged.`;
-      default:
-        return `An error occurred while ${context}: ${error.message}`;
-    }
   };
 
 const handleProcessingComplete = (result) => {
@@ -479,126 +427,6 @@ const handleProcessingComplete = (result) => {
       isSubscribed = false;
     };
   }, [messages]);
-
-  const handleRegularFileUpload = async (file) => {
-  const token = localStorage.getItem('accessToken');
-  if (!token) {
-    setStatus(prev => ({ ...prev, authError: true, isOnline: false }));
-    return;
-  }
-
-  setStatus(prev => ({ ...prev, isProcessingFile: true }));
-
-  try {
-    const formData = new FormData();
-    formData.append('file', file);
-
-    // Add file message to chat
-    setMessages(prev => [...prev, {
-      type: 'user',
-      text: `Uploaded file: ${file.name}`,
-      timestamp: new Date().toISOString()
-    }]);
-
-    const response = await axiosInstance.post("/chatbot/process-file", formData, {
-      headers: {
-        'Content-Type': 'multipart/form-data'
-      }
-    });
-
-    setMessages(prev => [...prev, {
-      type: 'bot',
-      text: response.data.message,
-      data: response.data.data,
-      timestamp: new Date().toISOString()
-    }]);
-
-  } catch (error) {
-    console.error('File processing error:', error);
-    setMessages(prev => [...prev, {
-      type: 'bot',
-      text: 'Sorry, I encountered an error processing your file. Please try again.',
-      isError: true,
-      timestamp: new Date().toISOString()
-    }]);
-  } finally {
-    setStatus(prev => ({ ...prev, isProcessingFile: false }));
-  }
-  };
-
-  const calculateFinancials = (items) => {
-    // Calculate all financial aspects of the purchase order
-    const subtotal = items.reduce((sum, item) => 
-      sum + (parseFloat(item.price) * parseInt(item.quantity)), 0
-    );
-    const tax = subtotal * 0.06; // 6% tax rate
-    const shipping = 500; // Default shipping fee
-
-    return {
-      subtotal,
-      tax,
-      shipping,
-      total: subtotal + tax + shipping,
-      itemizedTotals: items.map(item => ({
-        productName: item.productName,
-        lineTotal: parseFloat(item.price) * parseInt(item.quantity)
-      }))
-    };
-  };
-
-  const handleConfirmation = async (data) => {
-    setStatus(prev => ({ ...prev, isProcessing: true }));
-    try {
-      // Format the data for the purchase order
-      const purchaseOrderData = {
-        vendorSn: "VEN-001", // This would come from vendor selection
-        orderDate: new Date().toISOString(),
-        paymentTerms: "Net 30",
-        deliveryMethod: "Standard Shipping",
-        totalAmount: data.extractedItems.reduce(
-          (sum, item) => sum + (item.price * item.quantity), 
-          0
-        ),
-        itemsList: data.extractedItems.map(item => ({
-          uuid: item.sku,
-          quantity: parseInt(item.quantity)
-        }))
-      };
-
-      // Send the purchase order to the backend
-      const response = await axiosInstance.post('/purchase/create', purchaseOrderData);
-      
-      // Add success message
-      setMessages(prev => [...prev, {
-        type: 'bot',
-        text: `Purchase order created successfully! 
-  Order ID: ${response.data.purchase_order_id}
-  Total Amount: RM${response.data.total_amount}
-
-  Would you like to do anything else with this purchase order?`,
-        actions: ['view_details', 'new_order'],
-        timestamp: new Date().toISOString()
-      }]);
-
-      // Reset automation state
-      setAutomationState({
-        isActive: false,
-        step: null,
-        data: null
-      });
-
-    } catch (error) {
-      console.error('Error creating purchase order:', error);
-      setMessages(prev => [...prev, {
-        type: 'bot',
-        text: 'Sorry, I encountered an error creating the purchase order. Please try again or contact support.',
-        isError: true,
-        timestamp: new Date().toISOString()
-      }]);
-    } finally {
-      setStatus(prev => ({ ...prev, isProcessing: false }));
-    }
-  };
 
   const handleFileUpload = async (file) => {
     try {
@@ -1116,65 +944,68 @@ const handleNextStep = async (action) => {
   }
   };
 
-  const send = async (text) => {
-      if (!text.trim()) return;
+const send = async (text) => {
+  if (!text.trim()) return;
 
-      // Add user message immediately for better UX
-      setMessages(prev => [...prev, {
-          type: 'user',
-          text: text,
-          timestamp: new Date().toISOString()
-      }]);
-
-      setStatus(prev => ({ ...prev, isTyping: true }));
-
-      try {
-          // Check if we're awaiting a specific response
-          if (messageContext.awaitingResponse) {
-              switch (messageContext.type) {
-                  case 'add_products':
-                      if (text.toLowerCase() === 'yes') {
-                          // Immediately show processing message
-                          setMessages(prev => [...prev, {
-                              type: 'bot',
-                              text: "Great! I'll help you add these products to inventory. Please fill in any additional details needed.",
-                              timestamp: new Date().toISOString()
-                          }]);
-
-                          // Start product addition flow immediately
-                          handleAddProducts(messageContext.data);
-                          
-                          // Clear context since we're handling it
-                          setMessageContext({ type: null, data: null, awaitingResponse: false });
-                          return;
-                      }
-                      break;
-                  // Add other context cases here
-              }
-          }
-
-          // If no special context or not a 'yes', proceed with regular chat
-          const response = await axiosInstance.post("/chatbot/chat", { message: text });
-          
-          setMessages(prev => [...prev, {
-              type: 'bot',
-              text: response.data.message,
-              data: response.data.data,
-              timestamp: new Date().toISOString()
-          }]);
-
-      } catch (error) {
-          console.error('Chat error:', error);
-          setMessages(prev => [...prev, {
-              type: 'bot',
-              text: 'Sorry, I encountered an error. Please try again.',
-              isError: true,
-              timestamp: new Date().toISOString()
-          }]);
-      } finally {
-          setStatus(prev => ({ ...prev, isTyping: false }));
-      }
+  // Add user message immediately for better UX
+  const userMessage = {
+    type: 'user',
+    text: text,
+    timestamp: new Date().toISOString()
   };
+  setMessages(prev => [...prev, userMessage]);
+
+  setStatus(prev => ({ ...prev, isTyping: true }));
+
+  try {
+    // Get username from localStorage for context
+    const username = localStorage.getItem('username')?.trim();
+    if (!username) {
+      throw new Error('User not authenticated');
+    }
+
+    const response = await axiosInstance.post("/chatbot/chat", { 
+      message: text,
+      context: {
+        username,
+        messageType: messageContext.type || null,
+        previousMessages: messages.slice(-3) // Send last 3 messages for context
+      }
+    });
+
+    // Enhanced response handling
+    const botMessage = {
+      type: 'bot',
+      text: response.data.message,
+      data: response.data.data,
+      suggestions: response.data.suggestions,
+      intent: response.data.intent, // New field from intent analysis
+      metrics: response.data.metrics, // New field from query results
+      timestamp: new Date().toISOString()
+    };
+
+    setMessages(prev => [...prev, botMessage]);
+
+    // Handle suggestions if present
+    if (response.data.suggestions?.length > 0) {
+      setMessageContext(prev => ({
+        ...prev,
+        suggestions: response.data.suggestions
+      }));
+    }
+
+  } catch (error) {
+    console.error('Chat error:', error);
+    setMessages(prev => [...prev, {
+      type: 'bot',
+      text: 'Sorry, I encountered an error. Please try again.',
+      isError: true,
+      timestamp: new Date().toISOString()
+    }]);
+  } finally {
+    setStatus(prev => ({ ...prev, isTyping: false }));
+  }
+};
 
   return (
     <div className={`

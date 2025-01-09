@@ -63,7 +63,7 @@ const Input = ({ onSend, disabled, onFileUpload }) => {
     const file = e.target.files[0];
     if (!file) return;
 
-    const error = validateFile(file);
+  const error = validateFile(file);
     if (error) {
       setFileError(error);
       setSelectedFile(null);
@@ -85,7 +85,11 @@ const Input = ({ onSend, disabled, onFileUpload }) => {
     }
     
     if (text.trim()) {
-      onSend(text);
+      // Include any selected category as context
+      onSend(text, {
+        category: selectedCategory,
+        suggestions: showSuggestions
+      });
       setText("");
     }
     setShowSuggestions(false);
@@ -140,8 +144,8 @@ const Input = ({ onSend, disabled, onFileUpload }) => {
   };
 
  return (
-    <div className="relative px-2 sm:px-4 py-2 sm:py-3">
-      <form onSubmit={handleSend} className="flex flex-col gap-2">
+  <div className="relative px-2 sm:px-3 py-1.5 sm:py-2"> 
+    <form onSubmit={handleSend} className="flex flex-col gap-1.5">
         {(selectedFile || fileError) && (
           <div className="px-2">
             {fileError ? (
@@ -154,16 +158,16 @@ const Input = ({ onSend, disabled, onFileUpload }) => {
           </div>
         )}
 
-        <div className="flex items-center gap-1 sm:gap-2">
-          <button
-            type="button"
-            onClick={() => setShowSuggestions(!showSuggestions)}
-            className={`p-1.5 sm:p-2 transition-colors ${
-              disabled ? 'text-gray-300' : 'text-gray-400 hover:text-purple-600'
-            }`}
-            disabled={disabled}
-          >
-            <Search className="w-5 h-5 sm:w-6 sm:h-6" />
+      <div className="flex items-center gap-1 sm:gap-1.5"> 
+        <button
+          type="button"
+          onClick={() => setShowSuggestions(!showSuggestions)}
+          className={`p-1 sm:p-1.5 transition-colors ${  
+            disabled ? 'text-gray-300' : 'text-gray-400 hover:text-purple-600'
+          }`}
+          disabled={disabled}
+        >
+          <Search className="w-4 h-4 sm:w-5 sm:h-5" />
           </button>
 
           <textarea
@@ -173,12 +177,12 @@ const Input = ({ onSend, disabled, onFileUpload }) => {
             disabled={disabled}
             placeholder={disabled ? "Bot is offline..." : "Ask about your inventory..."}
             onKeyDown={handleKeyPress}
-            className={`flex-1 px-3 sm:px-4 py-1.5 sm:py-2 text-sm sm:text-base rounded-full 
+            className={`flex-1 px-3 sm:px-3 py-1 sm:py-1.5 text-sm rounded-full
               focus:outline-none focus:ring-2 focus:ring-purple-500 focus:bg-white
               overflow-x-hidden whitespace-normal break-words resize-none
               ${disabled ? 'bg-gray-100 text-gray-400' : 'bg-gray-100'}
             `}
-            style={{ minHeight: '40px' }}
+            style={{ minHeight: '32px' }}
           />
 
           <div className="relative">
@@ -192,12 +196,12 @@ const Input = ({ onSend, disabled, onFileUpload }) => {
             <button
               type="button"
               onClick={() => fileInputRef.current?.click()}
-              className={`p-1.5 sm:p-2 transition-colors relative group ${
+              className={`p-1 sm:p-1.5 transition-colors relative group ${
                 disabled ? 'text-gray-300' : 'text-gray-400 hover:text-purple-600'
               }`}
               disabled={disabled}
             >
-              <Upload className="w-5 h-5 sm:w-6 sm:h-6" />
+              <Upload className="w-4 h-4 sm:w-5 sm:h-5" />
               <span className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-2 py-1 text-xs text-white bg-gray-800 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">
                 Upload PDF or Image
               </span>
@@ -206,21 +210,21 @@ const Input = ({ onSend, disabled, onFileUpload }) => {
           
           <button 
             type="submit"
-            className={`p-1.5 sm:p-2 rounded-full transition-colors ${
+            className={`p-1 sm:p-1.5 rounded-full transition-colors ${
               !disabled && (text.trim() || selectedFile)
                 ? 'text-purple-600 hover:bg-purple-50' 
                 : 'text-gray-300'
             }`}
             disabled={disabled || (!text.trim() && !selectedFile)}
           >
-            <Send className="w-5 h-5 sm:w-6 sm:h-6" />
+            <Send className="w-4 h-4 sm:w-5 sm:h-5" />
           </button>
         </div>
       </form>
 
       {/* Suggestions Panel */}
       {showSuggestions && (
-        <div className="absolute bottom-full left-0 right-0 mb-2 bg-white rounded-lg shadow-lg border p-4 max-h-80 overflow-y-auto">
+        <div className="absolute bottom-full left-0 right-0 mb-2 bg-white rounded-lg shadow-lg border p-4 max-h-80 overflow-y-auto custom-scrollbar">
           <div className="flex justify-between items-center mb-3">
             <h3 className="font-semibold text-gray-700">Suggested Queries</h3>
             <button 

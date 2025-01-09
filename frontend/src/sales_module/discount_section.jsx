@@ -58,19 +58,19 @@ const MultiDiscountSelection = ({
         </div>
       </div>
       
-      <div className="grid grid-cols-2 gap-4 mb-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
         {discounts.map(discount => (
           <div 
             key={discount.discount_id} 
-            className={`p-4 rounded-lg border transition-colors ${
+            className={`p-4 rounded-lg border transition-colors min-w-0 ${
               selectedDiscounts.find(d => d.discount_id === discount.discount_id)
                 ? 'bg-green-50 border-green-200'
                 : 'bg-gray-50 border-gray-200'
             }`}
           >
-            <div className="flex items-center justify-between mb-2">
-              <div className="flex items-center gap-2">
-                <h3 className="text-lg font-medium text-gray-700">{discount.discount_name}</h3>
+            <div className="flex items-center justify-between mb-2 flex-wrap gap-2">
+              <div className="flex items-center gap-2 flex-wrap">
+                <h3 className="text-lg font-medium text-gray-700 break-words">{discount.discount_name}</h3>
                 {discount.is_special && (
                   <span className="px-2 py-1 text-xs font-medium text-green-700 bg-green-100 rounded-full">
                     Special
@@ -78,27 +78,27 @@ const MultiDiscountSelection = ({
                 )}
               </div>
               <label className="relative inline-flex items-center cursor-pointer">
-                <input
-                  type="checkbox"
+                  <input
+                    type="checkbox"
                   checked={selectedDiscounts.some(d => d.discount_id === discount.discount_id)}
-                  onChange={() => handleDiscountToggle(discount)}
+                    onChange={() => handleDiscountToggle(discount)}
                   className="sr-only peer"
-                />
+                  />
                 <div className="w-11 h-6 bg-gray-200 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-green-600"></div>
               </label>
-            </div>
+                  </div>
             <div className="space-y-2">
               <p className="text-sm text-gray-600">{discount.description}</p>
               <div className="flex items-center gap-2">
                 <Percent size={16} className="text-gray-500" />
                 <p className="font-medium">{discount.discount_rate * 100}% OFF</p>
-              </div>
+                </div>
               {discount.discount_end && (
                 <p className="text-xs text-gray-500">
                   Valid until: {new Date(discount.discount_end).toLocaleDateString()}
-                </p>
-              )}
-            </div>
+                  </p>
+                )}
+              </div>
           </div>
         ))}
       </div>
@@ -118,14 +118,14 @@ const MultiDiscountSelection = ({
                     {discount.is_special && (
                       <span className="px-2 py-1 text-xs font-medium text-green-700 bg-green-100 rounded-full">
                         Special
-                      </span>
+                </span>
                     )}
                   </div>
                   <div className="flex items-center gap-1 text-green-700">
                     <Percent size={14} />
                     <p className="text-sm">{discount.discount_rate * 100} OFF</p>
-                  </div>
-                </div>
+              </div>
+            </div>
                 <button 
                   onClick={() => handleDiscountToggle(discount)}
                   className="text-green-600 hover:text-green-800 p-1"
@@ -139,7 +139,7 @@ const MultiDiscountSelection = ({
                 Total Discount: {calculateTotalDiscount(selectedDiscounts)}%
               </p>
             </div>
-          </div>
+      </div>
         </div>
       )}
     </div>

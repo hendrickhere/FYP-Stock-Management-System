@@ -5,7 +5,7 @@ const jwt = require("jsonwebtoken");
 const db = require("../models"); 
 console.log('Models available in userService:', Object.keys(db)); 
 const sequelize = require("../config/db-config");  
-
+const OrganizationService = require("./organizationService");
 const User = db.User;
 const Customer = db.Customer;
 const SalesOrder = db.SalesOrder;
@@ -13,7 +13,7 @@ const Product = db.Product;
 const Warranty = db.Warranty; 
 const Organization = db.Organization;
 const SalesOrderInventory = db.SalesOrderInventory;
-
+const { OrganizationNotFoundException } = require("../errors/notFoundException")
 console.log('User model:', !!User);
 console.log('Customer model:', !!Customer);
 console.log('SalesOrder model:', !!SalesOrder);
@@ -52,6 +52,36 @@ exports.getUserByUsernameAsync = async (username) => {
   return user;
 }
 
+exports.getAllUsers = async (organizationId, searchTerm) => {
+  const organization = await OrganizationService.getOrganization(organizationId);
+
+  if (!organization) {
+    throw new OrganizationNotFoundException(organizationId);
+  }
+
+  const whereCondition = {
+    organization_id: organizationId
+  };
+
+  if (searchTerm) {
+    whereCondition.username = {
+      [Op.iLike]: `%${searchTerm}%`
+    };
+  }
+
+  // Fetch users with where condition
+  const users = await User.findAll({
+    where: whereCondition,
+    attributes: [
+      'username',
+      'email', 
+      'user_id'
+    ]
+  });
+
+  return users;
+};
+
 async function getUserByUsername(username) {
   const user = await User.findOne({
     where: {
@@ -60,6 +90,7 @@ async function getUserByUsername(username) {
   });
   return user.dataValues;
 }
+
 
 async function getUserById(userId) {
   try {
@@ -432,7 +463,7 @@ exports.updateInventory = async (username, inventoryUUID, updateData) => {
           where: {
               product_uuid: inventoryUUID,
               user_id: user.user_id,
-          },
+          },  
           returning: true
       });
 
@@ -760,6 +791,60 @@ exports.addInventoryBatch = async (userId, products) => {
     console.error('Error in addInventoryBatch:', error);
     throw new Error(error.message || "Failed to create products");
   }
+};
+
+exports.updateProfile = async (userId, updateData) => {
+  const { username, email } = updateData;
+  
+  // Find user first to verify existence
+  const existingUser = await User.findOne({
+    where: { user_id: userId }
+  });
+
+  if (!existingUser) {
+    throw new Error('User not found');
+  }
+
+  // Check for duplicate email/username excluding current user
+  const duplicateUser = await User.findOne({
+    where: {
+      [Op.or]: [
+        { email: email },
+        { username: username }
+      ],
+      user_id: { [Op.ne]: userId }
+    }
+  });
+
+  if (duplicateUser) {
+    if (duplicateUser.email === email) {
+      throw new Error('EMAIL_EXISTS');
+    }
+    if (duplicateUser.username === username) {
+      throw new Error('USERNAME_EXISTS');
+    }
+  }
+
+  // Update user
+  const [updateCount] = await User.update({
+    username,
+    email,
+    updated_at: sequelize.literal('CURRENT_TIMESTAMP')
+  }, {
+    where: { user_id: userId }
+  });
+
+  if (updateCount === 0) {
+    throw new Error('Failed to update profile');
+  }
+
+  // Fetch updated user
+  const updatedUser = await User.findOne({
+    where: { user_id: userId },
+    attributes: ['username', 'email', 'role']
+  });
+
+  return updatedUser;
 };
 
 exports.getUserById = getUserById;

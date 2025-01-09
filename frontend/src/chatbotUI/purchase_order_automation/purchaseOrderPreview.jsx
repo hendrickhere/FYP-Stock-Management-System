@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { AlertCircle, Check, Edit2, Save, AlertTriangle, Plus, X } from 'lucide-react';
+import React, { useState, useEffect, useContext } from 'react';
+import { AlertCircle, Check, Edit2, Save, AlertTriangle, Plus, X, Search } from 'lucide-react';
 import {
   Alert,
   AlertTitle,
@@ -7,13 +7,18 @@ import {
 } from "../../ui/alert";
 import { Input } from "../../ui/input";
 import { Button } from "../../ui/button";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "../../ui/dialog";
+import { Dialog, DialogContent } from "../../ui/dialog";
+import { Card, CardHeader, CardTitle, CardContent } from "../../ui/card";
+import ItemTable from "../../purchases_module/addPurchasesInventoryTable";
+import { GlobalContext } from '../../globalContext';
+import instance from '../../axiosConfig';
 
 const PurchaseOrderPreview = ({ 
   extractedData,
-  onConfirm,
-  onModify,
-  isProcessing = false
+  onConfirm = () => {}, 
+  onModify = () => {},
+  isProcessing = false,
+  isMobile = false
 }) => {
 
   const calculateSubtotal = (items) => {
@@ -25,63 +30,115 @@ const PurchaseOrderPreview = ({
   };
 
   const [isEditing, setIsEditing] = useState(false);
-const [modifiedData, setModifiedData] = useState(() => {
-  if (!extractedData?.items) {
-    console.warn('No items data provided to PurchaseOrderPreview');
+  const [showInventoryTable, setShowInventoryTable] = useState(false);
+  const [modifiedData, setModifiedData] = useState(() => {
+    if (!extractedData?.items) {
+      console.warn('No items data provided to PurchaseOrderPreview');
+      return {
+        items: [],
+        metadata: {},
+        financials: { subtotal: 0, tax: 0, shipping: 500, total: 500 }
+      };
+    }
+
+    // Log incoming data to verify structure
+    console.log('Initializing PurchaseOrderPreview with:', extractedData);
+
+    // Map items while carefully preserving quantities
+    const items = Array.isArray(extractedData.items) ? extractedData.items.map(item => ({
+      productName: item.productName || item.product_name,
+      sku: item.sku || item.sku_number,
+      // Be explicit about quantity sources
+      quantity: parseInt(item.orderQuantity || item.quantity || 0),
+      price: parseFloat(item.cost || 0),
+      productId: item.productId,
+      type: item.type || 'existing'
+    })) : [];
+
+    // Calculate financials based on actual items
+    const subtotal = items.reduce((sum, item) => 
+      sum + (parseFloat(item.price || 0) * parseInt(item.quantity || 0)), 0
+    );
+    const tax = subtotal * 0.06;
+    const shipping = 500;
+    const total = subtotal + tax + shipping;
+
     return {
-      items: [],
-      metadata: {},
-      financials: { subtotal: 0, tax: 0, shipping: 500, total: 500 }
+      items,
+      metadata: extractedData.metadata || {},
+      financials: { subtotal, tax, shipping, total }
     };
-  }
-
-  // Log incoming data to verify structure
-  console.log('Initializing PurchaseOrderPreview with:', extractedData);
-
-  // Map items while carefully preserving quantities
-  const items = Array.isArray(extractedData.items) ? extractedData.items.map(item => ({
-    productName: item.productName || item.product_name,
-    sku: item.sku || item.sku_number,
-    // Be explicit about quantity sources
-    quantity: parseInt(item.orderQuantity || item.quantity || 0),
-    price: parseFloat(item.cost || 0),
-    productId: item.productId,
-    type: item.type || 'existing'
-  })) : [];
-
-  // Calculate financials based on actual items
-  const subtotal = items.reduce((sum, item) => 
-    sum + (parseFloat(item.price || 0) * parseInt(item.quantity || 0)), 0
-  );
-  const tax = subtotal * 0.06;
-  const shipping = 500;
-  const total = subtotal + tax + shipping;
-
-  return {
-    items,
-    metadata: extractedData.metadata || {},
-    financials: { subtotal, tax, shipping, total }
-  };
-});
+  });
   const [validationErrors, setValidationErrors] = useState([]);
-  const [showAddItemDialog, setShowAddItemDialog] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
 
-    useEffect(() => {
-        const items = modifiedData.items;
-        const subtotal = calculateSubtotal(items);
-        const tax = subtotal * 0.06;
-        const total = subtotal + tax + modifiedData.financials.shipping;
+  // Add inventory state
+  const [inventoryItems, setInventoryItems] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const { username } = useContext(GlobalContext);
 
-        setModifiedData(prev => ({
-            ...prev,
-            financials: {
-                subtotal,
-                tax,
-                shipping: prev.financials.shipping,
-                total
-            }
-        }));
-    }, [modifiedData.items]);
+  useEffect(() => {
+    if (showInventoryTable) {
+      fetchInventoryItems();
+    }
+  }, [showInventoryTable]);
+
+  const fetchInventoryItems = async () => {
+    setLoading(true);
+    try {
+      const encodedUsername = encodeURIComponent(username);
+      const response = await instance.get(`/user/${encodedUsername}/inventories`);
+      
+      if (response.data?.inventories) {
+        setInventoryItems(response.data.inventories);
+      } else {
+        throw new Error('No inventory data received');
+      }
+    } catch (error) {
+      console.error("Error fetching inventory:", error);
+      // toast({
+      //   variant: "destructive",
+      //   title: "Error",
+      //   description: "Failed to fetch inventory items"
+      // });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleItemSelect = (selectedItem) => {
+    const newItem = {
+      productName: selectedItem.product_name,
+      sku: selectedItem.sku_number,
+      quantity: 1,
+      price: parseFloat(selectedItem.cost || 0),
+      productId: selectedItem.product_id,
+      type: 'existing'
+    };
+
+    setModifiedData(prev => ({
+      ...prev,
+      items: [...prev.items, newItem]
+    }));
+    setShowInventoryTable(false);
+  };
+
+  useEffect(() => {
+    const items = modifiedData.items;
+    const subtotal = calculateSubtotal(items);
+    const tax = subtotal * 0.06;
+    const total = subtotal + modifiedData.financials.shipping;
+
+    setModifiedData(prev => ({
+      ...prev,
+      financials: {
+        subtotal,
+        tax,
+        shipping: prev.financials.shipping,
+        total
+      }
+    }));
+  }, [modifiedData.items]);
 
   const totals = React.useMemo(() => {
     const items = modifiedData.items || [];
@@ -105,109 +162,52 @@ const [modifiedData, setModifiedData] = useState(() => {
     price: ''
   });
 
-  const renderItemRow = (item, index) => (
-      <tr key={index}>
-          <td>{item.productName}</td>
-          <td>{item.sku}</td>
-          <td className="text-right">{item.quantity}</td>
-          <td className="text-right">
-              {parseFloat(item.price).toFixed(2)}
-          </td>
-          <td className="text-right">
-              {(parseFloat(item.price) * parseInt(item.quantity)).toFixed(2)}
-          </td>
-      </tr>
-  );
-
-  const ValidationStatus = ({ status, onRetry }) => {
-    const getStatusColor = (type) => {
-      switch (type) {
-        case 'success': return 'bg-green-50 text-green-700 border-green-200';
-        case 'warning': return 'bg-yellow-50 text-yellow-700 border-yellow-200';
-        case 'error': return 'bg-red-50 text-red-700 border-red-200';
-        default: return 'bg-gray-50 text-gray-700 border-gray-200';
-      }
-    };
-
-    return (
-      <div className={`p-4 rounded-lg border ${getStatusColor(status.type)} mb-4`}>
-        <div className="flex items-center gap-2">
-          <AlertCircle className="h-5 w-5" />
-          <h4 className="font-medium">{status.title}</h4>
-        </div>
-        <p className="mt-1 text-sm">{status.message}</p>
-        {status.type === 'error' && onRetry && (
-          <Button 
-            variant="outline" 
-            size="sm" 
-            onClick={onRetry}
-            className="mt-2"
-          >
-            Retry Validation
-          </Button>
-        )}
-      </div>
-    );
-  };
-
-  const validateBusinessRules = (data) => {
-    const errors = [];
-    
-    // Rule: All products must exist in inventory
-    data.items?.forEach(item => {
-      if (!item.inventoryVerified) {
-        errors.push(`Item ${item.productName} must exist in inventory`);
-      }
-    });
-    
-    // Rule: Stock updates only through PO status changes
-    if (data.hasStockUpdates && data.status !== 'delivered') {
-      errors.push('Stock can only be updated when PO status changes to delivered');
-    }
-    
-    // Rule: Product creation requires verification
-    if (data.newProducts?.length > 0 && !data.verificationComplete) {
-      errors.push('New products require verification before proceeding');
-    }
-    
-    return errors;
-  };
-
-  // Helper function to calculate totals and validate data
-  const calculateTotals = (items) => {
-    const totals = items.reduce((acc, item) => ({
-      quantity: acc.quantity + Number(item.quantity || 0),
-      subtotal: acc.subtotal + (Number(item.price || 0) * Number(item.quantity || 0))
-    }), { quantity: 0, subtotal: 0 });
-
-    return {
-      ...totals,
-      tax: totals.subtotal * 0.06,
-      shipping: 500, // Default shipping fee
-      total: (totals.subtotal * 1.06) + 500
-    };
-  };
-
   // Validation function
   const validateData = (data) => {
     const errors = [];
     
-    data.items?.forEach((item, index) => {
+    if (!data.items || data.items.length === 0) {
+      errors.push('No items in order');
+      return errors;
+    }
+
+    data.items.forEach((item, index) => {
       if (!item.productName) {
-        errors.push(`Item ${index + 1}: Product name is required`);
+        errors.push(`Item ${index + 1}: Missing product name`);
       }
       if (!item.sku) {
-        errors.push(`Item ${index + 1}: SKU is required`);
+        errors.push(`Item ${index + 1}: Missing SKU`);
       }
       if (!item.quantity || item.quantity <= 0) {
-        errors.push(`Item ${index + 1}: Valid quantity is required`);
+        errors.push(`Item ${index + 1}: Invalid quantity`);
       }
       if (!item.price || item.price <= 0) {
-        errors.push(`Item ${index + 1}: Valid price is required`);
+        errors.push(`Item ${index + 1}: Invalid price`);
       }
     });
 
     return errors;
+  };
+
+  const handleAddFromInventory = (selectedItems) => {
+    // Map selected items to our format with default quantity of 1
+    const newItems = selectedItems.map(item => ({
+      productName: item.product_name,
+      sku: item.sku_number,
+      quantity: 1,
+      price: parseFloat(item.cost || 0),
+      productId: item.product_id,
+      type: 'existing'
+    }));
+  
+    // Add new items to existing items
+    setModifiedData(prev => ({
+      ...prev,
+      items: [...prev.items, ...newItems]
+    }));
+  
+    // Close the inventory table
+    setShowInventoryTable(false);
   };
 
   // Handler for editing items
@@ -224,36 +224,23 @@ const [modifiedData, setModifiedData] = useState(() => {
 
   // Handler for saving changes
   const handleSave = () => {
+    if (isProcessing) return;
+
+    // Validate the data before saving
     const errors = validateData(modifiedData);
     if (errors.length > 0) {
       setValidationErrors(errors);
       return;
     }
-    
-    setIsEditing(false);
+
+    // Clear any previous validation errors
     setValidationErrors([]);
+    
+    // Notify parent of modifications
     onModify(modifiedData);
-  };
-
-  // Handler for adding new item
-  const handleAddItem = () => {
-    if (!newItem.productName || !newItem.sku || !newItem.quantity || !newItem.price) {
-      setValidationErrors(['All fields are required for new items']);
-      return;
-    }
-
-    setModifiedData(prev => ({
-      ...prev,
-      items: [...prev.items, { ...newItem }]
-    }));
-
-    setNewItem({
-      productName: '',
-      sku: '',
-      quantity: '',
-      price: ''
-    });
-    setShowAddItemDialog(false);
+    
+    // Exit edit mode
+    setIsEditing(false);
   };
 
   // Handler for removing items
@@ -264,70 +251,136 @@ const [modifiedData, setModifiedData] = useState(() => {
     }));
   };
 
+  // Handler for processing order
+  const handleProcess = async () => {
+    if (isProcessing) return; // Prevent multiple clicks
+  
+    try {
+      // Validate before processing
+      const errors = validateData(modifiedData);
+      if (errors.length > 0) {
+        setValidationErrors(errors);
+        return;
+      }
+  
+      setValidationErrors([]);
+      await onConfirm(modifiedData); // Pass the modified data to parent
+      setIsEditing(false); // Disable editing after successful processing
+    } catch (error) {
+      console.error('Error processing order:', error);
+      setValidationErrors([error.message || 'Failed to process order']);
+    }
+  };
+
+  const handleSearch = (e) => {
+    setSearchTerm(e.target.value);
+  };
+
   return (
-    <div className="rounded-lg border bg-white shadow-sm">
+    <div className={`
+      w-full bg-white shadow-sm
+      ${isMobile ? 'rounded-none border-x-0' : 'rounded-lg border'}
+      ${isMobile ? 'mx-0' : 'mx-auto'}
+      max-w-[calc(100vw-1rem)]
+      lg:max-w-none
+    `}>
       {/* Header Section */}
-      <div className="p-4 border-b">
-        <div className="flex items-center justify-between mb-4">
-          <div>
-            <h3 className="text-lg font-semibold">Purchase Order Preview</h3>
-            <p className="text-sm text-gray-500">
+      <div className={`
+        border-b
+        ${isMobile ? 'p-3' : 'p-6'}
+      `}>
+        {/* Title Section */}
+        <div className={`
+          ${isMobile ? 'mb-3' : 'mb-4'}
+          text-left
+        `}>
+          <h3 className={`
+            font-semibold
+            ${isMobile ? 'text-base' : 'text-lg'}
+          `}>
+            Purchase Order Preview
+          </h3>
+          <p className={`
+            text-gray-500
+            ${isMobile ? 'text-xs' : 'text-sm'}
+          `}>
               {isEditing ? 'Edit mode - Make changes to the order details' : 'Review mode - Verify order details'}
             </p>
           </div>
-          <div className="flex gap-2">
+
+        <div className={`
+          flex flex-row flex-wrap gap-2
+          ${isMobile ? 'justify-start' : 'justify-end ml-2'}
+        `}>
             {!isEditing ? (
               <>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setIsEditing(true)}
-                  disabled={isProcessing}
-                >
+              <Button
+                variant="outline"
+                size={isMobile ? "sm" : "default"}
+                onClick={() => setIsEditing(true)}
+                disabled={isProcessing}
+                className={`
+                  ${isMobile ? 'text-xs px-2 py-1 h-8' : ''}
+                  flex items-center
+                `}
+              >
                   <Edit2 className="w-4 h-4 mr-1" />
-                  Edit Details
+                  Edit
                 </Button>
                 <Button
                   variant="outline"
-                  size="sm"
-                  onClick={() => setShowAddItemDialog(true)}
-                  disabled={isProcessing || !isEditing}
+                  size={isMobile ? "sm" : "default"}
+                  onClick={() => setShowInventoryTable(true)}
+                  className="flex items-center gap-1"
                 >
-                  <Plus className="w-4 h-4 mr-1" />
-                  Add Item
+                  <Plus className="w-4 h-4" />
+                  Add
                 </Button>
               </>
             ) : (
               <Button
-                variant="primary"
-                size="sm"
+                variant="outline"
+                size={isMobile ? "sm" : "default"}
                 onClick={handleSave}
                 disabled={isProcessing}
+                className={`
+                  ${isMobile ? 'text-xs px-2 py-1 h-8' : ''}
+                  flex items-center
+                `}
               >
                 <Save className="w-4 h-4 mr-1" />
-                Save Changes
+                Save
               </Button>
             )}
             {!isEditing && (
-              <Button
-                variant="default"
-                size="sm"
-                onClick={() => onConfirm(modifiedData)}
-                disabled={isProcessing || validationErrors.length > 0}
-              >
-                <Check className="w-4 h-4 mr-1" />
-                Confirm & Process
+            <Button
+              variant="default"
+              size={isMobile ? "sm" : "default"}
+              onClick={handleProcess}
+              disabled={isProcessing || isEditing}
+              className={`
+                ${isMobile ? 'text-xs px-2 py-1 h-8 bg-purple-600 hover:bg-purple-700' : ''}
+                flex items-center
+              `}
+            >
+                {isProcessing ? (
+                  <>Processing...</>
+                ) : (
+                  <>
+                    <Check className="w-4 h-4 mr-1" />
+                    Process
+                  </>
+                )}
               </Button>
             )}
           </div>
-        </div>
 
         {/* Processing Status */}
         {isProcessing && (
-          <Alert>
-            <AlertCircle className="h-4 w-4" />
-            <AlertTitle>Processing Purchase Order</AlertTitle>
-            <AlertDescription>
+          <Alert className={`mt-3 ${isMobile ? 'text-sm' : ''}`}>
+            <AlertCircle className={`${isMobile ? 'w-3 h-3' : 'w-4 h-4'}`} />
+            <AlertTitle className={isMobile ? 'text-sm' : ''}>Processing Purchase Order</AlertTitle>
+            <AlertDescription className={isMobile ? 'text-xs' : ''}>
               Please wait while we process your order...
             </AlertDescription>
           </Alert>
@@ -349,27 +402,30 @@ const [modifiedData, setModifiedData] = useState(() => {
         )}
 
         {/* Items Table */}
-        <div className="overflow-x-auto mt-4">
+        <div className={`
+          mt-4 overflow-x-auto 
+          ${isMobile ? '-mx-3 px-3' : ''}
+        `}>
           <table className="w-full text-sm">
             <thead className="bg-gray-50">
               <tr>
-                <th className="px-4 py-2 text-left">Product</th>
-                <th className="px-4 py-2 text-left">SKU</th>
-                <th className="px-4 py-2 text-right">Quantity</th>
-                <th className="px-4 py-2 text-right">Unit Price (RM)</th>
-                <th className="px-4 py-2 text-right">Total (RM)</th>
-                {isEditing && <th className="px-4 py-2 text-center">Actions</th>}
+                <th className={`${isMobile ? 'px-2' : 'px-4'} py-2 text-left whitespace-nowrap`}>Product</th>
+                <th className={`${isMobile ? 'px-2' : 'px-4'} py-2 text-left whitespace-nowrap`}>SKU</th>
+                <th className={`${isMobile ? 'px-2' : 'px-4'} py-2 text-right whitespace-nowrap`}>Qty</th>
+                <th className={`${isMobile ? 'px-2' : 'px-4'} py-2 text-right whitespace-nowrap`}>Price (RM)</th>
+                <th className={`${isMobile ? 'px-2' : 'px-4'} py-2 text-right whitespace-nowrap`}>Total (RM)</th>
+                {isEditing && <th className="px-2 py-2 text-center">Actions</th>}
               </tr>
             </thead>
-              <tbody className="divide-y">
+              <tbody className="divide-y divide-gray-200">
                 {modifiedData.items.map((item, index) => (
-                  <tr key={index}>
-                    <td className="px-4 py-2">
+                  <tr key={index} className="hover:bg-gray-50">
+                    <td className={`${isMobile ? 'px-2' : 'px-4'} py-2`}>
                       {isEditing ? (
                         <Input
                           value={item.productName}
                           onChange={(e) => handleEdit(index, 'productName', e.target.value)}
-                          className="max-w-[200px]"
+                          className={`${isMobile ? 'max-w-[120px]' : 'max-w-[200px]'}`}
                         />
                       ) : item.productName}
                     </td>
@@ -440,63 +496,77 @@ const [modifiedData, setModifiedData] = useState(() => {
       </div>
 
       {/* Add Item Dialog */}
-      <Dialog open={showAddItemDialog} onOpenChange={setShowAddItemDialog}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Add New Item</DialogTitle>
-            <DialogDescription>
-              Enter the details for the new item below.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4 py-4">
-            <div className="grid grid-cols-1 gap-4">
-              <div>
-                <label className="text-sm font-medium">Product Name</label>
-                <Input
-                  value={newItem.productName}
-                  onChange={(e) => setNewItem(prev => ({ ...prev, productName: e.target.value }))}
-                  placeholder="Enter product name"
-                />
+      <Dialog open={showInventoryTable} onOpenChange={setShowInventoryTable}>
+        <DialogContent className="max-w-4xl bg-white">
+          <Card className="border-0 shadow-none">
+            <CardHeader>
+              <CardTitle>Select Items</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                <div className="flex items-center space-x-2">
+                  <Search className="w-4 h-4 text-gray-400" />
+                  <input
+                    type="text"
+                    placeholder="Search items..."
+                    className="w-full p-2 text-sm border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    value={searchTerm}
+                    onChange={handleSearch}
+                  />
+                </div>
+                <div className="h-[500px] overflow-y-auto">
+                  {loading ? (
+                    <div className="flex items-center justify-center h-full">
+                      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+                    </div>
+                  ) : (
+                    <div className="grid gap-3">
+                      {inventoryItems
+                        .filter(item => 
+                          item.product_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                          item.sku_number.toLowerCase().includes(searchTerm.toLowerCase())
+                        )
+                        .map((item) => (
+                          <button
+                            key={item.product_uuid}
+                            onClick={() => handleItemSelect(item)}
+                            className={`w-full text-left p-4 rounded-lg border transition-colors ${
+                              item.product_stock <= 0 
+                                ? 'border-red-200 bg-red-50 cursor-not-allowed'
+                                : 'border-gray-200 hover:border-blue-500'
+                            }`}
+                            disabled={item.product_stock <= 0}
+                          >
+                            <div className="flex justify-between items-start">
+                              <div>
+                                <div className="font-medium">{item.product_name}</div>
+                                <div className="text-sm text-gray-500">
+                                  SKU: {item.sku_number}
+                                  {item.brand && ` • Brand: ${item.brand}`}
+                                </div>
+                                <div className="text-sm text-gray-500">
+                                  Manufacturer: {item.manufacturer || 'N/A'}
+                                </div>
+                                <div className="text-sm mt-1">
+                                  Current Stock: {item.product_stock} units
+                                </div>
+                              </div>
+                              <div className="text-right">
+                                <div className="font-medium text-blue-600">
+                                  Cost: MYR {typeof item.cost === 'number' ? 
+                                    item.cost.toFixed(2) : 
+                                    parseFloat(item.cost || 0).toFixed(2)}
+                                </div>
+                              </div>
+                            </div>
+                          </button>
+                        ))}
+                    </div>
+                  )}
+                </div>
               </div>
-              <div>
-                <label className="text-sm font-medium">SKU</label>
-                <Input
-                  value={newItem.sku}
-                  onChange={(e) => setNewItem(prev => ({ ...prev, sku: e.target.value }))}
-                  placeholder="Enter SKU"
-                />
-              </div>
-              <div>
-                <label className="text-sm font-medium">Quantity</label>
-                <Input
-                  type="number"
-                  value={newItem.quantity}
-                  onChange={(e) => setNewItem(prev => ({ ...prev, quantity: e.target.value }))}
-                  placeholder="Enter quantity"
-                  min="1"
-                />
-              </div>
-              <div>
-                <label className="text-sm font-medium">Unit Price (RM)</label>
-                <Input
-                  type="number"
-                  value={newItem.price}
-                  onChange={(e) => setNewItem(prev => ({ ...prev, price: e.target.value }))}
-                  placeholder="Enter unit price"
-                  step="0.01"
-                  min="0.01"
-                />
-              </div>
-            </div>
-          </div>
-          <div className="flex justify-end gap-2">
-            <Button variant="outline" onClick={() => setShowAddItemDialog(false)}>
-              Cancel
-            </Button>
-            <Button onClick={handleAddItem}>
-              Add Item
-            </Button>
-          </div>
+            </CardContent>
+          </Card>
         </DialogContent>
       </Dialog>
     </div>

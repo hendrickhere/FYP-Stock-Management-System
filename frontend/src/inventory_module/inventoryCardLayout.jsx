@@ -73,14 +73,12 @@ const ProductCard = ({ product, onAction, onClick, isFeatured, onUpdate }) => {
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
 
   const handleDelete = (event) => {
-    // Check if event exists before calling stopPropagation
     if (event) {
       event.stopPropagation();
     }
     setShowDeleteDialog(true);
   };
 
-  // Add function to handle confirmed deletion
   const handleConfirmDelete = async () => {
     try {
       await onAction('delete', product.product_uuid);
@@ -181,7 +179,7 @@ const StandardCard = ({ product, onAction }) => {
                 alt={product.product_name}
                 className="w-full h-full object-cover rounded-t-lg"
                 onError={(e) => {
-                  e.target.onerror = null; // Prevent infinite loop
+                  e.target.onerror = null; 
                   e.target.src = "/placeholder-image.jpg";
                 }}
               />
@@ -225,8 +223,7 @@ const StandardCard = ({ product, onAction }) => {
               className="p-1.5 hover:bg-gray-100 rounded"
               title="View Product Units"
             >
-              <Box className="w-3.5 h-3.5 text-blue-500" />{" "}
-              {/* Using Box icon from lucide-react */}
+              <Box className="w-3.5 h-3.5 text-blue-500" />
             </button>
             <button
               onClick={(e) => {
@@ -253,7 +250,7 @@ const StandardCard = ({ product, onAction }) => {
   );
 };
 
-// Featured Card Component (More Compact)
+// Featured Card Component 
 const FeaturedCard = ({ product, onAction }) => {
   const imageUrl = getImageUrl(product);
   const navigate = useNavigate();
@@ -274,7 +271,7 @@ const FeaturedCard = ({ product, onAction }) => {
                       ? imageUrl.substring(0, 100) + "..."
                       : imageUrl
                   );
-                  e.target.onerror = null; // Prevent infinite loop
+                  e.target.onerror = null; 
                   e.target.src = "/placeholder-image.jpg";
                 }}
               />
@@ -473,7 +470,7 @@ const InventoryLayout = ({
       </div>
 
       {/* Products Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-4 auto-rows-max">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-4 auto-rows-max w-full">
         {sortedProducts.map((product, index) => (
           <ProductCard
             key={product.product_uuid}

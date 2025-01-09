@@ -2,13 +2,16 @@ const UserService = require("../service/userService");
 const jwt = require('jsonwebtoken');
 const { JWT_CONFIG } = require('../config/app.config');
 const InventoryAnalyticsService = require('../service/inventoryAnalyticsService');
+const { ValidationError } = require("sequelize");
+const { ValidationException } = require("../errors/validationError");
+const { OrganizationNotFoundException } = require("../errors/notFoundException");
 
 const generateAccessToken = (user) => {
   return jwt.sign(
-    { 
-      id: user.user_id, 
+    {
+      id: user.user_id,
       username: user.username,
-      role: user.role 
+      role: user.role
     },
     JWT_CONFIG.ACCESS_TOKEN_SECRET,
     { expiresIn: JWT_CONFIG.ACCESS_TOKEN_EXPIRY }
@@ -17,100 +20,131 @@ const generateAccessToken = (user) => {
 
 const generateRefreshToken = (user) => {
   return jwt.sign(
-    { 
-      id: user.user_id, 
+    {
+      id: user.user_id,
       username: user.username,
-      role: user.role 
+      role: user.role
     },
     JWT_CONFIG.REFRESH_TOKEN_SECRET,
     { expiresIn: JWT_CONFIG.REFRESH_TOKEN_EXPIRY }
   );
 };
 
-exports.getStockReport = async (req, res) => {
-    try {
-        const username = decodeURIComponent(req.params.username);
-        console.log('Processing stock report request:', {
-            username,
-            timeRange: req.query.timeRange,
-            params: req.params,
-            query: req.query
-        });
-        
-        // Validate username exists
-        const user = await UserService.getUserByUsernameAsync(username);
-        
-        if (!user) {
-            return res.status(404).json({
-                success: false,
-                error: {
-                    message: `User not found: ${username}`
-                }
-            });
-        }
-
-        // Log user data to help debug
-        console.log('Found user:', {
-            userId: user.user_id,
-            organizationId: user.organization_id,
-            hasOrg: !!user.organization_id
-        });
-
-        if (!user.organization_id) {
-            return res.status(400).json({
-                success: false,
-                error: {
-                    message: 'User has no associated organization'
-                }
-            });
-        }
-
-        // Parse timeRange with a default value
-        const timeRange = parseInt(req.query.timeRange) || 30;
-        
-        // Get the stock report
-        const report = await InventoryAnalyticsService.getStockReport(
-            user.organization_id,
-            timeRange
-        );
-
-        return res.status(200).json({
-            success: true,
-            data: report
-        });
-        
-    } catch (error) {
-        console.error('Stock report error:', {
-            error: error.message,
-            stack: error.stack,
-            params: req.params,
-            query: req.query
-        });
-
-        return res.status(500).json({
-            success: false,
-            error: {
-                message: 'Failed to generate stock report',
-                details: error.message
-            }
-        });
+exports.getAllUsers = async (req, res) => {
+  try {
+    const { organizationId } = req.params;
+    const { searchTerm } = req.query;
+    if (!organizationId) {
+      throw new ValidationException("Missing organization Id");
     }
+    var users = await UserService.getAllUsers(organizationId, searchTerm);
+    return res.status(200).json({
+      data: users,
+      message: "Users retrieved successfully"
+    });
+  } catch (err) {
+    if (err instanceof ValidationException) {
+      return res.status(err.statusCode).json({
+        message: err.message
+      });
+    }
+    if (err instanceof OrganizationNotFoundException) {
+      return res.status(err.statusCode).json({
+        message: err.message
+      });
+    }
+    return res.status(500).json({
+      message: 'Failed to retrieve users information',
+      details: error.message
+    });
+  }
+}
+
+exports.getStockReport = async (req, res) => {
+  try {
+    const username = decodeURIComponent(req.params.username);
+    console.log('Processing stock report request:', {
+      username,
+      timeRange: req.query.timeRange,
+      params: req.params,
+      query: req.query
+    });
+
+    // Validate username exists
+    const user = await UserService.getUserByUsernameAsync(username);
+
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        error: {
+          message: `User not found: ${username}`
+        }
+      });
+    }
+
+    // Log user data to help debug
+    console.log('Found user:', {
+      userId: user.user_id,
+      organizationId: user.organization_id,
+      hasOrg: !!user.organization_id
+    });
+
+    if (!user.organization_id) {
+      return res.status(400).json({
+        success: false,
+        error: {
+          message: 'User has no associated organization'
+        }
+      });
+    }
+
+    // Parse timeRange with a default value
+    const timeRange = parseInt(req.query.timeRange) || 30;
+
+    // Get the stock report
+    const report = await InventoryAnalyticsService.getStockReport(
+      user.organization_id,
+      timeRange
+    );
+
+    return res.status(200).json({
+      success: true,
+      data: report
+    });
+
+  } catch (error) {
+    console.error('Stock report error:', {
+      error: error.message,
+      stack: error.stack,
+      params: req.params,
+      query: req.query
+    });
+
+    return res.status(500).json({
+      success: false,
+      error: {
+        message: 'Failed to generate stock report',
+        details: error.message
+      }
+    });
+  }
 };
 
 exports.getCurrentUser = async (req, res) => {
   try {
     console.log("Received request to fetch current user");
     console.log("Request User ID:", req.user?.id);
-    
+
     const user = await UserService.getUserById(req.user.id);
     if (!user) {
       console.log("User not found with ID:", req.user.id);
       return res.status(404).json({ message: 'User not found' });
     }
     console.log("User data fetched successfully:", user.username);
-    return res.status(200).json({ 
+    return res.status(200).json({
       username: user.username,
-      role: user.role  
+      email: user.email,
+      role: user.role
     });
   } catch (error) {
     console.error("Error fetching current user:", error);
@@ -119,20 +153,20 @@ exports.getCurrentUser = async (req, res) => {
 };
 
 exports.getInventoryCount = async (req, res) => {
-  const {username} = req.query; 
+  const { username } = req.query;
 
-  if(!username) {
-    return res.status(400).json({message: "Username cannot be empty!"});
+  if (!username) {
+    return res.status(400).json({ message: "Username cannot be empty!" });
   }
 
-  try{
+  try {
     var inventoryCount = await UserService.getInventoryCount(username);
     return res.status(200).json({
-      message: "Inventory count retrieved", 
+      message: "Inventory count retrieved",
       data: inventoryCount,
-    }); 
-  } catch(err) {
-    if(error instanceof InventoryError){
+    });
+  } catch (err) {
+    if (error instanceof InventoryError) {
       return res.status(error.statusCode).json({
         success: false,
         error: {
@@ -162,7 +196,7 @@ exports.refreshToken = async (req, res) => {
 
   try {
     const user = await UserService.getUserByRefreshToken(refreshToken);
-    
+
     if (!user) {
       return res.status(401).json({ message: 'Invalid refresh token' });
     }
@@ -196,27 +230,27 @@ exports.signup = async (req, res) => {
     res.status(201).send({ message: "User created", user: user });
   } catch (err) {
     console.error("Error during signup:", err.message);
-    
+
     switch (err.message) {
       case "INVALID_EMAIL_FORMAT":
-        return res.status(400).send({ 
-          message: "Please enter a valid email address" 
+        return res.status(400).send({
+          message: "Please enter a valid email address"
         });
       case "INVALID_PASSWORD_LENGTH":
-        return res.status(400).send({ 
-          message: "Password must be at least 6 characters long" 
+        return res.status(400).send({
+          message: "Password must be at least 6 characters long"
         });
       case "EMAIL_EXISTS":
-        return res.status(409).send({ 
-          message: "This email is already registered" 
+        return res.status(409).send({
+          message: "This email is already registered"
         });
       case "USERNAME_EXISTS":
-        return res.status(409).send({ 
-          message: "This username is already taken" 
+        return res.status(409).send({
+          message: "This username is already taken"
         });
       default:
-        return res.status(500).send({ 
-          message: "An error occurred during signup. Please try again." 
+        return res.status(500).send({
+          message: "An error occurred during signup. Please try again."
         });
     }
   }
@@ -233,27 +267,27 @@ exports.login = async (req, res) => {
     }
 
     const user = await UserService.verifyUser(email, password);
-    
+
     // Changed this part to be more specific with error messages
     if (!user) {
       return res.status(401).json({ message: 'Invalid email or password' });
     }
 
-    console.log("Verified user data:", user); 
+    console.log("Verified user data:", user);
 
     const accessToken = generateAccessToken(user);
     const refreshToken = generateRefreshToken(user);
 
     await UserService.storeRefreshToken(user.user_id, refreshToken);
 
-    res.status(200).json({ 
-      message: 'Login successful', 
-      accessToken, 
-      refreshToken, 
-      user: { 
+    res.status(200).json({
+      message: 'Login successful',
+      accessToken,
+      refreshToken,
+      user: {
         username: user.username,
-        role: user.role, 
-        organization_id: user.organization_id 
+        role: user.role,
+        organization_id: user.organization_id
       }
     });
 
@@ -321,7 +355,7 @@ exports.getAllInventory = async (req, res) => {
 
   try {
     const inventories = await UserService.getAllInventory(username, searchTerm);
-    
+
     return res.status(200).json({
       success: true,
       inventories,
@@ -364,7 +398,7 @@ exports.addInventoryBatch = async (req, res) => {
     }
 
     const createdProducts = await UserService.addInventoryBatch(userId, products);
-    
+
     res.status(200).json({
       message: "Products added successfully",
       products: createdProducts
@@ -374,8 +408,8 @@ exports.addInventoryBatch = async (req, res) => {
     if (err.message === "User not found") {
       return res.status(401).json({ message: err.message });
     }
-    res.status(500).json({ 
-      message: err.message || "Error creating products" 
+    res.status(500).json({
+      message: err.message || "Error creating products"
     });
   }
 };
@@ -442,8 +476,8 @@ exports.deleteInventory = async (req, res) => {
     });
   } catch (err) {
     console.error('Delete inventory error:', err);
-    
-    switch(err.message) {
+
+    switch (err.message) {
       case "User not found":
         return res.status(401).json({ message: err.message });
       case "Product not found":
@@ -451,9 +485,9 @@ exports.deleteInventory = async (req, res) => {
       case "No products were updated":
         return res.status(400).json({ message: "Failed to delete product" });
       default:
-        return res.status(500).json({ 
+        return res.status(500).json({
           message: "An error occurred while deleting the product",
-          error: err.message 
+          error: err.message
         });
     }
   }
@@ -476,6 +510,71 @@ exports.getInventory = async (req, res) => {
       res.status(402), send({ message: err.message });
     } else {
       res.status(500).send({ message: err.message });
+    }
+  }
+};
+
+exports.updateProfile = async (req, res) => {
+  try {
+    console.log('Update Profile Request:', {
+      user: req.user,
+      body: req.body
+    });
+
+    const { id } = req.user;
+    const { username, email } = req.body;
+
+    // Input validation
+    if (!username || !email) {
+      console.log('Validation failed:', { username, email });
+      return res.status(400).json({
+        success: false,
+        message: 'Username and email are required'
+      });
+    }
+
+    // Email format validation
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid email format'
+      });
+    }
+
+    const updatedUser = await UserService.updateProfile(id, { username, email });
+
+    return res.status(200).json({
+      success: true,
+      message: 'Profile updated successfully',
+      user: updatedUser
+    });
+
+  } catch (error) {
+    console.error('Profile update error:', error);
+
+    // Handle specific errors
+    switch (error.message) {
+      case 'EMAIL_EXISTS':
+        return res.status(409).json({
+          success: false,
+          message: 'Email is already in use'
+        });
+      case 'USERNAME_EXISTS':
+        return res.status(409).json({
+          success: false,
+          message: 'Username is already taken'
+        });
+      case 'User not found':
+        return res.status(404).json({
+          success: false,
+          message: 'User not found'
+        });
+      default:
+        return res.status(500).json({
+          success: false,
+          message: 'An error occurred while updating profile'
+        });
     }
   }
 };

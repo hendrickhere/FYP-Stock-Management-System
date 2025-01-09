@@ -7,7 +7,9 @@ import { Tab } from "@headlessui/react";
 import toast, { Toaster } from "react-hot-toast";
 import axiosInstance from "../axiosConfig";
 import DragDropImageUploader from "../dragDropImageUploader";
-import { Box, Shield } from "lucide-react";
+import { Box, Shield, Pencil } from "lucide-react";
+import SerialList from "./serial_list";
+import instance from "../axiosConfig";
 const { Panel, Overlay, Title } = Dialog;
 const ProductDetailModal = ({
   isOpen,
@@ -52,6 +54,57 @@ const ProductDetailModal = ({
   const [hasChanges, setHasChanges] = useState(false);
   const [isSerialModalOpen, setIsSerialModalOpen] = useState(false);
   const [scannedSerials, setScannedSerials] = useState([]);
+  
+  const submitSerialNumber = async (productId, username) => {
+    try {
+      const response = await instance.post('/products/unit/existing', {
+        serialNumbers: scannedSerials,
+        productId: productId,
+        username: username
+      });
+
+  
+      if (!response.status === 200) {
+        toast.error('Failed to submit serial numbers');
+        return false;
+      }
+  
+      // Success case
+      toast.success(response.data.message || 'Serial numbers submitted successfully');
+      setScannedSerials([]); 
+      setIsSerialModalOpen(false);
+      return true;
+  
+    } catch (error) {
+      console.error('Error submitting serial numbers:', error);
+      toast.error(error.response.data.error);
+      return false;
+    }
+  };
+
+  const handleSerialInput = async (serial) => {
+    if (
+      serial &&
+      scannedSerials.length <
+        product.unregistered_quantity
+    ) {
+      if (!scannedSerials.includes(serial)) {
+        setScannedSerials([
+          ...scannedSerials,
+          serial,
+        ]);
+      } else {
+        toast.error("Serial number already scanned");
+      }
+    } else if (
+      scannedSerials.length >=
+      product.unregistered_quantity
+    ) {
+      toast.error(
+        "All unregistered items have been scanned"
+      );
+    }
+  }
 
   useEffect(() => {
     if (product) {
@@ -331,6 +384,7 @@ const ProductDetailModal = ({
           onProductUpdate(response.data.inventory);
         }
       }
+      setIsSaving(false);
     } catch (error) {
       console.error("Update error:", error);
       if (error.response?.status === 413) {
@@ -340,6 +394,7 @@ const ProductDetailModal = ({
           error.response?.data?.message || "Failed to update product"
         );
       }
+      setIsSaving(false);
     }
   };
 
@@ -429,7 +484,7 @@ const ProductDetailModal = ({
               </div>
 
               {/* Content */}
-              <div className="p-6 overflow-y-auto max-h-[calc(100vh-80px)]">
+              <div className="p-6 overflow-y-auto max-h-[calc(100vh-8rem)] custom-scrollbar">
                 {/* Product Image */}
                 <div className="mb-6">
                   {isEditing ? (
@@ -783,6 +838,14 @@ const ProductDetailModal = ({
                         >
                           Register Serial Numbers
                         </button>
+                        <SerialList
+                          scannedSerials={scannedSerials}
+                          setScannedSerials={setScannedSerials}
+                          onSubmit={() => {
+                            submitSerialNumber(product.product_uuid, username);
+                          }}
+                          disabled={scannedSerials.length > product?.unregistered_quantity}
+                        />
                         {product?.unregistered_quantity === 0 && (
                           <p className="text-xs text-gray-500">
                             No unregistered items to process
@@ -914,25 +977,76 @@ const ProductDetailModal = ({
                     </Alert>
                   </div>
                 )}
+              </div>
 
-                {/* Footer Actions */}
-                <div className="mt-8 flex justify-between items-center border-t pt-4">
-                  <button
-                    onClick={() => setIsDeleting(true)}
-                    className="flex items-center gap-2 px-4 py-2 text-red-600 hover:bg-red-50 rounded-md"
-                  >
-                    <FaTrash className="w-4 h-4" />
-                    Delete Product
-                  </button>
+              {/* Footer Actions */}
+              <div className="absolute bottom-0 left-0 right-0">
+                {/* Desktop View */}
+                <div className="hidden sm:block border-t bg-white px-6 py-4">
+                  <div className="flex justify-between items-center max-w-[1400px] mx-auto">
+                    <button
+                      onClick={() => setIsDeleting(true)}
+                      className="inline-flex items-center justify-center gap-2 h-10 px-4 text-red-600 hover:bg-red-50 rounded-lg transition-colors duration-200"
+                    >
+                      <FaTrash className="w-4 h-4" />
+                      <span className="font-medium">Delete Product</span>
+                    </button>
 
-                  <div className="flex gap-3">
+                    <div className="flex gap-3">
+                      {!isEditing ? (
+                        <button
+                          onClick={() => setIsEditing(true)}
+                          className="inline-flex items-center justify-center h-10 px-6 bg-blue-500 text-white font-medium rounded-lg hover:bg-blue-600 transition-colors duration-200"
+                        >
+                          Edit
+                        </button>
+                      ) : (
+                        <>
+                          <button
+                            onClick={() => {
+                              setIsEditing(false);
+                              setFormData(product);
+                              setHasChanges(false);
+                              setErrors({});
+                            }}
+                            className="inline-flex items-center justify-center h-10 px-6 text-gray-700 font-medium rounded-lg hover:bg-gray-100 transition-colors duration-200"
+                            disabled={isSaving}
+                          >
+                            Cancel
+                          </button>
+                          <button
+                            onClick={handleSave}
+                            disabled={isSaving || Object.keys(errors).length > 0}
+                            className="inline-flex items-center justify-center h-10 px-6 bg-blue-500 text-white font-medium rounded-lg hover:bg-blue-600 disabled:opacity-50 transition-colors duration-200"
+                          >
+                            {isSaving ? "Saving..." : "Save Changes"}
+                          </button>
+                        </>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Mobile View - Bottom Bar */}
+                <div className="sm:hidden fixed bottom-0 left-0 right-0 border-t bg-white px-4 py-3">
+                  <div className="flex items-center gap-2">
                     {!isEditing ? (
-                      <button
-                        onClick={() => setIsEditing(true)}
-                        className="px-4 py-2 bg-blue-500 text-white font-medium rounded-md hover:bg-blue-600"
-                      >
-                        Edit
-                      </button>
+                      <>
+                        <button
+                          onClick={() => setIsDeleting(true)}
+                          className="h-10 aspect-square rounded-lg flex items-center justify-center text-red-600 hover:bg-red-50 transition-colors duration-200"
+                        >
+                          <FaTrash className="w-4 h-4" />
+                        </button>
+
+                        <button
+                          onClick={() => setIsEditing(true)}
+                          className="flex-1 h-10 bg-blue-500 text-white font-medium rounded-lg hover:bg-blue-600 transition-colors duration-200 flex items-center justify-center"
+                        >
+                          <Pencil className="w-4 h-4 mr-2" />
+                          Edit
+                        </button>
+                      </>
                     ) : (
                       <>
                         <button
@@ -942,17 +1056,17 @@ const ProductDetailModal = ({
                             setHasChanges(false);
                             setErrors({});
                           }}
-                          className="px-4 py-2 text-gray-600 hover:text-gray-800 font-medium rounded-md hover:bg-gray-100"
+                          className="flex-1 h-10 border border-gray-200 text-gray-700 font-medium rounded-lg hover:bg-gray-50 transition-colors duration-200 flex items-center justify-center"
                           disabled={isSaving}
                         >
                           Cancel
                         </button>
                         <button
                           onClick={handleSave}
-                          className="px-4 py-2 bg-blue-500 text-white font-medium rounded-md hover:bg-blue-600 disabled:opacity-50"
                           disabled={isSaving || Object.keys(errors).length > 0}
+                          className="flex-1 h-10 bg-blue-500 text-white font-medium rounded-lg hover:bg-blue-600 disabled:opacity-50 transition-colors duration-200 flex items-center justify-center"
                         >
-                          {isSaving ? "Saving..." : "Save Changes"}
+                          {isSaving ? "Saving..." : "Save"}
                         </button>
                       </>
                     )}
@@ -962,6 +1076,7 @@ const ProductDetailModal = ({
             </motion.div>
           </Dialog>
         )}
+
       </AnimatePresence>
       {isSerialModalOpen && (
         <Transition appear show={isSerialModalOpen} as={React.Fragment}>
@@ -1037,28 +1152,8 @@ const ProductDetailModal = ({
                           onKeyDown={async (e) => {
                             if (e.key === "Enter") {
                               const serial = e.target.value.trim();
-                              if (
-                                serial &&
-                                scannedSerials.length <
-                                  product.unregistered_quantity
-                              ) {
-                                if (!scannedSerials.includes(serial)) {
-                                  setScannedSerials([
-                                    ...scannedSerials,
-                                    serial,
-                                  ]);
-                                  e.target.value = "";
-                                } else {
-                                  toast.error("Serial number already scanned");
-                                }
-                              } else if (
-                                scannedSerials.length >=
-                                product.unregistered_quantity
-                              ) {
-                                toast.error(
-                                  "All unregistered items have been scanned"
-                                );
-                              }
+                              handleSerialInput(serial);
+                              e.target.value = "";
                             }
                           }}
                         />
@@ -1086,50 +1181,6 @@ const ProductDetailModal = ({
                         ))}
                       </div>
 
-                      {/* Footer Actions */}
-                      <div className="flex justify-end space-x-3 mt-6 pt-4 border-t">
-                        <button
-                          onClick={() => {
-                            setScannedSerials([]);
-                            setIsSerialModalOpen(false);
-                          }}
-                          className="px-4 py-2 text-gray-600 hover:text-gray-800 font-medium rounded-md hover:bg-gray-100"
-                        >
-                          Cancel
-                        </button>
-                        <button
-                          onClick={async () => {
-                            try {
-                              const response = await axiosInstance.post(
-                                `/products/unit/existing`,
-                                {
-                                  serialNumbers: scannedSerials,
-                                  productId: product.product_uuid,
-                                  username: username,
-                                }
-                              );
-
-                              if (response.status === 201) {
-                                toast.success(
-                                  "Serial numbers registered successfully"
-                                );
-                                setScannedSerials([]);
-                                setIsSerialModalOpen(false);
-                              }
-                            } catch (error) {
-                              toast.error(
-                                error.response?.data?.message ||
-                                  "Failed to register serial numbers"
-                              );
-                            }
-                          }}
-                          disabled={scannedSerials.length === 0}
-                          className="px-4 py-2 bg-blue-500 text-white font-medium rounded-md hover:bg-blue-600 disabled:opacity-50"
-                        >
-                          Register {scannedSerials.length} Serial
-                          {scannedSerials.length !== 1 ? "s" : ""}
-                        </button>
-                      </div>
                     </div>
                   </Dialog.Panel>
                 </Transition.Child>
@@ -1140,6 +1191,7 @@ const ProductDetailModal = ({
       )}
     </>
   );
+  
 };
 
 export default ProductDetailModal;

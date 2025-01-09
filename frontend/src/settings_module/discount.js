@@ -1,30 +1,58 @@
-import React, {useState, useEffect, useContext} from 'react';
+import React, { useState, useContext, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { MdDiscount } from "react-icons/md";
 import { Alert, AlertDescription } from "../ui/alert";
 import { GlobalContext } from '../globalContext';
+import { AlertCircle, Save, Ban } from "lucide-react";
+import Header from '../header';
+import Sidebar from '../sidebar';
 import instance from '../axiosConfig';
 import DiscountView from './view_discount';
 
 function DiscountSettings() {
+  const [isMobile, setIsMobile] = useState(window.innerWidth < 1024);
+
+  useEffect(() => {
+    const handleResize = () => {
+      setIsMobile(window.innerWidth < 1024);
+    };
+
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
+  return (
+    <div className="flex flex-col h-screen w-full">
+      <Header />
+      <div className="flex flex-row flex-grow">
+        <Sidebar />
+        <MainContent isMobile={isMobile} />
+      </div>
+    </div>
+  );
+}
+
+const MainContent = () => {
+  const navigate = useNavigate();
+  const { organizationId } = useContext(GlobalContext);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isDiscountEnding, setIsDiscountEnding] = useState(false);
+  const [isMobile, setIsMobile] = useState(window.innerWidth < 1024);
+  const [apiError, setApiError] = useState("");
   const [userData] = useState(() => {
     const cached = sessionStorage.getItem('userData');
     return cached ? JSON.parse(cached) : null;
   });
-  const {organizationId} = useContext(GlobalContext);
-  const navigate = useNavigate();
-  const [isMobile, setIsMobile] = useState(window.innerWidth < 1024);
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [isDiscountEnding, setIsDiscountEnding] = useState(false);
-  const [apiError, setApiError] = useState("");
+
   const [formState, setFormState] = useState({
-    discountRate: 0, 
-    discountName: "", 
+    discountRate: 0,
+    discountName: "",
     organizationId: organizationId,
-    discountStart: new Date().toISOString().split('T')[0], 
-    discountEnd: new Date().toISOString().split('T')[0],   
+    discountStart: new Date().toISOString().split('T')[0],
+    discountEnd: new Date().toISOString().split('T')[0],
     description: ""
   });
+
   const [errors, setErrors] = useState({});
 
   const handleInputChange = (e) => {
@@ -34,9 +62,46 @@ function DiscountSettings() {
       [name]: value
     }));
     
-    if (errors[name]) { 
+    if (errors[name]) {
       setErrors(prev => ({ ...prev, [name]: undefined }));
     }
+  };
+
+  const validateForm = () => {
+    const newErrors = {};
+    
+    if (formState.discountRate > 100) {
+      newErrors.discountRate = "Discount rate cannot be greater than 100%.";
+    }
+
+    if (formState.discountRate < 1) {
+      newErrors.discountRate = "Discount rate cannot be lesser than 1%.";
+    }
+
+    if (!formState.discountName) {
+      newErrors.discountName = "Discount name cannot be empty!";
+    }
+
+    if (!formState.discountStart) {
+      newErrors.discountStart = "Discount Start Date cannot be empty!";
+    }
+
+    if (isDiscountEnding) {
+      if (normalizeDate(formState.discountEnd) < normalizeDate(formState.discountStart)) {
+        newErrors.discountEnd = "Discount End Date cannot be earlier than discount start!";
+      }
+      if (normalizeDate(formState.discountEnd) < normalizeDate(new Date())) {
+        newErrors.discountEnd = "Discount End Date cannot be earlier than today's date!";
+      }
+    }
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
+
+  const normalizeDate = (date) => {
+    const d = new Date(date);
+    d.setHours(0, 0, 0, 0);
+    return d.getTime();
   };
 
   const handleFormSubmit = async (e) => {
@@ -56,71 +121,17 @@ function DiscountSettings() {
         discountEnd: isDiscountEnding ? formState.discountEnd : null,
       };
       await instance.post(`/discount`, submissionData);
-      navigate(-1);
+      navigate('/settings');
     } catch (error) {
       setApiError(
         error.response?.data?.message ||
-          "Failed to create discount. Please try again."
+        "Failed to create discount. Please try again."
       );
       console.error("Error creating discount:", error);
     } finally {
       setIsSubmitting(false);
     }
-  }
-
-  const validateForm = () => {
-    const newErrors = {};
-    
-    if (!formState.discountRate > 100) {
-      newErrors.discountRate = "Discount rate cannot be greater than 100%.";
-    }
-
-    if (formState.discountRate < 1) {
-      newErrors.discountRate = "Discount rate cannot be lesser than 1%.";
-    }
-
-    if(!formState.discountName) {
-      newErrors.discountName = "Discount name cannot be empty!";
-    }
-    if(!formState.discountStart){
-      newErrors.discountStart = "Discount Start Date cannot be empty!";
-    }
-
-    if (isDiscountEnding) {
-      if (formState.discountEnd < formState.discountStart) {
-        newErrors.discountEnd =
-          "Discount End Date cannot be earlier than discount start!";
-      }
-      if (normalizeDate(formState.discountEnd) < normalizeDate(new Date())) {
-        newErrors.discountEnd =
-          "Discount End Date cannot be earlier than today's date!";
-      }
-    }
-    setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
   };
-
-  const normalizeDate = (date) => {
-    const d = new Date(date);
-    d.setHours(0, 0, 0, 0);
-    return d.getTime();
-  };
-
-  useEffect(() => {
-    const handleResize = () => {
-      setIsMobile(window.innerWidth < 1024);
-    };
-
-    window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
-  }, []);
-
-  useEffect(() => {
-    if (!userData || !['admin', 'manager', 'Manager'].includes(userData?.role?.toLowerCase())) {
-      navigate('/settings');
-      return;
-    }
-  }, [userData, navigate]);
 
   if (!userData || !['admin', 'manager', 'Manager'].includes(userData?.role?.toLowerCase())) {
     return (
@@ -133,173 +144,177 @@ function DiscountSettings() {
   }
 
   return (
-    <div className="w-full h-[calc(100vh-8rem)] overflow-y-auto">
-      <div className="min-h-full">
-        <div className="flex items-center mb-6">
-          <MdDiscount className="w-6 h-6 mr-2" />
-          <h1 className="text-2xl font-bold">Discount Settings</h1>
-        </div>
+    <main className="flex-1 min-w-0">
+      <div className="h-[calc(100vh-4rem)] overflow-y-auto overflow-x-hidden custom-scrollbar">
+        <div className={`${isMobile ? "" : "ml-[13rem]"}`}>
+          <div className="p-6 space-y-6">
+            {/* Title Section */}
+            <div className="mb-8">
+              <div className="flex items-center">
+                <MdDiscount className="w-6 h-6 mr-2 text-gray-700 flex-shrink-0" />
+                <h1 className="text-2xl font-bold text-gray-900 truncate">Discount Settings</h1>
+              </div>
+              <p className="text-gray-600 mt-1 truncate">Manage your discount configurations and rates</p>
+            </div>
 
-        <div className="bg-white rounded-lg shadow-sm p-6">
-          <h2 className="text-xl font-semibold mb-4">Discount Configuration</h2>
-          <form onSubmit={handleFormSubmit}>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div>
-                <label className="block text-sm font-medium text-gray-700">
-                  Discount Rate (%)
-                </label>
-                <input
-                  onChange={handleInputChange}
-                  value={formState.discountRate}
-                  name="discountRate"
-                  type="number"
-                  className={`mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500  ${
-                    errors.discountRate ? "border-red-500" : "border-gray-300"
-                  }`}
-                  placeholder="0.00"
-                />
-                {errors.discountRate && (
-                  <p className="text-red-500 text-sm">{errors.discountRate}</p>
-                )}
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700">
-                  Discount Name
-                </label>
-                <input
-                  onChange={handleInputChange}
-                  name="discountName"
-                  value={formState.discountName}
-                  type="text"
-                  className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
-                  placeholder="Input Discount Name"
-                />
-                {errors.discountName && (
-                  <p className="text-red-500 text-sm">{errors.discountName}</p>
-                )}
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700">
-                  Discount Start Date
-                </label>
-                <input
-                  onChange={handleInputChange}
-                  name="discountStart"
-                  value={formState.discountStart}
-                  type="date"
-                  className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
-                  placeholder="Input Discount Start"
-                />
-                {errors.discountStart && (
-                  <p className="text-red-500 text-sm">{errors.discountStart}</p>
-                )}
-              </div>
-              {/* <div>
-              <label className="block text-sm font-medium text-gray-700">
-                Discount Type
-              </label>
-              <select className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
-                <option value="percentage">Percentage</option>
-                <option value="fixed">Fixed Amount</option>
-                <option value="both">Both</option>
-              </select>
-            </div> */}
-              {/* <div>
-              <label className="block text-sm font-medium text-gray-700">
-                Discount Validity (Days)
+            {/* Error Alert */}
+            {apiError && (
+              <Alert variant="destructive">
+                <AlertCircle className="h-4 w-4" />
+                <AlertDescription>{apiError}</AlertDescription>
+              </Alert>
+            )}
+
+            {/* Configuration Form Section */}
+            <div className="bg-white rounded-xl shadow-sm p-4 md:p-6 mb-6">
+              <h2 className="text-lg font-semibold text-gray-900 mb-4">
+                Discount Configuration
+              </h2>
+              <form className="space-y-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
+                  {/* Rate Input */}
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium text-gray-700">
+                      Discount Rate (%)
+                    </label>
+                    <input
+                      type="number"
+                      name="discountRate"
+                      value={formState.discountRate}
+                      onChange={handleInputChange}
+                      className={`w-full p-2 border rounded-md ${
+                        errors.discountRate ? 'border-red-500' : 'border-gray-300'
+                      } focus:ring-2 focus:ring-purple-500 focus:border-transparent`}
+                      placeholder="0.00"
+                    />
+                    {errors.discountRate && (
+                      <p className="text-red-500 text-sm">{errors.discountRate}</p>
+                    )}
+                  </div>
+
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-gray-700">
+                Discount Name
               </label>
               <input
-                type="number"
-                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
-                placeholder="30"
+                type="text"
+                name="discountName"
+                value={formState.discountName}
+                onChange={handleInputChange}
+                className={`w-full p-2 border rounded-md ${
+                  errors.discountName ? 'border-red-500' : 'border-gray-300'
+                } focus:ring-2 focus:ring-purple-500 focus:border-transparent`}
+                placeholder="Enter discount name"
               />
-            </div> */}
-            <div>
-                <label className="block text-sm font-medium text-gray-700">
-                  Discount Description
+              {errors.discountName && (
+                <p className="text-red-500 text-sm">{errors.discountName}</p>
+              )}
+            </div>
+
+            {/* Date Inputs */}
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-gray-700">
+                Start Date
+              </label>
+              <input
+                type="date"
+                name="discountStart"
+                value={formState.discountStart}
+                onChange={handleInputChange}
+                className={`w-full p-2 border rounded-md ${
+                  errors.discountStart ? 'border-red-500' : 'border-gray-300'
+                } focus:ring-2 focus:ring-purple-500 focus:border-transparent`}
+              />
+              {errors.discountStart && (
+                <p className="text-red-500 text-sm">{errors.discountStart}</p>
+              )}
+            </div>
+
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <label className="text-sm font-medium text-gray-700">
+                  End Date
                 </label>
-                <input
-                  onChange={handleInputChange}
-                  name="description"
-                  value={formState.description}
-                  type="text"
-                  className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
-                  placeholder="Input Discount Description"
-                />
-              </div>
-                <div> {isDiscountEnding && (
-                    <div>
-                  <label className="block text-sm font-medium text-gray-700">
-                    Discount End Date
-                  </label>
-                  <input
-                    onChange={handleInputChange}
-                    name="discountEnd"
-                    value={formState.discountEnd}
-                    type="date"
-                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
-                    placeholder="Input Discount Name"
-                  />
-                  {errors.discountEnd && (
-                    <p className="text-red-500 text-sm">{errors.discountEnd}</p>
-                  )}
-                </div> )}
-                  <div className="flex items-center mt-4">
+                <div className="flex items-center space-x-2">
                   <input
                     type="checkbox"
                     id="isDiscountEnding"
                     checked={isDiscountEnding}
                     onChange={(e) => setIsDiscountEnding(e.target.checked)}
-                    className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                    className="h-4 w-4 rounded border-gray-300 text-purple-600 focus:ring-purple-500"
                   />
-                  <label
-                    htmlFor="requiresShipping"
-                    className="text-sm font-medium text-gray-700 ml-2"
-                  >
-                    This discount has an end date. 
+                  <label htmlFor="isDiscountEnding" className="text-sm text-gray-600">
+                    Set end date
                   </label>
                 </div>
-                </div>
-        
-              {/* 
-            <div className="md:col-span-2">
-              <label className="block text-sm font-medium text-gray-700">
-                Applicable Products
-              </label>
-              <select
-                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
-                multiple
-                size="3"
-              >
-                <option value="all">All Products</option>
-                <option value="batteries">Batteries Only</option>
-                <option value="services">Services Only</option>
-              </select>
-            </div> */}
-              <div className="md:col-span-2">
-                <div className="flex justify-end mt-6 space-x-3">
-                  <button
-                    onClick={() => navigate("/settings")}
-                    className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    type="submit"
-                    disabled={isSubmitting}
-                    className="inline-flex justify-center px-4 py-2 text-sm font-medium text-white bg-[#38304C] border border-transparent rounded-md shadow-sm hover:bg-[#2A2338] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#38304C]"
-                  >
-                    Save Changes
-                  </button>
-                </div>
+              </div>
+              {isDiscountEnding && (
+                <>
+                  <input
+                    type="date"
+                    name="discountEnd"
+                    value={formState.discountEnd}
+                    onChange={handleInputChange}
+                    className={`w-full p-2 border rounded-md ${
+                      errors.discountEnd ? 'border-red-500' : 'border-gray-300'
+                    } focus:ring-2 focus:ring-purple-500 focus:border-transparent`}
+                  />
+                  {errors.discountEnd && (
+                    <p className="text-red-500 text-sm">{errors.discountEnd}</p>
+                  )}
+                </>
+              )}
+            </div>
+
+              <div className="col-span-1 md:col-span-2">
+                <label className="text-sm font-medium text-gray-700">
+                  Description
+                </label>
+                <textarea
+                  name="description"
+                  value={formState.description}
+                  onChange={handleInputChange}
+                  rows={3}
+                  className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                  placeholder="Enter discount description"
+                />
               </div>
             </div>
           </form>
-          <DiscountView/>
+        </div>
+
+          {/* Discount List */}
+            <div className="pb-24">
+              <DiscountView />
+            </div>
+          </div>
         </div>
       </div>
-    </div>
+
+      {/* Fixed Bottom Action Buttons */}
+      <div className="fixed bottom-0 right-0 bg-white border-t p-4 z-10" 
+           style={{ left: isMobile ? '0' : '13rem', width: 'auto' }}>
+        <div className="flex justify-end gap-4 pr-4">
+          <button
+            onClick={() => navigate("/settings")}
+            className="flex items-center px-4 py-2 text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50"
+            disabled={isSubmitting}
+          >
+            <Ban className="w-4 h-4 mr-2" />
+            Cancel
+          </button>
+          <button
+            onClick={handleFormSubmit}
+            disabled={isSubmitting}
+            className="flex items-center px-4 py-2 text-white bg-primary hover:bg-primary/90 border border-transparent rounded-md shadow-sm disabled:opacity-50"
+          >
+            <Save className="w-4 h-4 mr-2" />
+            {isSubmitting ? 'Saving...' : 'Save Changes'}
+          </button>
+        </div>
+      </div>
+    </main>
   );
-}
+};
 
 export default DiscountSettings;

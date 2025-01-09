@@ -86,7 +86,7 @@ const MainContent = ({ isMobile, scrollDirection, isAtTop }) => {
     try {
       setLoading(true);
       const response = await axiosInstance.get(
-        `http://localhost:3002/api/purchases/${username}`
+        `/purchases/${username}`
       );
       setData(response.data);
     } catch (error) {
@@ -106,7 +106,7 @@ const MainContent = ({ isMobile, scrollDirection, isAtTop }) => {
     if (confirm) {
       try {
         await axiosInstance.put(
-          `http://localhost:3002/api/user/${username}/${data.purchases[index].purchase_order_id}/delete`
+          `/user/${username}/${data.purchases[index].purchase_order_id}/delete`
         );
         window.alert("Purchase Order successfully deleted");
         fetchPurchases();
@@ -145,8 +145,8 @@ const MainContent = ({ isMobile, scrollDirection, isAtTop }) => {
   };
 
   return (
-    <div className="flex-1 overflow-hidden">
-      <div className="h-full overflow-y-auto">
+    <div className="flex-1 h-[calc(100vh-4rem)]">
+      <div className="h-full overflow-y-auto custom-scrollbar">
         <motion.div 
           className="p-6"
           animate={{ 

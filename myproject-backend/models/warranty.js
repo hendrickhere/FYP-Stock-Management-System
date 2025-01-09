@@ -61,7 +61,10 @@ class Warranty extends Model {
                 return this.warranty_type === 2;
               },
             },
-
+            warranty_number: {
+              type: DataTypes.STRING(50),  
+              allowNull: false, 
+            },
             description: {
               type: DataTypes.STRING,
               allowNull: true,

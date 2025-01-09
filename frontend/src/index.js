@@ -18,6 +18,10 @@ import AddCustomer from './customer_module/add_customer';
 import AddAppointment from './appointments_module/add_appointment';
 import Profile from './profile';
 import Settings from './settings_module/settings';
+import DiscountSettings from './settings_module/discount';
+import TaxSettings from './settings_module/tax';
+import OrderSettings from './settings_module/order';
+import UserManagement from './settings_module/userManagement';
 import WarrantyMain from './warranty_module/warranty_main';
 import { GlobalProvider } from './globalContext';
 import Chatbot from './chatbotUI/chatbot';
@@ -26,6 +30,8 @@ import './styles/tailwind.css';
 import './styles/index.css';
 import AddWarranty from './warranty_module/add_warranty';
 import ProductUnits from './inventory_module/productUnit';
+import OrganizationSettings from './settings_module/organizationSettings';
+import WarrantyClaimsMain from './warranty_module/view_warranty_claim';
 
 ReactDOM.render(
   <React.StrictMode>
@@ -187,14 +193,62 @@ ReactDOM.render(
             }
           />
           <Route
-            path="/settings/*"
+            path="/warranty/warranty_claim"
+            element={
+              <ProtectedRoute>
+                <WarrantyClaimsMain />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/settings"
             element={
               <ProtectedRoute>
                 <Settings />
               </ProtectedRoute>
             }
           />
-        </Routes>
+          <Route
+            path="/settings/tax_settings"
+            element={
+              <ProtectedRoute>
+                <TaxSettings />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/settings/discount_settings"
+            element={
+              <ProtectedRoute>
+                <DiscountSettings />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/settings/order_settings"
+            element={
+              <ProtectedRoute>
+                <OrderSettings/>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/settings/user_management"
+            element={
+              <ProtectedRoute>
+                <UserManagement />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/settings/organization_settings"
+            element={
+              <ProtectedRoute>
+                <OrganizationSettings/>
+              </ProtectedRoute>
+            }
+          />
+        </Routes>    
       </Router>
     </GlobalProvider>
   </React.StrictMode>,

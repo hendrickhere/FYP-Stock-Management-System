@@ -1,0 +1,305 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Invoice - {{invoice.number}}</title>
+    <style>
+        :root {
+            --primary-color: #2C3E50;
+            --secondary-color: #3498DB;
+            --accent-color: #E74C3C;
+            --text-color: #2C3E50;
+            --border-color: #ECF0F1;
+            --background-color: #FFFFFF;
+            --table-stripe: #F9FAFB;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Helvetica Neue', Arial, sans-serif;
+            line-height: 1.6;
+            color: var(--text-color);
+            background: var(--background-color);
+            padding: 0;
+            margin: 0;
+        }
+
+        .invoice {
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 40px;
+            background: white;
+            box-shadow: 0 0 20px rgba(0,0,0,0.1);
+        }
+
+        /* Header Styles */
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            padding-bottom: 30px;
+            border-bottom: 2px solid var(--border-color);
+            margin-bottom: 30px;
+        }
+
+        .logo h1 {
+            color: var(--primary-color);
+            font-size: 28px;
+            font-weight: 700;
+        }
+
+        .company-details {
+            text-align: right;
+        }
+
+        .company-details h2 {
+            color: var(--secondary-color);
+            font-size: 40px;
+            font-weight: 300;
+            margin-bottom: 15px;
+        }
+
+        /* Invoice Info Styles */
+        .invoice-details {
+            display: flex;
+            justify-content: space-between;
+            margin: 30px 0;
+            padding: 20px 0;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .billing-details, .invoice-info {
+            flex: 1;
+        }
+
+        .billing-details strong, .invoice-info strong {
+            display: block;
+            margin-bottom: 10px;
+            color: var(--primary-color);
+            font-size: 16px;
+        }
+
+        /* Table Styles */
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 30px 0;
+        }
+
+        th {
+            background-color: var(--primary-color);
+            color: white;
+            padding: 15px;
+            text-align: left;
+            font-weight: 500;
+        }
+
+        td {
+            padding: 15px;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        tbody tr:nth-child(even) {
+            background-color: var(--table-stripe);
+        }
+
+        /* Amounts Styles */
+        .totals {
+            margin-top: 30px;
+            padding-top: 20px;
+            border-top: 2px solid var(--border-color);
+            text-align: right;
+        }
+
+        .totals div {
+            margin: 10px 0;
+            font-size: 16px;
+        }
+
+        .totals .total-amount {
+            font-size: 24px;
+            color: var(--primary-color);
+            font-weight: 700;
+            margin-top: 15px;
+        }
+
+        .discount {
+            color: var(--accent-color);
+        }
+
+        /* Footer Styles */
+        .footer {
+            margin-top: 50px;
+            padding-top: 20px;
+            border-top: 1px solid var(--border-color);
+            text-align: center;
+            color: #666;
+        }
+
+        .footer p {
+            margin: 10px 0;
+            font-size: 14px;
+        }
+
+        /* Additional Styles */
+        .shipping-details {
+            margin: 20px 0;
+            padding: 15px;
+            background-color: var(--table-stripe);
+            border-radius: 5px;
+        }
+
+        .shipping-details strong {
+            color: var(--primary-color);
+            display: block;
+            margin-bottom: 5px;
+        }
+
+        /* Status Badge */
+        .status-badge {
+            display: inline-block;
+            padding: 5px 10px;
+            border-radius: 15px;
+            font-size: 12px;
+            font-weight: 500;
+            text-transform: uppercase;
+        }
+
+        .payment-info {
+            margin-top: 30px;
+            padding: 20px;
+            background-color: var(--table-stripe);
+            border-radius: 5px;
+        }
+
+        .payment-info h3 {
+            color: var(--primary-color);
+            margin-bottom: 10px;
+        }
+
+        @media print {
+            body {
+                background: white;
+            }
+            .invoice {
+                box-shadow: none;
+                padding: 0;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="invoice">
+        <!-- Header Section -->
+        <div class="header">
+            <div class="logo">
+                <h1>{{company.name}}</h1>
+                <p>
+                    {{company.address}}<br>
+                    Phone: {{company.phone}}<br>
+                    Email: {{company.email}}
+                </p>
+            </div>
+            <div class="company-details">
+                <h2>INVOICE</h2>
+                <div class="status-badge">
+                    Invoice #{{invoice.number}}
+                </div>
+            </div>
+        </div>
+
+        <!-- Invoice Information -->
+        <div class="invoice-details">
+            <div class="billing-details">
+                <strong>BILL TO:</strong>
+                <p>
+                    {{customer.name}}<br>
+                    {{customer.company}}<br>
+                    {{customer.billingAddress}}<br>
+                    Phone: {{customer.phone}}<br>
+                    Email: {{customer.email}}
+                </p>
+            </div>
+            <div class="invoice-info">
+                <strong>INVOICE DETAILS:</strong>
+                <p>
+                    Date: {{invoice.date}}<br>
+                    Due Date: {{invoice.dueDate}}<br>
+                    Payment Terms: {{invoice.paymentTerms}}<br>
+                    Delivery Method: {{invoice.deliveryMethod}}
+                </p>
+            </div>
+        </div>
+
+        <!-- Shipping Address if different -->
+        {{#if customer.shippingAddress}}
+        <div class="shipping-details">
+            <strong>SHIP TO:</strong>
+            <p>{{customer.shippingAddress}}</p>
+        </div>
+        {{/if}}
+
+        <!-- Items Table -->
+        <table>
+            <thead>
+                <tr>
+                    <th>Description</th>
+                    <th>Quantity</th>
+                    <th>Unit Price</th>
+                    {{#if items.[0].discountedPrice}}
+                    <th>Discounted Price</th>
+                    {{/if}}
+                    <th>Amount</th>
+                </tr>
+            </thead>
+            <tbody>
+                {{#each items}}
+                <tr>
+                    <td>{{this.description}}</td>
+                    <td>{{this.quantity}}</td>
+                    <td>{{this.unitPrice}}</td>
+                    {{#if this.discountedPrice}}
+                    <td>{{this.discountedPrice}}</td>
+                    {{/if}}
+                    <td>{{this.amount}}</td>
+                </tr>
+                {{/each}}
+            </tbody>
+        </table>
+
+        <!-- Totals Section -->
+        <div class="totals">
+            <div>Subtotal: {{summary.subtotal}}</div>
+            {{#if summary.discountAmount}}
+            <div class="discount">Discount: -{{summary.discountAmount}}</div>
+            {{/if}}
+            {{#if summary.totalTax}}
+            <div>Tax: {{summary.totalTax}}</div>
+            {{/if}}
+            <div class="total-amount">Total: {{summary.grandTotal}}</div>
+        </div>
+
+        <!-- Payment Information -->
+        <div class="payment-info">
+            <h3>Payment Details</h3>
+            <p>
+                Bank Name: {{company.bank}}<br>
+                Account Name: {{company.name}}<br>
+                Account Number: {{company.account_number}}<br>
+            </p>
+        </div>
+
+        <!-- Footer -->
+        <div class="footer">
+            <p><strong>Payment Terms:</strong> {{invoice.paymentTerms}}</p>
+            <p>Thank you for your business!</p>
+        </div>
+    </div>
+</body>
+</html>

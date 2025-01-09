@@ -39,6 +39,14 @@ class SalesOrder extends Model {
                     key: "organization_id"
                 }
             },
+            customer_id: {
+                type: DataTypes.INTEGER,
+                allowNull: false,
+                references:{
+                    model: "customers",
+                    key: "customer_id"
+                }
+            },
             status_id: {
                 type: DataTypes.INTEGER,
                 allowNull: false,
@@ -58,6 +66,11 @@ class SalesOrder extends Model {
             total_tax: {
                 type: DataTypes.DECIMAL(10, 2), 
                 allowNull: true,
+            },
+            is_sales_order_edited: {
+                type: DataTypes.BOOLEAN, 
+                allowNull: false,
+                defaultValue: true, 
             }
         }, {
             sequelize,

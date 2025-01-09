@@ -17,7 +17,6 @@ import Sidebar from "../sidebar";
 import ItemTable from "./addSalesInventoryTable";
 import SalesSummary from "./sales_summary";
 import MultiDiscountSelection from "./discount_section";
-import { FaTemperatureHigh } from "react-icons/fa";
 import { 
   AlertDialog,
   AlertDialogAction,
@@ -57,7 +56,7 @@ const MainContent = ({ isMobile }) => {
   const { username } = useContext(GlobalContext);
   const dropdownRef = useRef(null);
   const {organizationId} = useContext(GlobalContext);
-
+  const [createdSalesOrderUuid, setCreatedSalesOrderUuid] = useState("");
   const [loading, setLoading] = useState(false);
   const [apiError, setApiError] = useState(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -73,7 +72,7 @@ const MainContent = ({ isMobile }) => {
   const [discountError, setDiscountError] = useState(null);
   const [tempPaymentInfo, setTempPaymentInfo] = useState(null);
   const [showCancelDialog, setShowCancelDialog] = useState(false);
-
+  const [showInvoiceGenerationDialog, setShowInvoiceGenerationDialog] = useState(false);
   const [formState, setFormState] = useState({
     customerData: null,
     selectedCustomer: null,
@@ -189,7 +188,7 @@ const MainContent = ({ isMobile }) => {
     }
 
     try {
-      const response = await instance.get(`http://localhost:3002/api/stakeholders/customers?username=${username}`);
+      const response = await instance.get(`/stakeholders/customers?username=${username}`);
       setFormState(prev => ({
         ...prev,
         customerData: response.data,
@@ -268,6 +267,67 @@ const MainContent = ({ isMobile }) => {
     return Object.keys(newErrors).length === 0;
 };
 
+  const generateInvoice = async (salesOrderUuid) => {
+    try {
+      const response = await instance.get(`/sales/generate-invoice/${salesOrderUuid}`, {
+        responseType: 'arraybuffer',  // Changed from 'blob' to 'arraybuffer'
+        headers: {
+          'Accept': 'application/pdf',
+        }
+      });
+  
+      // Create blob from array buffer
+      const blob = new Blob([response.data], { type: 'application/pdf' });
+      const url = window.URL.createObjectURL(blob);
+      
+      // Create and trigger download
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', `invoice-${salesOrderUuid}.pdf`);
+      
+      // Append to body, click, and cleanup
+      document.body.appendChild(link);
+      link.click();
+      
+      // Cleanup after small delay to ensure download starts
+      setTimeout(() => {
+        document.body.removeChild(link);
+        window.URL.revokeObjectURL(url);
+      }, 100);
+  
+      toast.success('Invoice generated successfully', {
+        duration: 4000,
+        position: 'bottom-right',
+      });
+      navigate(-1);
+  
+    } catch (error) {
+      // Handle error if response is arraybuffer
+      if (error.response?.data instanceof ArrayBuffer) {
+        try {
+          const decoder = new TextDecoder('utf-8');
+          const errorText = decoder.decode(error.response.data);
+          const errorData = JSON.parse(errorText);
+          toast.error(errorData.message || 'Failed to generate invoice', {
+            duration: 4000,
+            position: 'bottom-right',
+          });
+        } catch (decodeError) {
+          toast.error('Failed to generate invoice', {
+            duration: 4000,
+            position: 'bottom-right',
+          });
+        }
+      } else {
+        toast.error('Failed to generate invoice', {
+          duration: 4000,
+          position: 'bottom-right',
+        });
+      }
+      console.error('Error generating invoice:', error);
+      navigate(-1);
+    }
+  }
   const handleSubmit = async (e) => {
     e?.preventDefault();
 
@@ -328,17 +388,17 @@ const MainContent = ({ isMobile }) => {
       console.log("Submitting sales data:", salesData); // Debug log
 
       const response = await instance.post(
-        `http://localhost:3002/api/sales/${username}/salesOrder`,
+        `/sales/${username}/salesOrder`,
         salesData
       );
 
       if (response.data) {
-        // Show success toast
+        setCreatedSalesOrderUuid(response.data.data.sales_order_uuid);
         toast.success('Sales order created successfully!', {
           duration: 3000,
           position: 'bottom-right',
         });
-        navigate(-1);
+        setShowInvoiceGenerationDialog(true);
       }
     } catch (error) {
       console.error("Error details:", error.response?.data);
@@ -389,11 +449,13 @@ const MainContent = ({ isMobile }) => {
 
   return (
     <main className="flex-1">
+      <div
+        className={`h-[calc(100vh-4rem)] overflow-y-auto custom-scrollbar min-w-[320px] ${
+          isMobile ? "w-full" : "ml-[13rem]"
+        }`}
+      >
 
       <Toaster position="bottom-right" />
-
-      <div className={`h-[calc(100vh-4rem)] overflow-y-auto ${isMobile ? 'w-full' : 'ml-[13rem]'}`}>
-
           <AlertDialog open={showCancelDialog} onOpenChange={setShowCancelDialog}>
             <AlertDialogContent className="bg-white">
               <AlertDialogHeader>
@@ -410,9 +472,26 @@ const MainContent = ({ isMobile }) => {
               </AlertDialogFooter>
             </AlertDialogContent>
           </AlertDialog>
+          <AlertDialog open={showInvoiceGenerationDialog} onOpenChange={setShowInvoiceGenerationDialog}>
+            <AlertDialogContent className="bg-white">
+              <AlertDialogHeader>
+                <AlertDialogTitle>Generate Invoice?</AlertDialogTitle>
+                <AlertDialogDescription>
+                  Do you want to generate the invoice for this sales order? You can still generate it through sales order page later. 
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel onClick={() => generateInvoice(createdSalesOrderUuid)}>Yes</AlertDialogCancel>
+                <AlertDialogAction onClick={() => navigate(-1)}>
+                  No
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
+          
 
-        <div className="p-4 md:p-6">
-          <div className="max-w-[1400px] mx-auto">
+        <div className="p-6">
+          <div className="w-full">
             <div className="mb-6">
               <h1 className="text-2xl font-bold pl-6">Add New Sales Order</h1>
             </div>
@@ -425,14 +504,14 @@ const MainContent = ({ isMobile }) => {
             )}
 
         <form onSubmit={handleSubmit} className="space-y-4 md:space-y-6 pb-24">
-          <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+          <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-2">
             {/* Customer Information Card */}
-            <Card>
+            <Card className="w-full min-w-0">
               <CardHeader className="pb-2">
                 <CardTitle>Customer Information</CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
-                <div className="grid gap-4">
+                <div className="space-y-2">
                   <label className="text-sm font-medium text-gray-700">
                     Customer Name
                   </label>
@@ -454,27 +533,26 @@ const MainContent = ({ isMobile }) => {
                     {errors.customer && (
                       <p className="text-red-500 text-sm">{errors.customer}</p>
                     )}
-                    {formState.showCustomer && (
-                      <div className="absolute w-full z-10" ref={dropdownRef}>
-                        <div className="mt-1 w-full bg-white border rounded-lg shadow-lg">
-                          <ul className="py-1 max-h-60 overflow-auto">
-                            {formState.customerData?.customers.map(
-                              (customer) => (
-                                <li
-                                  key={customer.customer_uuid}
-                                  className="px-4 py-2 hover:bg-gray-100 cursor-pointer"
-                                  onClick={() => handleCustomerSelect(customer)}
-                                >
-                                  {customer.customer_name}
-                                </li>
-                              )
-                            )}
-                          </ul>
+                      {/* Customer Dropdown */}
+                      {formState.showCustomer && (
+                        <div className="absolute w-full z-10" ref={dropdownRef}>
+                          <div className="mt-1 w-full bg-white border rounded-lg shadow-lg max-h-60 overflow-auto">
+                            {formState.customerData?.customers.map((customer) => (
+                              <button
+                                key={customer.customer_uuid}
+                                type="button"
+                                className="w-full px-4 py-2 text-left hover:bg-gray-50 focus:bg-gray-50 focus:outline-none"
+                                onClick={() => handleCustomerSelect(customer)}
+                              >
+                                <div className="font-medium">{customer.customer_name}</div>
+                                <div className="text-sm text-gray-500">{customer.customer_email}</div>
+                              </button>
+                            ))}
+                          </div>
                         </div>
-                      </div>
-                    )}
+                      )}
+                    </div>
                   </div>
-                </div>
               
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
@@ -486,7 +564,7 @@ const MainContent = ({ isMobile }) => {
                     name="salesOrderRef"
                     value={formState.salesOrderRef}
                     onChange={handleInputChange}
-                    className="w-full p-2 border rounded-md"
+                    className="w-full min-w-0 p-2 border rounded-md"
                   />
                 </div>
               </div>
@@ -532,7 +610,7 @@ const MainContent = ({ isMobile }) => {
             </Card>
 
             {/* Shipping Information Card */}
-            <Card>
+            <Card className="w-full min-w-0">
               <CardHeader className="pb-2">
                 <CardTitle>Shipping Information</CardTitle>
               </CardHeader>
@@ -618,7 +696,7 @@ const MainContent = ({ isMobile }) => {
                             : "")
                         }
                         onChange={handleInputChange}
-                        className="w-full p-2 border rounded-md h-24"
+                        className="w-full min-w-0 p-2 border rounded-md h-24"
                         placeholder="Enter shipping address"
                       />
                     </div>
@@ -633,8 +711,8 @@ const MainContent = ({ isMobile }) => {
               <CardHeader className="pb-2">
                 <CardTitle>Order Items</CardTitle>
               </CardHeader>
-              <CardContent className="overflow-x-auto">
-                <div className="min-w-[600px]">
+              <CardContent>
+                <div className="border rounded-lg overflow-hidden">
                   <ItemTable
                     items={formState.items}
                     setItems={(items) => setFormState((prev) => ({ ...prev, items }))}
@@ -676,8 +754,9 @@ const MainContent = ({ isMobile }) => {
               <CardHeader className="pb-2">
                 <CardTitle>Order Summary</CardTitle>
               </CardHeader>
-              <CardContent>
+              <CardContent className="overflow-x-auto">
                 <SalesSummary
+                  className="w-full sm:w-auto max-w-full sm:max-w-[384px]"
                   subTotal={tempPaymentInfo?.subtotal ?? 0}
                   grandTotal={tempPaymentInfo?.grandtotal ?? 0}
                   discountAmount={tempPaymentInfo?.totalDiscountAmount ?? 0}
@@ -692,9 +771,10 @@ const MainContent = ({ isMobile }) => {
           {/* Action Buttons */}
           <div className="fixed bottom-0 right-0 bg-white border-t p-4 z-10"
                 style={{ 
-                  left: isMobile ? '0' : '13rem'
+                  left: isMobile ? '0' : '13rem',
+                  width: 'auto'
                 }}>
-            <div className="max-w-[1400px] mx-auto w-full flex justify-end space-x-4">
+            <div className="w-full flex justify-end gap-4 pr-4">
               <button
                 type="button"
                 onClick={handleCancel}
@@ -719,11 +799,11 @@ const MainContent = ({ isMobile }) => {
                   "Save"
                 )}
               </button>
-            </div>
           </div>
         </div>
       </div>
     </div>
+   </div>
   </main>
 );
 };

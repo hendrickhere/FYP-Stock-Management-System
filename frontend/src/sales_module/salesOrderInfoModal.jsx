@@ -834,7 +834,7 @@ const SalesOrderModal = ({
                                     <PriceDisplay
                                       price={product.items?.price || 0}
                                       discountedPrice={
-                                        product.items?.discounted_price || 0
+                                        product.items?.discounted_price
                                       }
                                       discounts={editedOrder?.Discounts || []}
                                       formatCurrency={formatCurrency}

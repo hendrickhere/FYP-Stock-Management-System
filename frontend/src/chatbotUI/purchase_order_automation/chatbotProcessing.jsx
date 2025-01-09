@@ -176,39 +176,6 @@ const ChatbotProcessing = ({
     };
   };
 
-  const processAnalysisResult = (analysisResult) => {
-    // Validate the analysis result
-    const validationResults = validateAnalysisResult(analysisResult);
-
-    // If not valid but has warnings, we can still proceed with empty structure
-    if (!validationResults.isValid) {
-      const emptyPO = createEmptyPurchaseOrder();
-      
-      // Copy any valid data we did receive
-      if (analysisResult?.metadata) {
-        emptyPO.metadata = {
-          ...emptyPO.metadata,
-          ...analysisResult.metadata
-        };
-      }
-      
-      if (Array.isArray(analysisResult?.extractedItems)) {
-        emptyPO.extractedItems = analysisResult.extractedItems;
-      }
-
-      return {
-        processedResult: emptyPO,
-        warnings: validationResults.warnings
-      };
-    }
-
-    // If valid, return the analyzed result with any warnings
-    return {
-      processedResult: analysisResult,
-      warnings: validationResults.warnings
-    };
-  };
-
   useEffect(() => {
     if (!analysisResult) return;
 
@@ -480,72 +447,6 @@ const handleProceed = async () => {
   return 0;
 };
 
-// Add a new function to handle user confirmation
-const handleAnalysisConfirm = () => {
-  // Move to document processing after user confirms
-  setCurrentStage(PROCESSING_STAGES.DOCUMENT_PROCESSING);
-  
-  // Then determine and move to next appropriate stage
-  const nextStage = determineNextStage(analysisResult);
-  setCurrentStage(nextStage);
-
-  // Update context
-  dispatch({
-    type: 'SET_PROCESSING_STAGE',
-    payload: nextStage
-  });
-};
-
-  const processWithPartialData = (analysisResult) => {
-    // Track what information we have and what's missing
-    const dataStatus = {
-      hasVendorInfo: !!analysisResult.metadata?.vendorName,
-      hasValidProducts: analysisResult.extractedItems?.length > 0,
-      hasFinancials: !!analysisResult.financials?.subtotal,
-      missingFields: []
-    };
-
-    // Build user guidance message
-    let guidanceMessage = "I've analyzed the purchase order and here's what I found:\n\n";
-    
-    // Add status for each major component
-    if (!dataStatus.hasVendorInfo) {
-      dataStatus.missingFields.push("vendor information");
-      guidanceMessage += "⚠️ Vendor details are missing - you'll need to add these later\n";
-    }
-    
-    if (!dataStatus.hasValidProducts) {
-      dataStatus.missingFields.push("product details");
-      guidanceMessage += "⚠️ Some product information may be incomplete\n";
-    }
-
-    // Instead of returning errors, provide a path forward
-    return {
-      canProceed: true, // Always allow proceeding
-      dataStatus,
-      guidanceMessage,
-      enhancedData: enrichDataWithDefaults(analysisResult)
-    };
-  };
-
-  // Helper function to add smart defaults
-  const enrichDataWithDefaults = (analysisResult) => {
-    return {
-      metadata: {
-        ...analysisResult.metadata,
-        vendorName: analysisResult.metadata?.vendorName || 'Unknown Vendor',
-        poDate: analysisResult.metadata?.poDate || new Date().toISOString(),
-        paymentTerms: analysisResult.metadata?.paymentTerms || 'Net 30'
-      },
-      financials: {
-        ...analysisResult.financials,
-        shipping: analysisResult.financials?.shipping || 500, // Default shipping
-        tax: calculateTaxWithDefaults(analysisResult)
-      },
-      // Other enrichments...
-    };
-  };
-
 const determineNextSteps = (analysisResult) => {
   if (!analysisResult?.groupedItems) {
     return {
@@ -602,79 +503,7 @@ const determineNextSteps = (analysisResult) => {
     return PROCESSING_STAGES.FINAL_REVIEW;
   };
 
-  const getInitialProcessingStage = (analysisResult) => {
-    // Follow the Inventory Verification Phase rules from documentation
-    if (!analysisResult || !analysisResult.groupedItems) {
-      return PROCESSING_STAGES.ERROR;
-    }
-
-    // First check for document processing
-    if (!analysisResult.metadata || !analysisResult.extractedItems) {
-      return PROCESSING_STAGES.DOCUMENT_PROCESSING;
-    }
-
-    // Then move to inventory verification if we have items to check
-    if (!analysisResult.groupedItems.existingProducts || 
-        !analysisResult.groupedItems.newProducts || 
-        !analysisResult.groupedItems.insufficientStock) {
-      return PROCESSING_STAGES.INVENTORY_VERIFICATION;
-    }
-
-    // Check if we have new products that need to be created
-    if (analysisResult.groupedItems.newProducts.length > 0) {
-      return PROCESSING_STAGES.ADDING_PRODUCTS;
-    }
-
-    // Check if we have stock issues to resolve
-    if (analysisResult.groupedItems.insufficientStock.length > 0) {
-      return PROCESSING_STAGES.REVIEWING_STOCK;
-    }
-
-    // If all products exist and have sufficient stock, go to final review
-    return PROCESSING_STAGES.FINAL_REVIEW;
-  };
-
-  const handleProcessingCancel = () => {
-      // Prevent multiple cancellations
-      if (currentStage === PROCESSING_STAGES.COMPLETED || 
-          currentStage === PROCESSING_STAGES.ERROR) {
-          return;
-      }
-
-      setCurrentStage(PROCESSING_STAGES.INITIAL);
-      setProcessingData(null);
-
-      if (onProcessingCancel) {
-          onProcessingCancel();
-      }
-  };
-
-  // Add support function for specific error types
-  const isRecoverableError = (error) => {
-    const recoverableErrors = [
-      'NETWORK_ERROR',
-      'VALIDATION_ERROR',
-      'STOCK_UPDATE_ERROR'
-    ];
-    return recoverableErrors.includes(error.code);
-  };
-
-  const validateStageTransition = (currentStage, nextStage) => {
-      const validTransitions = {
-          [PROCESSING_STAGES.DOCUMENT_PROCESSING]: [PROCESSING_STAGES.INVENTORY_VALIDATION],
-          [PROCESSING_STAGES.INVENTORY_VALIDATION]: [
-              PROCESSING_STAGES.ADDING_PRODUCTS,
-              PROCESSING_STAGES.FINAL_REVIEW
-          ],
-          [PROCESSING_STAGES.ADDING_PRODUCTS]: [PROCESSING_STAGES.FINAL_REVIEW],
-          [PROCESSING_STAGES.FINAL_REVIEW]: [PROCESSING_STAGES.PROCESSING],
-          [PROCESSING_STAGES.PROCESSING]: [PROCESSING_STAGES.COMPLETED, PROCESSING_STAGES.ERROR]
-      };
-      
-      return validTransitions[currentStage]?.includes(nextStage) ?? false;
-  };
-
-  // Handle new products being added
+// Handle new products being added
 const handleProductsAdded = async (newProducts) => {
   setIsProcessing(true);
   try {
@@ -783,41 +612,6 @@ const renderValidationErrorsFlow = (validationErrors) => {
       </div>
     </div>
   );
-};
-
-const processPurchaseOrder = async (analysisResult) => {
-  try {
-    // 1. Document Processing Phase
-    updateProgressWithMessage('documentAnalysis', 'Analyzing purchase order details...');
-    
-    const { groupedItems, financials, warnings } = analysisResult;
-    
-    // 2. Inventory Verification Phase
-    const verificationResults = await handleInventoryChecks(groupedItems);
-    
-    // Update processing data with verification results
-    setProcessingData(prev => ({
-      ...prev,
-      groupedItems: {
-        newProducts: verificationResults.newProducts || [],
-        existingProducts: verificationResults.existingProducts || [],
-        validationErrors: verificationResults.validationErrors || []
-      }
-    }));
-
-    // 3. Generate appropriate UI flow based on verification
-    if (verificationResults?.newProducts?.length > 0) {
-      return renderNewProductsFlow(verificationResults.newProducts);
-    } else if (verificationResults?.validationErrors?.length > 0) {
-      return renderValidationErrorsFlow(verificationResults.validationErrors);
-    } else {
-      return renderOrderReviewFlow(verificationResults.existingProducts || []);
-    }
-
-  } catch (error) {
-    handleProcessingError(error);
-    return null;
-  }
 };
 
 const handleProcessingError = (error) => {
@@ -951,184 +745,101 @@ const handleInventoryChecks = async (groupedItems) => {
   }
 };
 
-const ErrorDisplay = ({ errors }) => {
-  if (errors.length === 0) return null;
+const handleModify = (modifiedData) => {
+  // Update formData with the modified data
+  setFormData(prev => ({
+    ...prev,
+    items: {
+      existingProducts: modifiedData.items,
+      newProducts: []
+    },
+    financials: modifiedData.financials
+  }));
 
-  return (
-    <Alert variant="destructive">
-      <AlertCircle className="h-4 w-4" />
-      <AlertTitle>Processing Errors</AlertTitle>
-      <AlertDescription>
-        <ul className="list-disc pl-4">
-          {errors.map(error => (
-            <li key={error.id}>{error.message}</li>
-          ))}
-        </ul>
-      </AlertDescription>
-    </Alert>
-  );
+  // Also update processingData to keep them in sync
+  setProcessingData(prev => ({
+    ...prev,
+    items: {
+      existingProducts: modifiedData.items,
+      newProducts: []
+    },
+    financials: modifiedData.financials
+  }));
 };
 
   // Handle final purchase order processing
-const handleProcessOrder = async () => {
-  try {
-    setStatus(prev => ({ ...prev, isProcessing: true }));
-    const username = localStorage.getItem('username')?.trim();
-    if (!username) throw new Error('User not authenticated');
-
-    // Create a map to deduplicate products by SKU
-    const productMap = new Map();
-    
-    // Add existing products first
-    processingData.items.existingProducts.forEach(item => {
-      const sku = item.sku || item.sku_number;
-      productMap.set(sku, {
-        sku: sku,
-        quantity: parseInt(item.orderQuantity || item.quantity),
-        price: parseFloat(item.price || item.cost)
-      });
-    });
-    
-    // Add new products, overwriting any duplicates
-    formData?.items?.existingProducts?.forEach(item => {
-      if (item.type === 'new') {
-        const sku = item.sku || item.sku_number;
-        productMap.set(sku, {
-          sku: sku,
-          quantity: parseInt(item.orderQuantity || item.quantity),
-          price: parseFloat(item.price || item.cost)
-        });
-      }
-    });
-
-    const allItems = Array.from(productMap.values());
-
-    // Calculate financials based on deduplicated items
-    const subtotal = allItems.reduce((sum, item) => 
-      sum + (item.price * item.quantity), 0);
-    const tax = subtotal * 0.06;
-    const shipping = 500;
-    const total = subtotal + tax + shipping;
-    
-    console.log('Sending items to backend:', allItems); // For debugging
-
-    const purchaseOrderData = {
-      username: username,
-      orderDate: new Date().toISOString(),
-      deliveryMethod: "Standard Shipping",
-      paymentTerms: "Net 30",
-      totalAmount: total, // Use calculated total instead of modifiedData
-      itemsList: allItems
-    };
-
-    const response = await instance.post(
-      `/purchases/automated/${username}`, 
-      purchaseOrderData
-    );
-
-      if (response.data) {
-        // Update the messages in session storage to mark this analysis as completed
+  const handleProcessOrder = async (modifiedData) => {
+    if (status.isProcessing) return; // Prevent multiple submissions
+  
+    try {
+      setStatus(prev => ({ ...prev, isProcessing: true }));
+      const username = localStorage.getItem('username')?.trim();
+      if (!username) throw new Error('User not authenticated');
+  
+      // Use the modified data passed from PurchaseOrderPreview
+      const allItems = modifiedData.items.map(item => ({
+        sku: item.sku,
+        quantity: parseInt(item.quantity),
+        price: parseFloat(item.price),
+        productName: item.productName
+      }));
+  
+      const purchaseOrderData = {
+        username,
+        orderDate: new Date().toISOString(),
+        deliveryMethod: "Standard Shipping",
+        paymentTerms: "Net 30",
+        totalAmount: modifiedData.financials.total,
+        itemsList: allItems
+      };
+  
+      const response = await instance.post(
+        `/purchases/automated/${username}`, 
+        purchaseOrderData
+      );
+      
+      if (response.status === 200 || response.status === 201) {
+        // Update session storage
         const currentMessages = JSON.parse(sessionStorage.getItem('stocksavvy_current_messages') || '[]');
         const updatedMessages = currentMessages.map(msg => {
-          // Look for the message containing this specific analysis result
-          if (msg.fileAnalysis && 
-              msg.fileAnalysis.metadata?.poNumber === analysisResult.metadata?.poNumber) {
-            return {
-              ...msg,
-              fileAnalysis: {
-                ...msg.fileAnalysis,
-                status: { completed: true }  // Mark as completed
-              }
-            };
+          if (msg.fileAnalysis?.metadata?.poNumber === analysisResult.metadata?.poNumber) {
+            return { ...msg, fileAnalysis: { ...msg.fileAnalysis, status: { completed: true } } };
           }
           return msg;
         });
-        
         sessionStorage.setItem('stocksavvy_current_messages', JSON.stringify(updatedMessages));
         
-        // Clear processing data
+        // Clear states
         setProcessingData(null);
-
-        const successMessage = {
-          type: 'bot',
-          text: `Purchase order #${response.data.id || response.data.purchaseOrderId} created successfully. Need anything else?`,
-          timestamp: new Date().toISOString()
-        };
-
+        setFormData(null);
+  
+        // Notify completion
         if (onMessage) {
-          onMessage(successMessage);
+          onMessage({
+            type: 'bot',
+            text: `Purchase order #${response.data.orderId} created successfully. Need anything else?`,
+            timestamp: new Date().toISOString()
+          });
         }
-
+  
         if (onProcessingComplete) {
-          onProcessingComplete(response.data);
+          onProcessingComplete({
+            status: 'success',
+            orderId: response.data.orderId,
+            data: purchaseOrderData
+          });
         }
-
-        return null;
       }
-
     } catch (error) {
-      console.error('Purchase order processing error:', error);
+      console.error('Error processing order:', error);
       handleProcessingError(error);
+      throw error; // Re-throw to be caught by PurchaseOrderPreview
     } finally {
-      setIsProcessing(false);
+      setStatus(prev => ({ ...prev, isProcessing: false }));
     }
   };
 
-    // Render progress steps
-  const renderProgress = () => (
-    <div className="flex items-center gap-2 mb-4">
-      <div className="flex-1">
-        <Steps
-          steps={[
-            {
-              label: "Document Analysis",
-              status: getStepStatus(PROCESSING_STAGES.DOCUMENT_PROCESSING)
-            },
-            {
-              label: "Inventory Validation",
-              status: getStepStatus(PROCESSING_STAGES.INVENTORY_VALIDATION),
-              hidden: !analysisResult?.groupedItems?.newProducts?.length
-            },
-            {
-              label: "Purchase Order Review",
-              status: getStepStatus(PROCESSING_STAGES.PURCHASE_ORDER_REVIEW)
-            }
-          ].filter(step => !step.hidden)}
-          currentStep={currentStage}
-        />
-      </div>
-    </div>
-  );
-
-    // Get status for progress step
-    const getStepStatus = (stage) => {
-      if (currentStage === stage) return 'current';
-      if (
-        (stage === PROCESSING_STAGES.ADDING_PRODUCTS && currentStage === PROCESSING_STAGES.REVIEWING_STOCK) ||
-        (stage === PROCESSING_STAGES.REVIEWING_STOCK && currentStage === PROCESSING_STAGES.FINAL_REVIEW) ||
-        currentStage === PROCESSING_STAGES.COMPLETED
-      ) {
-        return 'completed';
-      }
-      return 'pending';
-    };
-
-    const updateProcessingStatus = (stage, status, message) => {
-      dispatch({
-        type: 'UPDATE_PROCESSING_STATUS',
-        payload: { stage, status, message }
-      });
-      
-      // Also inform parent component
-      onMessage({
-        type: 'bot',
-        text: message,
-        status: status,
-        timestamp: new Date().toISOString()
-      });
-    };
-
-    // Render current stage content
+// Render current stage content
 const renderStageContent = () => {
   if (isProcessing) {
     return <div>Processing...</div>;

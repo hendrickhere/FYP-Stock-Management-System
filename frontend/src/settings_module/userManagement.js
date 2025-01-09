@@ -1,15 +1,14 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useContext } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { FaUsersCog } from "react-icons/fa";
 import { Alert, AlertDescription } from "../ui/alert";
-import { PlusCircle } from 'lucide-react';
+import { PlusCircle, Search, AlertCircle, Save, Ban, RefreshCw } from 'lucide-react';
+import { GlobalContext } from '../globalContext';
+import Header from '../header';
+import Sidebar from '../sidebar';
+import instance from '../axiosConfig';
 
 function UserManagement() {
-  const [userData] = useState(() => {
-    const cached = sessionStorage.getItem('userData');
-    return cached ? JSON.parse(cached) : null;
-  });
-  const navigate = useNavigate();
   const [isMobile, setIsMobile] = useState(window.innerWidth < 1024);
 
   useEffect(() => {
@@ -21,12 +20,73 @@ function UserManagement() {
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
-  useEffect(() => {
-    if (!userData || userData.role !== 'admin') {
-      navigate('/settings');
-      return;
+  return (
+    <div className="flex flex-col h-screen w-full overflow-hidden">
+      <Header />
+      <div className="flex flex-row flex-grow overflow-hidden">
+        <Sidebar />
+        <MainContent isMobile={isMobile} />
+      </div>
+    </div>
+  );
+}
+
+const MainContent = ({ isMobile }) => {
+  const navigate = useNavigate();
+  const { organizationId } = useContext(GlobalContext);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [apiError, setApiError] = useState("");
+  const [loading, setLoading] = useState(true);
+  const [users, setUsers] = useState([]);
+  const [userData] = useState(() => {
+    const cached = sessionStorage.getItem('userData');
+    return cached ? JSON.parse(cached) : null;
+  });
+
+  // Fetch users (simulated - replace with actual API call)
+  const fetchUsers = async (showRefresh = false) => {
+    try {
+      if (showRefresh) {
+        setIsRefreshing(true);
+      } else {
+        setLoading(true);
+      }
+
+      // Replace with actual API call
+      const mockUsers = [
+        { id: 1, name: 'John Doe', role: 'Manager', status: 'active', lastActive: '2 hours ago' },
+        { id: 2, name: 'Jane Smith', role: 'Staff', status: 'active', lastActive: '1 day ago' },
+        { id: 3, name: 'Bob Johnson', role: 'Staff', status: 'inactive', lastActive: '5 days ago' },
+      ];
+      
+      setUsers(mockUsers);
+      setApiError(null);
+    } catch (error) {
+      setApiError("Failed to load users. Please try again later.");
+      console.error("Error fetching users:", error);
+    } finally {
+      setLoading(false);
+      if (showRefresh) {
+        setIsRefreshing(false);
+      }
     }
-  }, [userData, navigate]);
+  };
+
+  useEffect(() => {
+    fetchUsers();
+  }, [organizationId]);
+
+  const handleRefresh = () => {
+    fetchUsers(true);
+  };
+
+  // Filter users based on search term
+  const filteredUsers = users.filter(user =>
+    user.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    user.role.toLowerCase().includes(searchTerm.toLowerCase())
+  );
 
   if (!userData || userData.role !== 'admin') {
     return (
@@ -38,164 +98,162 @@ function UserManagement() {
     );
   }
 
-  // Sample user data - replace with actual data
-  const users = [
-    { id: 1, name: 'John Doe', role: 'Manager', status: 'active' },
-    { id: 2, name: 'Jane Smith', role: 'Staff', status: 'active' },
-    { id: 3, name: 'Bob Johnson', role: 'Staff', status: 'inactive' },
-    // Add more sample users as needed
-  ];
-
   return (
-    <div className="w-full h-[calc(100vh-8rem)] overflow-y-auto">
-      <div className="min-h-full">
-        <div className="flex items-center justify-between mb-6">
-          <div className="flex items-center">
-            <FaUsersCog className="w-6 h-6 mr-2" />
-            <h1 className="text-2xl font-bold">User Management</h1>
-          </div>
-          <button 
-            className="inline-flex items-center px-4 py-2 text-sm font-medium text-white bg-[#38304C] rounded-md hover:bg-[#2A2338] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#38304C]"
-          >
-            <PlusCircle className="w-5 h-5 mr-2" />
-            Add User
-          </button>
-        </div>
-        
-        <div className="bg-white rounded-lg shadow-sm p-6">
-          {/* Filters and Search Section */}
-          <div className="flex flex-col md:flex-row justify-between gap-4 mb-6">
-            <div className="flex flex-col sm:flex-row gap-4">
-              <select className="rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
-                <option>All Roles</option>
-                <option>Admin</option>
-                <option>Manager</option>
-                <option>Staff</option>
-              </select>
-              <select className="rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
-                <option>All Status</option>
-                <option>Active</option>
-                <option>Inactive</option>
-              </select>
+    <main className="flex-1 min-w-0">
+      <div className="h-[calc(100vh-4rem)] overflow-y-auto overflow-x-hidden custom-scrollbar">
+        <div className={`${isMobile ? "space-y-1" : "ml-[13rem]"}`}>
+          <div className="p-6 space-y-6">
+            {/* Title Section */}
+            <div className="mb-8">
+              <div className="flex items-center">
+                <FaUsersCog className="w-6 h-6 mr-2 text-gray-700 flex-shrink-0" />
+                <h1 className="text-2xl font-bold text-gray-900 truncate">User Management</h1>
+              </div>
+              <p className="text-gray-600 mt-1 truncate">Manage user access and permissions</p>
             </div>
-            <div className="relative">
-              <input
-                type="text"
-                placeholder="Search users..."
-                className="w-full md:w-64 rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
-              />
-            </div>
-          </div>
 
-          {/* User Table */}
-          <div className="overflow-x-auto">
-            <div className="min-w-full align-middle">
-              <div className="overflow-hidden shadow ring-1 ring-black ring-opacity-5 rounded-lg">
-                <table className="min-w-full divide-y divide-gray-300">
+            {/* Error Alert */}
+            {apiError && (
+              <Alert variant="destructive">
+                <AlertCircle className="h-4 w-4" />
+                <AlertDescription>{apiError}</AlertDescription>
+              </Alert>
+            )}
+
+            {/* Main Content Section */}
+            <div className="bg-white rounded-xl shadow-sm">
+              {/* Filters Header */}
+              <div className="p-4 md:p-6 border-b border-gray-200">
+                <div className="flex flex-col space-y-4 sm:space-y-0 sm:flex-row sm:justify-between sm:items-center">
+                  <div className="w-full sm:w-auto order-2 sm:order-1">
+                    <div className="flex flex-col sm:flex-row sm:items-center space-y-4 sm:space-y-0 sm:space-x-4">
+                      <div className="relative flex-1 sm:flex-initial">
+                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-4 h-4" />
+                        <input
+                          type="text"
+                          placeholder="Search users..."
+                          value={searchTerm}
+                          onChange={(e) => setSearchTerm(e.target.value)}
+                          className="w-full sm:w-64 pl-9 pr-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#38304C] focus:border-transparent"
+                        />
+                      </div>
+                      <select className="rounded-md border-gray-300 shadow-sm focus:ring-2 focus:ring-[#38304C]">
+                        <option>All Roles</option>
+                        <option>Admin</option>
+                        <option>Manager</option>
+                        <option>Staff</option>
+                      </select>
+                    </div>
+                  </div>
+                  
+                  <div className="flex items-center space-x-4 order-1 sm:order-2">
+                    <button
+                      onClick={handleRefresh}
+                      className={`p-2 text-gray-500 hover:text-gray-700 rounded-full hover:bg-gray-100 transition-colors ${
+                        isRefreshing ? "animate-spin" : ""
+                      }`}
+                      disabled={isRefreshing}
+                    >
+                      <RefreshCw className="w-5 h-5" />
+                    </button>
+                    <button 
+                      className="flex items-center px-4 py-2 text-white bg-primary hover:bg-primary/90 rounded-md shadow-sm"
+                    >
+                      <PlusCircle className="w-5 h-5 mr-2" />
+                      Add User
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              {/* Table Section */}
+              <div className="overflow-x-auto custom-scrollbar">
+                <table className="w-full divide-y divide-gray-200">
                   <thead className="bg-gray-50">
                     <tr>
-                      <th scope="col" className="py-3.5 pl-4 pr-3 text-left text-sm font-semibold text-gray-900 sm:pl-6">
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                         Name
                       </th>
-                      <th scope="col" className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                         Role
                       </th>
-                      <th scope="col" className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                         Status
                       </th>
-                      <th scope="col" className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                         Last Active
                       </th>
-                      <th scope="col" className="relative py-3.5 pl-3 pr-4 sm:pr-6">
-                        <span className="sr-only">Actions</span>
+                      <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Actions
                       </th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-gray-200 bg-white">
-                    {users.map((user) => (
-                      <tr key={user.id}>
-                        <td className="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium text-gray-900 sm:pl-6">
-                          {user.name}
-                        </td>
-                        <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
-                          {user.role}
-                        </td>
-                        <td className="whitespace-nowrap px-3 py-4 text-sm">
-                          <span className={`inline-flex rounded-full px-2 text-xs font-semibold leading-5 ${
-                            user.status === 'active' 
-                              ? 'bg-green-100 text-green-800' 
-                              : 'bg-red-100 text-red-800'
-                          }`}>
-                            {user.status.charAt(0).toUpperCase() + user.status.slice(1)}
-                          </span>
-                        </td>
-                        <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
-                          2 hours ago
-                        </td>
-                        <td className="relative whitespace-nowrap py-4 pl-3 pr-4 text-right text-sm font-medium sm:pr-6">
-                          <button className="text-indigo-600 hover:text-indigo-900 mr-4">
-                            Edit
-                          </button>
-                          <button className="text-red-600 hover:text-red-900">
-                            Delete
-                          </button>
+                  <tbody className="bg-white divide-y divide-gray-200">
+                    {loading ? (
+                      <tr>
+                        <td colSpan={5} className="px-6 py-4">
+                          <div className="flex justify-center items-center space-x-2">
+                            <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-gray-900"></div>
+                            <span>Loading users...</span>
+                          </div>
                         </td>
                       </tr>
-                    ))}
+                    ) : filteredUsers.length === 0 ? (
+                      <tr>
+                        <td colSpan={5} className="px-6 py-4 text-center text-gray-500">
+                          {searchTerm ? "No matching users found" : "No users available"}
+                        </td>
+                      </tr>
+                    ) : (
+                      filteredUsers.map((user) => (
+                        <tr key={user.id} className="hover:bg-gray-50">
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <div className="text-sm font-medium text-gray-900">{user.name}</div>
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <div className="text-sm text-gray-500">{user.role}</div>
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                              user.status === 'active' 
+                                ? 'bg-green-100 text-green-800' 
+                                : 'bg-red-100 text-red-800'
+                            }`}>
+                              {user.status.charAt(0).toUpperCase() + user.status.slice(1)}
+                            </span>
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <div className="text-sm text-gray-500">{user.lastActive}</div>
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                            <button className="text-primary hover:text-primary/90 mr-4">Edit</button>
+                            <button className="text-red-600 hover:text-red-900">Delete</button>
+                          </td>
+                        </tr>
+                      ))
+                    )}
                   </tbody>
                 </table>
               </div>
             </div>
           </div>
-
-          {/* Pagination */}
-          <div className="flex items-center justify-between border-t border-gray-200 bg-white px-4 py-3 sm:px-6 mt-4">
-            <div className="flex flex-1 justify-between sm:hidden">
-              <button className="relative inline-flex items-center rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50">
-                Previous
-              </button>
-              <button className="relative ml-3 inline-flex items-center rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50">
-                Next
-              </button>
-            </div>
-            <div className="hidden sm:flex sm:flex-1 sm:items-center sm:justify-between">
-              <div>
-                <p className="text-sm text-gray-700">
-                  Showing <span className="font-medium">1</span> to <span className="font-medium">10</span> of{' '}
-                  <span className="font-medium">20</span> results
-                </p>
-              </div>
-              <div>
-                <nav className="isolate inline-flex -space-x-px rounded-md shadow-sm" aria-label="Pagination">
-                  <button className="relative inline-flex items-center rounded-l-md px-2 py-2 text-gray-400 ring-1 ring-inset ring-gray-300 hover:bg-gray-50 focus:z-20 focus:outline-offset-0">
-                    Previous
-                  </button>
-                  <button className="relative inline-flex items-center px-4 py-2 text-sm font-semibold text-gray-900 ring-1 ring-inset ring-gray-300 hover:bg-gray-50 focus:z-20 focus:outline-offset-0">
-                    1
-                  </button>
-                  <button className="relative inline-flex items-center px-4 py-2 text-sm font-semibold text-gray-900 ring-1 ring-inset ring-gray-300 hover:bg-gray-50 focus:z-20 focus:outline-offset-0">
-                    2
-                  </button>
-                  <button className="relative inline-flex items-center rounded-r-md px-2 py-2 text-gray-400 ring-1 ring-inset ring-gray-300 hover:bg-gray-50 focus:z-20 focus:outline-offset-0">
-                    Next
-                  </button>
-                </nav>
-              </div>
-            </div>
-          </div>
         </div>
+      </div>
 
-        <div className="flex justify-end mt-6 space-x-3">
-          <button 
-            onClick={() => navigate('/settings')}
-            className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+      {/* Fixed Bottom Action Button */}
+      <div className={`fixed bottom-0 right-0 bg-white border-t border-gray-200 p-4 ${isMobile ? "w-full" : "left-[13rem]"}`}>
+        <div className="flex justify-end gap-4 pr-4">
+          <button
+            onClick={() => navigate("/settings")}
+            className="inline-flex items-center px-4 py-2 text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50"
           >
+            <Ban className="w-4 h-4 mr-2" />
             Back to Settings
           </button>
         </div>
       </div>
-    </div>
+    </main>
   );
-}
+};
 
 export default UserManagement;

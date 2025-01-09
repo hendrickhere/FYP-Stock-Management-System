@@ -1,4 +1,4 @@
-import React, {useState, useEffect, useContext, useRef, useCallback, useMemo} from "react";
+import React, {useState, useEffect, useContext, useRef, useCallback, useMemo, useLayoutEffect} from "react";
 import Header from '../header';
 import Sidebar from '../sidebar';
 import { useNavigate } from 'react-router-dom';
@@ -14,12 +14,12 @@ import { Button } from "../ui/button";
 import { Plus } from 'lucide-react';
 import { toast } from "../ui/use-toast";
 
-const springTransition = {
+const syncedTransition = {
   type: "spring",
-  stiffness: 400,
-  damping: 40,
-  mass: 0.3,
-  restDelta: 0.001
+  stiffness: 300, 
+  damping: 30,
+  delay: 0,       
+  duration: 0.3,  
 };
 
 function Inventory() {
@@ -56,6 +56,13 @@ function MainContent({ isMobile }) {
   const { scrollDirection, isAtTop } = useScrollDirection();
   const [isTopButtonsVisible, setIsTopButtonsVisible] = useState(true);
   const topButtonsRef = useRef(null);
+
+  const [immediateScrollDirection, setImmediateScrollDirection] = useState(scrollDirection);
+
+  useLayoutEffect(() => {
+    setImmediateScrollDirection(scrollDirection); 
+  }, [scrollDirection]);
+
   const [searchConfig, setSearchConfig] = useState({
     term: "",
     activeFilters: [],
@@ -138,7 +145,7 @@ function MainContent({ isMobile }) {
 
   async function fetchInventories() {
     await axiosInstance
-      .get(`http://localhost:3002/api/user/${username}/inventories`)
+      .get(`/user/${username}/inventories`)
       .then((response) => {
         setData(() => response.data);
         console.log(`response is here! + ${response.data}`);
@@ -149,7 +156,7 @@ function MainContent({ isMobile }) {
   async function deleteInventory(productUUID) {
     try {
       await axiosInstance.put(
-        `http://localhost:3002/api/user/${username}/${productUUID}/delete`
+        `/user/${username}/${productUUID}/delete`
       );
       // Update local state to remove the deleted item
       setData((prevData) => ({
@@ -225,7 +232,7 @@ function MainContent({ isMobile }) {
   return (
     <main className="flex-1">
       <div
-        className={`scroll-container h-[calc(100vh-4rem)] overflow-y-auto ${
+        className={`scroll-container h-[calc(100vh-4rem)] overflow-y-auto custom-scrollbar ${
           isMobile ? "w-full" : ""
         }`}
       >
@@ -239,7 +246,7 @@ function MainContent({ isMobile }) {
               : "13rem",
             marginTop: scrollDirection === "down" && !isAtTop ? "0" : "0",
           }}
-          transition={springTransition}
+          transition={syncedTransition}
         >
           {/* Title and Search Section */}
           <motion.div
@@ -248,7 +255,7 @@ function MainContent({ isMobile }) {
               opacity: scrollDirection === "down" && !isAtTop ? 0 : 1,
               y: scrollDirection === "down" && !isAtTop ? -20 : 0,
             }}
-            transition={springTransition}
+            transition={syncedTransition}
           >
             <div className="flex flex-col lg:flex-row lg:items-center gap-4">
               <h1 className="text-xl font-medium">Inventory</h1>
@@ -275,7 +282,8 @@ function MainContent({ isMobile }) {
               opacity: scrollDirection === "down" && !isAtTop ? 0 : 1,
               y: scrollDirection === "down" && !isAtTop ? -20 : 0,
             }}
-            transition={springTransition}
+            transition={syncedTransition}
+
           >
             <Button
               variant="default"
@@ -294,24 +302,23 @@ function MainContent({ isMobile }) {
 
           {/* Content Area */}
           <motion.div
-            className="bg-white rounded-lg shadow-sm relative"
+            className="bg-white rounded-lg shadow-sm overflow-hidden" 
             animate={{
               width: isMobile
                 ? "100%"
                 : scrollDirection === "down" && !isAtTop
-                ? "calc(100vw - 8rem)"
-                : "100%",
-              x: 0,
+                ? "calc(100vw - 8rem)"  
+                : "calc(100vw - 17rem)",
             }}
-            transition={springTransition}
+            transition={syncedTransition}
           >
-            <motion.div className="p-4" layout>
+            <div className="p-4"> 
               {loading ? (
                 <div className="flex justify-center items-center py-8">
                   <p>Loading...</p>
                 </div>
               ) : (
-                <motion.div className="grid-container" layout>
+                <div className="w-full">
                   <InventoryLayout
                     products={filteredData}
                     handleDeleteData={handleDeleteData}
@@ -336,12 +343,12 @@ function MainContent({ isMobile }) {
                       onProductUpdate={handleProductUpdate}
                     />
                   )}
-                </motion.div>
+                </div>
               )}
-            </motion.div>
+            </div>
           </motion.div>
-        </motion.div>
-      </div>
+      </motion.div>
+    </div>
 
       {/* Floating Action Button */}
       {!isTopButtonsVisible && !isAtTop && (
@@ -349,7 +356,7 @@ function MainContent({ isMobile }) {
           initial={{ scale: 0, opacity: 0 }}
           animate={{ scale: 1, opacity: 1 }}
           exit={{ scale: 0, opacity: 0 }}
-          transition={springTransition}
+          transition={syncedTransition}
           onClick={navigateToAddProductPage}
           className="fixed bottom-6 right-6 w-14 h-14 bg-green-600 text-white rounded-full shadow-lg flex items-center justify-center hover:bg-green-700 transition-colors z-50"
         >

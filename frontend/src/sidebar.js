@@ -9,12 +9,12 @@ import { FaUsers, FaUserTie, FaUser } from 'react-icons/fa';
 import { motion, AnimatePresence } from 'framer-motion';
 import { RiShieldCheckLine } from "react-icons/ri";
 
-const springTransition = {
+const syncedTransition = {
   type: "spring",
-  stiffness: 400,
-  damping: 40,
-  mass: 0.3,
-  restDelta: 0.001
+  stiffness: 300, 
+  damping: 30,
+  delay: 0,       
+  duration: 0.3,  
 };
 
 function Sidebar({ scrollDirection, isAtTop }) {
@@ -68,7 +68,8 @@ function Sidebar({ scrollDirection, isAtTop }) {
           width: isMinimized ? '4rem' : '13rem',
           x: 0
         }}
-        transition={springTransition}
+        transition={syncedTransition}
+
       >
         <ul className="list-none p-0 m-0 flex-grow flex flex-col mt-4">
           {menuItems.map(({ path, icon: Icon, label }) => (

@@ -2,41 +2,49 @@ const { ProductNotFoundException } = require("../errors/notFoundException");
 const {ValidationException} = require("../errors/validationError");
 const {DatabaseOperationException} = require("../errors/operationError");
 const db = require("../models");
-const { Warranty, Product } = db;
+const { Warranty, Product, User, WarrantyClaim } = db;
 const { Op } = require('sequelize');
 
 class WarrantyService {
+
   async createWarranty(warrantyData) {
     const transaction = await db.sequelize.transaction();
-
+    
     try {
+      console.log('Creating warranty with data:', warrantyData);
+      
       // Check if product exists
       const product = await Product.findByPk(warrantyData.product_id);
       if (!product) {
         throw new ProductNotFoundException("Product not found");
       }
 
-      // Create warranty record with user information
-      const warranty = await Warranty.create(
-        {
-          ...warrantyData,
-          created_at: new Date(),
-          updated_at: new Date(),
-        },
-        {
-          transaction,
-          include: [
-            {
-              model: Product,
-              as: "product",
-            },
-          ],
-        }
-      );
+      const createData = {
+        product_id: warrantyData.product_id,
+        organization_id: warrantyData.organization_id,
+        warranty_type: warrantyData.warranty_type,
+        warranty_number: warrantyData.warranty_number,
+        terms: warrantyData.terms,
+        description: warrantyData.description,
+        duration: warrantyData.duration,
+        created_by: warrantyData.created_by,
+        created_at: new Date(),
+        updated_at: new Date(),
+      };
+
+      console.log('Attempting to create warranty with:', createData);
+
+      const warranty = await Warranty.create(createData, {
+        transaction,
+        include: [{ model: Product, as: "product" }],
+  });
+
+      console.log('Created warranty:', warranty.toJSON());
 
       await transaction.commit();
       return warranty;
     } catch (error) {
+      console.error('Error creating warranty:', error);
       await transaction.rollback();
       throw error;
     }
@@ -84,9 +92,33 @@ class WarrantyService {
             model: Product,
             as: "product",
           },
+          {
+            model: User,
+            as: "creator",
+            attributes: ['username']
+          },
+          {
+            model: User,
+            as: "modifier",
+            attributes: ['username']
+          }
         ],
+        attributes: {
+          include: [
+            'created_at',
+            'updated_at',
+            'warranty_id',
+            'warranty_number',
+            'duration',
+            'terms',
+            'description',
+            'warranty_type'
+          ]
+        },
+        order: [['created_at', 'DESC']]
       });
     } catch (error) {
+      console.error('Error fetching warranties:', error);
       throw error;
     }
   }
@@ -124,6 +156,16 @@ class WarrantyService {
             model: Product,
             as: "product",
           },
+          {
+            model: User,
+            as: "creator",
+            attributes: ['username']
+          },
+          {
+            model: User,
+            as: "modifier",
+            attributes: ['username']
+          }
         ],
       });
     } catch (error) {
@@ -192,24 +234,77 @@ class WarrantyService {
 
   async updateWarranty(warrantyId, updateData) {
     const transaction = await db.sequelize.transaction();
+    
     try {
-      const warranty = await Warranty.findByPk(warrantyId);
+      // First, check if the warranty exists
+      const warranty = await Warranty.findByPk(warrantyId, {
+        include: [
+          {
+            model: Product,
+            as: 'product'
+          }
+        ]
+      });
+
       if (!warranty) {
         throw new Error("Warranty not found");
       }
 
-      await warranty.update(
-        {
-          ...updateData,
-          updated_at: new Date(),
-        },
-        { transaction }
-      );
+      // Validate duration is a positive number
+      if (updateData.duration) {
+        const duration = parseInt(updateData.duration);
+        if (isNaN(duration) || duration < 0) {
+          throw new ValidationException("Duration must be a positive number");
+        }
+        updateData.duration = duration;
+      }
+
+      // Validate warranty number length
+      if (updateData.warranty_number && updateData.warranty_number.length > 50) {
+        throw new ValidationException("Warranty number cannot exceed 50 characters");
+      }
+
+      // Validate terms length
+      if (updateData.terms && updateData.terms.length > 255) {
+        throw new ValidationException("Terms cannot exceed 255 characters");
+      }
+
+      // Perform the update
+      await warranty.update({
+        warranty_number: updateData.warranty_number,
+        duration: updateData.duration,
+        terms: updateData.terms,
+        description: updateData.description,
+        last_modified_by: updateData.last_modified_by,
+        updated_at: new Date()
+      }, { transaction });
 
       await transaction.commit();
-      return warranty;
+
+      const updatedWarranty = await Warranty.findByPk(warrantyId, {
+        include: [
+          {
+            model: Product,
+            as: 'product'
+          },
+          {
+            model: User,
+            as: 'creator',
+            attributes: ['username']
+          },
+          {
+            model: User,
+            as: 'modifier',
+            attributes: ['username']
+          }
+        ]
+      });
+
+      return updatedWarranty;
+
     } catch (error) {
       await transaction.rollback();
+      
       throw error;
     }
   }
@@ -312,6 +407,50 @@ class WarrantyService {
         "Failed to check warranty availability",
         err
       );
+    }
+  }
+
+  async deleteWarranty(warrantyId) {
+    const transaction = await db.sequelize.transaction();
+    
+    try {
+      const warranty = await Warranty.findOne({
+        where: {
+          warranty_id: warrantyId
+        },
+        include: [
+          {
+            model: WarrantyClaim,
+            as: 'claims',
+            attributes: ['claim_id', 'claim_status'],
+            where: {
+              claim_status: {
+                [Op.in]: [1, 2] // Pending or Approved claims
+              }
+            },
+            required: false 
+          }
+        ],
+        transaction
+      });
+  
+      if (!warranty) {
+        throw new Error("Warranty not found");
+      }
+  
+      // Check for active claims
+      if (warranty.claims && warranty.claims.length > 0) {
+        throw new ValidationException("Cannot delete warranty with active claims");
+      }
+  
+      // If no active claims, proceed with deletion
+      const deleteResult = await warranty.destroy({ transaction });
+  
+      await transaction.commit();
+      return deleteResult;
+    } catch (error) {
+      await transaction.rollback();
+      throw error;
     }
   }
 }

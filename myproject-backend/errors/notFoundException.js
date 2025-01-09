@@ -33,11 +33,6 @@ class ProductUnitNotFoundException extends NotFoundException {
     if (!Array.isArray(productUnitIds)) {
       throw new TypeError('productUnitIds must be an array');
     }
-
-    // if (!productUnitIds.every(id => Number.isInteger(id) && id >= 0)) {
-    //   throw new TypeError('All product unit IDs must be non-negative integers');
-    // }
-
     const formattedIds = productUnitIds.join(', ');
     
     super(
@@ -54,6 +49,14 @@ class ProductUnitNotFoundException extends NotFoundException {
   }
 }
 
+class WarrantyUnitNotFoundException extends Error{
+  constructor(productUnitId){
+    super(`No warranty unit found for product unit: ${productUnitId}`);
+    this.name = "WarrantyUnitNotFoundException",
+    this.statusCode = 404;
+  }
+}
+
 class WarrantyNotFoundException extends Error {
   constructor(productId) {
       super(`No warranty found for product: ${productId}`);
@@ -62,4 +65,12 @@ class WarrantyNotFoundException extends Error {
   }
 }
 
-module.exports = { NotFoundException, UserNotFoundException, PurchaseOrderNotFoundException, ProductNotFoundException, WarrantyNotFoundException, ProductUnitNotFoundException };
+class OrganizationNotFoundException extends Error {
+  constructor(organizationId) {
+      super(`No organization found for organization id: ${organizationId}`);
+      this.name = 'OrganizationNotFoundException';
+      this.statusCode = 404;
+  }
+}
+
+module.exports = { NotFoundException, UserNotFoundException, PurchaseOrderNotFoundException, ProductNotFoundException, WarrantyUnitNotFoundException, WarrantyNotFoundException, ProductUnitNotFoundException, OrganizationNotFoundException };
