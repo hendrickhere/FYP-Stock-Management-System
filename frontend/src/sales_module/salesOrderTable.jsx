@@ -427,13 +427,13 @@ const SalesTable = ({
                       <td className="px-3 py-4">
                         <input
                           type="checkbox"
-                          checked={selectedOrders.includes(order.sales_order_uuid)} // Make sure order is from your map function
+                          checked={selectedOrders.includes(order.sales_order_uuid)} 
                           onChange={() => handleSelectOrder(order.sales_order_uuid)}
                           className={getCheckboxClass()}
                         />
                       </td>
                       <td className="px-3 py-4 text-sm text-gray-900">
-                        {order.sales_order_uuid.slice(0, 8)}...
+                        {order.sales_order_uuid}
                       </td>
                       <td className="px-3 py-4 text-sm text-gray-500">
                         {formatDate(order.order_date_time)}

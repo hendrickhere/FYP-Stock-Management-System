@@ -300,7 +300,8 @@ exports.returnSalesOrder = async (validatedData) => {
 
     const productUnits = await ProductUnit.findAll({
       where: {
-        product_unit_id: productUnitIds
+        product_unit_id: productUnitIds,
+        is_sold: true
       },
       include: [{
         model: SalesOrderInventory,
@@ -314,11 +315,7 @@ exports.returnSalesOrder = async (validatedData) => {
     });
     
     if (productUnits.length !== productUnitIds.length) {
-      await transaction.rollback();
-      return res.status(400).json({
-        status: 'error',
-        message: 'Some product units do not belong to this sales order'
-      });
+     throw new Error('Some product units do not belong to this sales order');
     }
     const existingReturns = await ProductUnitReturn.findAll({
       where: {
@@ -328,12 +325,7 @@ exports.returnSalesOrder = async (validatedData) => {
     });
     
     if (existingReturns.length > 0) {
-      await transaction.rollback();
-      return res.status(400).json({
-        status: 'error',
-        message: 'Some products have already been returned',
-        details: existingReturns.map(r => r.product_unit_id)
-      });
+      throw new Error('Some products have already been returned');
     }
     await ProductUnit.update(
       {

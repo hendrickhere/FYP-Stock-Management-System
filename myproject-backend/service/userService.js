@@ -462,7 +462,6 @@ exports.updateInventory = async (username, inventoryUUID, updateData) => {
       const [updateCount, [updatedRecord]] = await Product.update(dbData, {
           where: {
               product_uuid: inventoryUUID,
-              user_id: user.user_id,
           },  
           returning: true
       });

@@ -102,6 +102,7 @@ exports.returnSalesOrder = async (req, res) => {
     });
   }
 }
+
 exports.getAllSalesOrderWithTimeRange = async (req, res, next) => {
     try {
       const { username } = req.params;
