@@ -27,10 +27,13 @@ function Header({ scrollDirection, isAtTop }) {
   const [showLogoutAlert, setShowLogoutAlert] = useState(false);
   const [showSessionExpiredAlert, setShowSessionExpiredAlert] = useState(false);
   const [showSettingsMenu, setShowSettingsMenu] = useState(false);
-  
+  const [showNotifications, setShowNotifications] = useState(false);
+  const [notifications, setNotifications] = useState([]);
+  const [lastFetchTime, setLastFetchTime] = useState(null);
+
   const userMenuRef = useRef(null);
   const settingsMenuRef = useRef(null);
-  
+
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -180,9 +183,79 @@ function Header({ scrollDirection, isAtTop }) {
     setShowMobileMenu(false);
   };
 
+  // Fetch expiring products and convert to notifications
+  const fetchExpiringProducts = async () => {
+    try {
+      console.log('Fetching expiring products...');
+      console.log('API URL:', instance.defaults.baseURL);
+      const response = await instance.get('/products/expiring');
+      console.log('Expiring products response:', response.data);
+      const expiringProducts = response.data;
+      
+      const currentTime = new Date().toISOString();
+      
+      const newNotifications = expiringProducts.map(product => ({
+        id: `expiry-${product.id}-${product.expiryDate}`,
+        title: `${product.urgency === 'high' ? '🚨' : '⚠️'} Product Expiring Soon`,
+        message: `${product.name} (${product.sku || 'No SKU'}) - ${product.stock} units will expire in ${product.daysUntilExpiry} days`,
+        date: currentTime,
+        read: false,
+        type: 'expiry',
+        urgency: product.urgency,
+        productId: product.id,
+        link: `/inventory?product=${product.id}`
+      }));
+
+      console.log('New notifications:', newNotifications);
+
+      setNotifications(prev => {
+        // Keep existing non-expiry notifications
+        const existingNonExpiry = prev.filter(n => n.type !== 'expiry');
+        const merged = [...existingNonExpiry, ...newNotifications];
+        console.log('Updated notifications:', merged);
+        return merged;
+      });
+
+      setLastFetchTime(currentTime);
+    } catch (error) {
+      console.error('Failed to fetch expiring products:', error);
+    }
+  };
+
+  // Fetch notifications periodically
+  useEffect(() => {
+    console.log('Setting up notification fetching...');
+    fetchExpiringProducts();
+    const interval = setInterval(fetchExpiringProducts, 30 * 60 * 1000); // Every 30 minutes
+    
+    return () => clearInterval(interval);
+  }, []);
+
+  const handleNotificationClick = (notification) => {
+    // Mark as read
+    setNotifications(prev =>
+      prev.map(n => (n.id === notification.id ? { ...n, read: true } : n))
+    );
+
+    // Navigate if there's a link
+    if (notification.link) {
+      navigate(notification.link);
+    }
+    
+    setShowNotifications(false);
+  };
+
+  const handleMarkAllAsRead = () => {
+    setNotifications(prev =>
+      prev.map(n => ({ ...n, read: true }))
+    );
+  };
+
   const isActiveRoute = (path) => {
     return location.pathname === path;
   };
+
+  const unreadCount = notifications.filter(notification => !notification.read).length;
 
   if (isLoading) {
     return (
@@ -235,11 +308,7 @@ function Header({ scrollDirection, isAtTop }) {
 
   // Mobile menu
   const renderMobileMenu = () => (
-    <div className={`
-      lg:hidden fixed inset-0 top-[57px] bg-white z-50 overflow-y-auto
-      transition-transform duration-300 ease-in-out
-      ${showMobileMenu ? 'translate-x-0' : 'translate-x-full'}
-    `}>
+    <div className={`lg:hidden fixed inset-0 top-[57px] bg-white z-50 overflow-y-auto transition-transform duration-300 ease-in-out ${showMobileMenu ? 'translate-x-0' : 'translate-x-full'}`}>
       <div className="px-4 py-3 space-y-4 max-w-lg mx-auto">
         {/* User Info with Quick Actions */}
         <div className="bg-gray-50 rounded-lg">
@@ -259,9 +328,67 @@ function Header({ scrollDirection, isAtTop }) {
             >
               <IoChatbubbleEllipsesOutline className="w-5 h-5" />
             </button>
-            <button className="p-2 hover:bg-gray-200 rounded-full transition-colors">
-              <IoIosNotificationsOutline className="w-6 h-6" />
-            </button>
+            <div className="relative">
+              <button 
+                onClick={() => setShowNotifications(!showNotifications)}
+                className="p-2 hover:bg-gray-200 rounded-full transition-colors relative"
+              >
+                <IoIosNotificationsOutline className="w-6 h-6" />
+                {unreadCount > 0 && (
+                  <span className="absolute -top-0.5 -right-0.5 inline-flex items-center justify-center w-4 h-4 text-xs font-bold text-white bg-red-500 rounded-full">
+                    {unreadCount}
+                  </span>
+                )}
+              </button>
+
+              {/* Mobile Notification Panel */}
+              {showNotifications && (
+                <div className="fixed inset-x-0 top-[57px] mx-4 bg-white rounded-lg shadow-lg border border-gray-100 z-50 max-h-[calc(100vh-120px)] overflow-y-auto">
+                  <div className="p-3 border-b border-gray-100 flex justify-between items-center sticky top-0 bg-white">
+                    <h3 className="font-semibold text-gray-700">Notifications</h3>
+                    {unreadCount > 0 && (
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleMarkAllAsRead();
+                        }}
+                        className="text-sm text-purple-600 hover:text-purple-700"
+                      >
+                        Mark all as read
+                      </button>
+                    )}
+                  </div>
+                  
+                  <div className="divide-y divide-gray-100">
+                    {notifications.length > 0 ? (
+                      notifications.map(notification => (
+                        <div
+                          key={notification.id}
+                          onClick={() => {
+                            handleNotificationClick(notification);
+                            setShowNotifications(false);
+                          }}
+                          className="p-4 hover:bg-gray-50 cursor-pointer transition-colors relative"
+                        >
+                          {!notification.read && (
+                            <span className="absolute top-4 right-4 w-2 h-2 bg-blue-500 rounded-full" />
+                          )}
+                          <div className="space-y-1">
+                            <div className="font-medium text-gray-800">{notification.title}</div>
+                            <p className="text-sm text-gray-600">{notification.message}</p>
+                            <div className="text-xs text-gray-400">{notification.date}</div>
+                          </div>
+                        </div>
+                      ))
+                    ) : (
+                      <div className="p-4 text-center text-gray-500">
+                        No notifications
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
         </div>
 
@@ -298,13 +425,7 @@ function Header({ scrollDirection, isAtTop }) {
             <Link
               key={path}
               to={path}
-              className={`
-                flex items-center space-x-4 p-4 rounded-lg
-                ${isActiveRoute(path)
-                  ? 'bg-[#38304C] text-white'
-                  : 'text-gray-700 hover:bg-gray-50'}
-                transition-colors duration-150
-              `}
+              className={`flex items-center space-x-4 p-4 rounded-lg ${isActiveRoute(path) ? 'bg-[#38304C] text-white' : 'text-gray-700 hover:bg-gray-50'} transition-colors duration-150`}
               onClick={() => setShowMobileMenu(false)}
             >
               <Icon className={`w-5 h-5 ${isActiveRoute(path) ? 'text-white' : 'text-gray-500'}`} />
@@ -373,7 +494,14 @@ function Header({ scrollDirection, isAtTop }) {
 
           {/* Desktop Actions */}
           <div className="hidden lg:flex items-center space-x-4">
-            <HeaderButtons onChatClick={handleChatClick} />
+            <HeaderButtons 
+              onChatClick={handleChatClick} 
+              notifications={notifications}
+              onNotificationClick={handleNotificationClick}
+              onMarkAllAsRead={handleMarkAllAsRead}
+              showNotifications={showNotifications}
+              setShowNotifications={setShowNotifications}
+            />
 
             <div className="relative user-menu-container">
               <button 

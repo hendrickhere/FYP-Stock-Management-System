@@ -5,6 +5,7 @@ import { GlobalContext } from '../globalContext';
 import toast, { Toaster } from 'react-hot-toast';
 import Sidebar from '../sidebar';
 import Header from "../header";
+import { TbBuilding } from "react-icons/tb";
 
 const OrganizationSettings = () => {
     const [isMobile, setIsMobile] = useState(window.innerWidth < 1024);
@@ -25,8 +26,6 @@ const OrganizationSettings = () => {
             </div>
         </div>
     );
-
-
 };
 
 const MainContent = ({ isMobile }) => {
@@ -111,7 +110,7 @@ const MainContent = ({ isMobile }) => {
             <Toaster position="bottom-right" />
             <div className="space-y-2">
                 <h1 className="text-xl lg:text-2xl font-semibold flex items-center gap-2">
-                    <span className="text-gray-500">⚙️</span> Organization Settings
+                    <TbBuilding className="w-6 h-6 text-gray-500" /> Organization Settings
                 </h1>
                 <p className="text-sm lg:text-base text-muted-foreground">Configure organization information</p>
             </div>
@@ -133,15 +132,14 @@ const MainContent = ({ isMobile }) => {
                             className="flex items-center justify-center gap-2 px-3 lg:px-4 py-2 text-sm text-white bg-blue-600 rounded-md hover:bg-blue-700 flex-1 sm:flex-auto"
                         >
                             {isEditing ? (
-                                <>
-                                    <Save className="w-4 h-4" />
-                                    <span>Save Changes</span>
-                                </>
+                                <Save className="w-4 h-4" />
                             ) : (
-                                <>
-                                    <Pencil className="w-4 h-4" />
-                                    <span>Edit Settings</span>
-                                </>
+                                <Pencil className="w-4 h-4" />
+                            )}
+                            {isEditing ? (
+                                <span>Save Changes</span>
+                            ) : (
+                                <span>Edit Settings</span>
                             )}
                         </button>
                     </div>

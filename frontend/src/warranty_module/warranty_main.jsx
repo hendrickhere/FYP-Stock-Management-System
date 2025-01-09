@@ -25,6 +25,13 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "../ui/alert-dialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "../ui/dropdown-menu";
+import { ChevronDown } from 'lucide-react';
 
 const syncedTransition = {
   type: "spring",
@@ -167,7 +174,7 @@ export const MainContent = ({ isMobile, scrollDirection, isAtTop }) => {
   const confirmDelete = async () => {
     try {
       if (!warrantyToDelete) return;
-  
+
       const response = await instance.delete(`/warranties/${warrantyToDelete.warranty_id}?username=${username}`);
       
       if (response.data.success) {
@@ -270,39 +277,92 @@ export const MainContent = ({ isMobile, scrollDirection, isAtTop }) => {
           </div>
 
           {/* Action Buttons */}
-          <div className="flex flex-row gap-4 mb-6">
-            <Button
-              variant="default"
-              className="flex items-center space-x-2 px-4 py-2 bg-white text-green-700 font-medium rounded-lg shadow hover:bg-green-600 hover:text-white focus:outline-none focus:ring-2 focus:ring-green-400 focus:ring-opacity-75"
-              onClick={() => navigate('/warranty/add_warranty')}
-            >
-              <Plus className="w-4 h-4 mr-2" />
-              Add Warranty
-            </Button>
-            <Button
-              variant="default"
-              className="flex items-center space-x-2 px-4 py-2 bg-white text-green-700 font-medium rounded-lg shadow hover:bg-green-600 hover:text-white focus:outline-none focus:ring-2 focus:ring-green-400 focus:ring-opacity-75"
-              onClick={() => setIsClaimModalOpen(true)}
-            >
-              <Plus className="w-4 h-4 mr-2" />
-              Create Warranty Claim
-            </Button>
-            <Button
-              variant="default"
-              className="flex items-center space-x-2 px-4 py-2 bg-white text-green-700 font-medium rounded-lg shadow hover:bg-green-600 hover:text-white focus:outline-none focus:ring-2 focus:ring-green-400 focus:ring-opacity-75"
-              onClick={() => navigate("/warranty/warranty_claim")}
-            >
-              <Plus className="w-4 h-4 mr-2" />
-              View Warranty Claim
-            </Button>
-            <Button
-              variant="outline"
-              className="flex items-center space-x-2"
-              onClick={() => {/* Implement export functionality */}}
-            >
-              <Download className="w-4 h-4 mr-2" />
-              Export
-            </Button>
+          <div className="mb-6">
+            <div className="hidden md:flex flex-row gap-4 flex-1">
+              <Button
+                variant="default"
+                className="flex items-center space-x-2 px-4 py-2 bg-white text-green-700 font-medium rounded-lg shadow hover:bg-green-600 hover:text-white focus:outline-none focus:ring-2 focus:ring-green-400 focus:ring-opacity-75 flex-1 justify-center max-w-[160px]"
+                onClick={() => navigate('/warranty/add_warranty')}
+              >
+                <Plus className="w-4 h-4 mr-2" />
+                Add Warranty
+              </Button>
+              <Button
+                variant="default"
+                className="flex items-center space-x-2 px-4 py-2 bg-white text-green-700 font-medium rounded-lg shadow hover:bg-green-600 hover:text-white focus:outline-none focus:ring-2 focus:ring-green-400 focus:ring-opacity-75 flex-1 justify-center max-w-[220px]"
+                onClick={() => setIsClaimModalOpen(true)}
+              >
+                <Plus className="w-4 h-4 mr-2" />
+                Create Warranty Claim
+              </Button>
+              <Button
+                variant="default"
+                className="flex items-center space-x-2 px-4 py-2 bg-white text-green-700 font-medium rounded-lg shadow hover:bg-green-600 hover:text-white focus:outline-none focus:ring-2 focus:ring-green-400 focus:ring-opacity-75 flex-1 justify-center max-w-[220px]"
+                onClick={() => navigate("/warranty/warranty_claim")}
+              >
+                <FileText className="w-4 h-4 mr-2" />
+                View Warranty Claim
+              </Button>
+              <Button
+                variant="outline"
+                className="flex items-center space-x-2 whitespace-nowrap flex-1 justify-center max-w-[130px]"
+                onClick={() => {/* Implement export functionality */}}
+              >
+                <Download className="w-4 h-4 mr-2" />
+                Export
+              </Button>
+            </div>
+
+            {/* Mobile Dropdown Menu */}
+            <div className="md:hidden">
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    variant="default"
+                    className="w-full flex items-center justify-between px-4 py-2 bg-white text-green-700 font-medium rounded-lg shadow hover:bg-green-50 focus:outline-none focus:ring-2 focus:ring-green-400 focus:ring-opacity-75 transition-colors duration-200"
+                  >
+                    <span className="flex items-center">
+                      <Plus className="w-4 h-4 mr-2" />
+                      Warranty Actions
+                    </span>
+                    <ChevronDown className="w-4 h-4 ml-2 transition-transform duration-200 group-data-[state=open]:rotate-180" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent 
+                  className="w-[calc(100vw-3rem)] mx-2 p-2 bg-white rounded-lg shadow-lg"
+                  sideOffset={5}
+                >
+                  <DropdownMenuItem 
+                    className="flex items-center px-4 py-2.5 hover:bg-green-50 rounded-md cursor-pointer transition-colors duration-200"
+                    onClick={() => navigate('/warranty/add_warranty')}
+                  >
+                    <Plus className="w-4 h-4 mr-2 text-green-600" />
+                    <span className="text-gray-700">Add Warranty</span>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem 
+                    className="flex items-center px-4 py-2.5 hover:bg-green-50 rounded-md cursor-pointer transition-colors duration-200"
+                    onClick={() => setIsClaimModalOpen(true)}
+                  >
+                    <Plus className="w-4 h-4 mr-2 text-green-600" />
+                    <span className="text-gray-700">Create Warranty Claim</span>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem 
+                    className="flex items-center px-4 py-2.5 hover:bg-green-50 rounded-md cursor-pointer transition-colors duration-200"
+                    onClick={() => navigate("/warranty/warranty_claim")}
+                  >
+                    <Plus className="w-4 h-4 mr-2 text-green-600" />
+                    <span className="text-gray-700">View Warranty Claim</span>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem 
+                    className="flex items-center px-4 py-2.5 hover:bg-green-50 rounded-md cursor-pointer transition-colors duration-200"
+                    onClick={() => {/* Implement export functionality */}}
+                  >
+                    <Download className="w-4 h-4 mr-2 text-green-600" />
+                    <span className="text-gray-700">Export</span>
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
           </div>
 
           {/* Warranty Grid with Loading and Error States */}
@@ -328,7 +388,7 @@ export const MainContent = ({ isMobile, scrollDirection, isAtTop }) => {
               No warranties found
             </div>
           ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:px-0">
             {filteredWarranties.map((warranty) => {
               // Calculate warranty status
               const currentDate = new Date();
@@ -388,33 +448,33 @@ export const MainContent = ({ isMobile, scrollDirection, isAtTop }) => {
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ duration: 0.3 }}
-                  className="bg-white rounded-xl shadow-sm border border-gray-100 hover:shadow-lg transition-all duration-300 flex flex-col h-[280px]" // Fixed height
+                  className="bg-white rounded-xl shadow-sm border border-gray-100 hover:shadow-lg transition-all duration-300 flex flex-col min-h-[280px] w-full"
                 >
                   {/* Header Section */}
                   <div className="p-3 border-b border-gray-100">
-                    <div className="flex justify-between items-start mb-2">
-                      <div className="flex items-center gap-2">
+                    <div className="flex flex-wrap justify-between items-start mb-2 gap-2">
+                      <div className="flex items-center gap-2 flex-wrap">
                         <Shield 
                           className={`h-4 w-4 ${
                             warranty.warranty_type === 1 ? "text-blue-500" : "text-purple-500"
                           }`}
                         />
-                        <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-gray-100">
+                        <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-gray-100 whitespace-nowrap">
                           {warranty.warranty_type === 1 ? "Consumer" : "Manufacturer"}
                         </span>
                       </div>
-                      <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${status.className}`}>
+                      <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${status.className} whitespace-nowrap`}>
                         {status.label}
                       </span>
                     </div>
                     
-                    <h3 className="text-sm font-semibold text-gray-900 mb-1 truncate">
+                    <h3 className="text-sm font-semibold text-gray-900 mb-1 break-words">
                       {warranty.product?.product_name}
                     </h3>
                     
-                    <div className="flex items-center gap-1 text-xs text-gray-500">
+                    <div className="flex items-center gap-1 text-xs text-gray-500 flex-wrap">
                       <span className="font-medium">SKU:</span>
-                      <span>{warranty.product?.sku_number}</span>
+                      <span className="break-all">{warranty.product?.sku_number}</span>
                     </div>
                   </div>
           
