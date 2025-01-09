@@ -27,6 +27,16 @@ const ChatbotProcessing = ({
   onProcessingCancel,
   onMessage
 }) => {
+  useEffect(() => {
+    return () => {
+      // Cleanup function that runs when component unmounts
+      setProcessingData(null);
+      setFormData(null);
+      setCurrentView('create_products');
+      setIsFormComplete(false);
+    };
+  }, []);
+
   const { state, dispatch } = usePurchaseOrder();
   const [currentStage, setCurrentStage] = useState(PROCESSING_STAGES.INITIAL);
   const [isCompleted, setIsCompleted] = useState(false);
@@ -152,30 +162,6 @@ const ChatbotProcessing = ({
     return validationResults;
   };
 
-  // Helper function to initialize empty purchase order structure
-  const createEmptyPurchaseOrder = () => {
-    return {
-      metadata: {
-        poNumber: null,
-        poDate: new Date().toISOString(),
-        vendorName: 'Unknown Vendor'
-      },
-      extractedItems: [],
-      groupedItems: {
-        newProducts: [],
-        existingProducts: [],
-        insufficientStock: [],
-        readyToProcess: []
-      },
-      financials: {
-        subtotal: 0,
-        tax: 0,
-        shipping: 0,
-        grandTotal: 0
-      }
-    };
-  };
-
   useEffect(() => {
     if (!analysisResult) return;
 
@@ -253,200 +239,6 @@ const ChatbotProcessing = ({
     };
   }, [analysisResult]);
 
-  const ProcessingProgress = ({ currentStage, missingInfo }) => {
-    return (
-      <div className="mb-6">
-        <div className="flex items-center justify-between mb-2">
-          <h3 className="text-lg font-medium">Processing Status</h3>
-          {missingInfo.length > 0 && (
-            <span className="text-sm text-amber-600">
-              {missingInfo.length} fields need attention
-            </span>
-          )}
-        </div>
-        
-        <div className="relative">
-          <div className="flex justify-between mb-1">
-            {Object.values(PROCESSING_STAGES).map((stage) => (
-              <div 
-                key={stage}
-                className={`text-sm ${
-                  stage === currentStage 
-                    ? 'text-blue-600 font-medium' 
-                    : 'text-gray-500'
-                }`}
-              >
-                {stage.replace(/_/g, ' ').toLowerCase()}
-              </div>
-            ))}
-          </div>
-          
-          <div className="h-2 bg-gray-200 rounded">
-            <div 
-              className="h-full bg-blue-600 rounded transition-all duration-300"
-              style={{
-                width: `${
-                  (Object.values(PROCESSING_STAGES).indexOf(currentStage) + 1) /
-                  Object.values(PROCESSING_STAGES).length * 100
-                }%`
-              }}
-            />
-          </div>
-        </div>
-
-        {missingInfo.length > 0 && (
-          <div className="mt-2 p-2 bg-amber-50 rounded text-sm">
-            <p className="font-medium text-amber-800">Missing Information:</p>
-            <ul className="list-disc pl-4 mt-1 text-amber-700">
-              {missingInfo.map((field, index) => (
-                <li key={index}>{field}</li>
-              ))}
-            </ul>
-          </div>
-        )}
-      </div>
-    );
-  };
-
-    const renderProcessingView = () => {
-      // Always show current status and missing information
-      return (
-        <div className="space-y-4">
-          {/* Progress indicator */}
-          <ProcessingProgress 
-            currentStage={processingState.stage}
-            missingInfo={processingState.missingInfo}
-          />
-
-          {/* Main content with missing field indicators */}
-          <div className="relative">
-            {processingState.autoFilledFields.length > 0 && (
-              <Alert variant="info" className="mb-4">
-                <AlertTitle>Some information was automatically filled</AlertTitle>
-                <AlertDescription>
-                  The following fields were auto-filled with default values:
-                  <ul>
-                    {processingState.autoFilledFields.map(field => (
-                      <li key={field.name}>
-                        {field.name}: {field.value} (click to edit)
-                      </li>
-                    ))}
-                  </ul>
-                </AlertDescription>
-              </Alert>
-            )}
-
-            {/* Render appropriate form/view based on stage */}
-            {renderStageContent()}
-          </div>
-
-          {/* Action buttons with clear next steps */}
-          <div className="flex justify-end gap-2">
-            <Button
-              variant="outline"
-              onClick={handleSaveAsDraft}
-              disabled={isProcessing}
-            >
-              Save as Draft
-            </Button>
-            <Button
-              onClick={handleProceed}
-              disabled={isProcessing}
-            >
-              {processingState.missingInfo.length > 0 
-                ? 'Proceed (Some Fields Missing)' 
-                : 'Proceed'}
-            </Button>
-          </div>
-        </div>
-      );
-    };
-
-  const handleSaveAsDraft = async () => {
-  try {
-    setIsProcessing(true);
-    
-    const draftData = {
-      ...processingData,
-      status: 'draft',
-      metadata: {
-        ...processingData.metadata,
-        savedAt: new Date().toISOString()
-      }
-    };
-
-    const response = await instance.post('/purchase/save-draft', draftData);
-    
-    toast({
-      title: 'Draft Saved',
-      description: `Purchase order draft saved successfully. Draft ID: ${response.data.draftId}`,
-      duration: 3000
-    });
-
-  } catch (error) {
-    console.error('Error saving draft:', error);
-    toast({
-      title: 'Error',
-      description: 'Failed to save draft. Please try again.',
-      variant: 'destructive'
-    });
-  } finally {
-    setIsProcessing(false);
-  }
-};
-
-const handleProceed = async () => {
-  try {
-    setIsProcessing(true);
-    
-    // If we have missing information, show a confirmation dialog
-    if (processingState.missingInfo.length > 0) {
-      const confirmMessage = 
-        `This purchase order is missing the following information:\n` +
-        `${processingState.missingInfo.join('\n')}\n\n` +
-        `Do you want to proceed anyway?`;
-        
-      if (!window.confirm(confirmMessage)) {
-        return;
-      }
-    }
-
-    // Proceed with the next stage based on current stage
-    const nextStage = determineNextStage(processingData);
-    setCurrentStage(nextStage);
-    
-    // If we're moving to final review, prepare the order
-    if (nextStage === PROCESSING_STAGES.PURCHASE_ORDER_REVIEW) {
-      await handleProcessOrder();
-    }
-
-  } catch (error) {
-    console.error('Error proceeding:', error);
-    handleProcessingError(error);
-  } finally {
-    setIsProcessing(false);
-  }
-};
-
-    const calculateTaxWithDefaults = (analysisResult) => {
-  // If we have a valid subtotal, calculate 6% tax
-  if (analysisResult.financials?.subtotal) {
-    return analysisResult.financials.subtotal * 0.06;
-  }
-  
-  // If we have individual items but no subtotal
-  if (analysisResult.extractedItems?.length) {
-    const calculatedSubtotal = analysisResult.extractedItems.reduce(
-      (sum, item) => sum + (parseFloat(item.price || 0) * parseInt(item.quantity || 0)), 
-      0
-    );
-    return calculatedSubtotal * 0.06;
-  }
-  
-  // Default to 0 if no valid data
-  return 0;
-};
-
 const determineNextSteps = (analysisResult) => {
   if (!analysisResult?.groupedItems) {
     return {
@@ -483,25 +275,32 @@ const determineNextSteps = (analysisResult) => {
   };
 };
 
-  const determineNextStage = (analysisResult) => {
-    // Follow the business rules for stage determination
-    if (!analysisResult.groupedItems) {
-      return PROCESSING_STAGES.ERROR;
-    }
+  const handleProcessingCancel = () => {
+    // First, clear the local processing state
+    setProcessingData(null);
+    setFormData(null);
+    setCurrentView('create_products');
+    setIsFormComplete(false);
+    
+    // Remove processing state from session storage
+    sessionStorage.removeItem('chatbot_processing_state');
 
-    // Check if we need to add new products first
-    if (analysisResult.groupedItems.newProducts?.length > 0) {
-      return PROCESSING_STAGES.ADDING_PRODUCTS;
+    // Notify parent component of cancellation
+    if (onProcessingCancel) {
+      onProcessingCancel();
     }
-
-    // Then check if we need to review stock levels
-    if (analysisResult.groupedItems.insufficientStock?.length > 0) {
-      return PROCESSING_STAGES.REVIEWING_STOCK;
-    }
-
-    // If all products exist and have sufficient stock
-    return PROCESSING_STAGES.FINAL_REVIEW;
   };
+
+  useEffect(() => {
+    // If analysisResult is cleared or completed, clean up local state
+    if (!analysisResult || analysisResult.status?.completed) {
+      setProcessingData(null);
+      setFormData(null);
+      setCurrentView('create_products');
+      setIsFormComplete(false);
+      sessionStorage.removeItem('chatbot_processing_state');
+    }
+  }, [analysisResult]);
 
 // Handle new products being added
 const handleProductsAdded = async (newProducts) => {
@@ -566,54 +365,6 @@ const handleProductsAdded = async (newProducts) => {
   }
 };
 
-const renderValidationErrorsFlow = (validationErrors) => {
-  return (
-    <div className="space-y-4">
-      <h3 className="text-lg font-medium">Validation Issues Found</h3>
-      <Alert variant="warning">
-        <AlertTitle>Please Review The Following Issues</AlertTitle>
-        <AlertDescription>
-          <ul className="list-disc pl-4 space-y-2">
-            {validationErrors.map((error, index) => (
-              <li key={index} className="text-sm">
-                {error.item && <strong className="font-medium">{error.item}: </strong>}
-                {error.details ? (
-                  <div className="pl-4 mt-1">
-                    {error.details.nameMatch === false && 
-                      <p>- Product name mismatch</p>}
-                    {error.details.skuMatch === false && 
-                      <p>- SKU mismatch</p>}
-                    {error.details.priceInRange === false && 
-                      <p>- Price outside acceptable range</p>}
-                    {error.details.unitsMatch === false && 
-                      <p>- Unit mismatch</p>}
-                  </div>
-                ) : (
-                  <span>{error.message}</span>
-                )}
-              </li>
-            ))}
-          </ul>
-        </AlertDescription>
-      </Alert>
-      
-      <div className="flex justify-end gap-2">
-        <Button
-          variant="outline"
-          onClick={onProcessingCancel}
-        >
-          Cancel Processing
-        </Button>
-        <Button
-          // onClick={() => handleNextStep('retry')}
-        >
-          Retry Validation
-        </Button>
-      </div>
-    </div>
-  );
-};
-
 const handleProcessingError = (error) => {
   console.error('Processing error:', error);
   
@@ -636,135 +387,6 @@ const handleProcessingError = (error) => {
   if (error.code === 'CRITICAL_ERROR') {
     onProcessingCancel();
   }
-};
-
-const renderNewProductsFlow = (newProducts) => {
-  return (
-    <div className="space-y-4">
-      <h3 className="text-lg font-medium">New Products to Add</h3>
-      <AddProductsForm
-        products={newProducts}
-        onSubmit={handleProductsAdded}
-        onCancel={onProcessingCancel}
-        isProcessing={isProcessing}
-      />
-    </div>
-  );
-};
-
-const renderOrderReviewFlow = (existingProducts) => {
-  if (!existingProducts || existingProducts.length === 0) {
-    // Handle the case where we have no products to review
-    return (
-      <Alert variant="warning">
-        <AlertTitle>No Products to Review</AlertTitle>
-        <AlertDescription>
-          No valid products were found for review. Please check your purchase order details.
-        </AlertDescription>
-      </Alert>
-    );
-  }
-
-  return (
-    <div className="space-y-4">
-      <h3 className="text-lg font-medium">Review Purchase Order</h3>
-      <PurchaseOrderPreview
-        items={existingProducts}
-        metadata={processingData.metadata}
-        financials={processingData.financials}
-        onConfirm={handleProcessOrder}
-        onCancel={onProcessingCancel}
-        isProcessing={isProcessing}
-      />
-    </div>
-  );
-};
-
-const updateProgressWithMessage = (stage, message) => {
-  // This function updates the UI with progress messages
-  toast({
-    title: `Processing: ${stage}`,
-    description: message,
-    duration: 3000
-  });
-};
-
-const validateInventoryItem = (item, existingProduct) => {
-  // Price range calculation for validation
-  const priceRange = {
-    min: existingProduct.cost * 0.85, // 15% below cost
-    max: existingProduct.cost * 1.15  // 15% above cost
-  };
-
-  // Return validation results
-  return {
-    nameMatch: item.productName === existingProduct.product_name,
-    skuMatch: item.sku === existingProduct.sku_number,
-    priceInRange: item.price >= priceRange.min && item.price <= priceRange.max,
-    unitsMatch: item.unit === existingProduct.unit,
-    currentStock: existingProduct.product_stock,
-    manufacturer: existingProduct.manufacturer
-  };
-};
-
-const handleInventoryChecks = async (groupedItems) => {
-  try {
-    const results = {
-      validProducts: [],
-      newProducts: [],
-      validationErrors: []
-    };
-
-    for (const item of groupedItems) {
-      const productResponse = await instance.get(`/inventory/product/${item.sku}`);
-      
-      if (productResponse.data) {
-        const validation = validateInventoryItem(item, productResponse.data);
-        
-        if (Object.values(validation).every(v => v === true)) {
-          results.validProducts.push({
-            ...item,
-            product_id: productResponse.data.product_id,
-            currentStock: productResponse.data.product_stock
-          });
-        } else {
-          results.validationErrors.push({
-            sku: item.sku,
-            validation
-          });
-        }
-      } else {
-        results.newProducts.push(item);
-      }
-    }
-
-    return results;
-  } catch (error) {
-    console.error('Inventory check error:', error);
-    throw new Error('Failed to verify inventory items');
-  }
-};
-
-const handleModify = (modifiedData) => {
-  // Update formData with the modified data
-  setFormData(prev => ({
-    ...prev,
-    items: {
-      existingProducts: modifiedData.items,
-      newProducts: []
-    },
-    financials: modifiedData.financials
-  }));
-
-  // Also update processingData to keep them in sync
-  setProcessingData(prev => ({
-    ...prev,
-    items: {
-      existingProducts: modifiedData.items,
-      newProducts: []
-    },
-    financials: modifiedData.financials
-  }));
 };
 
   // Handle final purchase order processing
@@ -838,89 +460,6 @@ const handleModify = (modifiedData) => {
       setStatus(prev => ({ ...prev, isProcessing: false }));
     }
   };
-
-// Render current stage content
-const renderStageContent = () => {
-  if (isProcessing) {
-    return <div>Processing...</div>;
-  }
-
-  if (currentView === 'create_products' && !isFormComplete) {
-    return (
-      <AddProductsForm
-        products={formData.items.newProducts}
-        onProductsAdded={handleProductsAdded}
-        onCancel={onProcessingCancel}
-        isProcessing={status.isProcessing}
-        disabled={status.isProcessing}
-      />
-    );
-  }
-
-if (currentView === 'review_order' || isFormComplete) {
-  // Get unique products by SKU to avoid duplicates
-  const productMap = new Map();
-  
-  // Add existing products
-  processingData.items.existingProducts.forEach(item => {
-    const sku = item.sku || item.sku_number;
-    if (!productMap.has(sku)) {
-      productMap.set(sku, {
-        productName: item.productName || item.product_name,
-        sku: sku,
-        quantity: parseInt(item.orderQuantity || item.quantity || 0),
-        price: parseFloat(item.price || item.cost || 0),
-        productId: item.productId,
-        type: 'existing'
-      });
-    }
-  });
-  
-  // Add newly added products, overwriting any duplicates
-  formData?.items?.existingProducts?.forEach(item => {
-    if (item.type === 'new') {
-      const sku = item.sku || item.sku_number;
-      productMap.set(sku, {
-        productName: item.productName || item.product_name,
-        sku: sku,
-        quantity: parseInt(item.orderQuantity || item.quantity || 0),
-        price: parseFloat(item.price || item.cost || 0),
-        type: 'new'
-      });
-    }
-  });
-
-  // Convert map back to array
-  const allProducts = Array.from(productMap.values());
-
-  console.log('Preview Data - All Products:', allProducts); // For debugging
-
-  const previewData = {
-    items: allProducts,
-    metadata: processingData.metadata,
-    financials: {
-      subtotal: allProducts.reduce((sum, item) => 
-        sum + (item.price * item.quantity), 0),
-      tax: allProducts.reduce((sum, item) => 
-        sum + (item.price * item.quantity), 0) * 0.06,
-      shipping: 500,
-      total: (allProducts.reduce((sum, item) => 
-        sum + (item.price * item.quantity), 0) * 1.06) + 500
-    }
-  };
-
-  return (
-    <PurchaseOrderPreview
-      extractedData={previewData}
-      onConfirm={handleProcessOrder}
-      onCancel={onProcessingCancel}
-      isProcessing={isProcessing}
-    />
-  );
-}
-
-  return null;
-};
 
   const validateDataStructure = (data) => {
     // First check if data exists
@@ -1015,13 +554,13 @@ if (currentView === 'review_order' || isFormComplete) {
       </div>
 
       {/* Main Content */}
-        {currentView === 'create_products' && !isProcessing ? (
+        {processingData && currentView === 'create_products' && !isProcessing ? (
             <AddProductsForm
-                products={formData.items.newProducts}
-                onProductsAdded={handleProductsAdded}
-                onCancel={onProcessingCancel}
-                isProcessing={status.isProcessing}
-                disabled={status.isProcessing} // Add this to prevent multiple submissions
+            products={formData.items.newProducts}
+            onProductsAdded={handleProductsAdded}
+            onCancel={handleProcessingCancel}
+            isProcessing={status.isProcessing}
+            disabled={status.isProcessing}
             />
         ) : currentView === 'review_order' ? (
             <PurchaseOrderPreview

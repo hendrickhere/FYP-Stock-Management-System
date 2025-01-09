@@ -113,6 +113,13 @@ const AddProductsForm = ({
     });
   };
 
+  const handleCancel = () => {
+    // Call the passed onCancel handler
+    if (onCancel) {
+      onCancel();
+    }
+  };
+
   const handleSubmit = async () => {
     try {
       setIsSubmitting(true);
@@ -363,7 +370,7 @@ const AddProductsForm = ({
       <div className="flex justify-end gap-4">
         <Button
           variant="outline"
-          onClick={onCancel}
+          onClick={handleCancel}
           disabled={isSubmitting}
         >
           Cancel

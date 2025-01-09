@@ -135,98 +135,6 @@ const handleProcessingError = (error) => {
     }]);
 };
 
-const handleConfirmOrder = async () => {
-    try {
-        setStatus(prev => ({ ...prev, isProcessing: true }));
-        
-        // Get username from localStorage
-        const username = localStorage.getItem('username')?.trim();
-        if (!username) {
-            throw new Error('User not authenticated');
-        }
-
-        // First, validate that we have the required data
-        if (!automationState.processedData) {
-            throw new Error('No purchase order data available');
-        }
-
-        // Extract the required data from automationState
-        const { items, financials } = automationState.processedData;
-        
-        // Validate the data structure
-        if (!items?.existingProducts || !financials?.total) {
-            throw new Error('Invalid purchase order data structure');
-        }
-
-        // Format the data for the backend
-        const purchaseOrderData = {
-            username: username,
-            orderDate: new Date().toISOString(),
-            deliveryMethod: "Standard Shipping",
-            paymentTerms: "Net 30",
-            // Safely access financial data with fallback
-            totalAmount: financials.total || 0,
-            // Map the items with proper type conversion
-            itemsList: items.existingProducts.map(item => ({
-                sku: item.sku,
-                quantity: Number(item.quantity) || 0,
-                price: Number(item.price) || 0
-            }))
-        };
-
-        // Log the data being sent for debugging
-        console.log('Sending purchase order data:', purchaseOrderData);
-
-        // Make the API call with the correct endpoint
-        const response = await axiosInstance.post(
-            `/purchases/automated/${username}`, 
-            purchaseOrderData
-        );
-
-        // Verify the response structure
-        if (!response.data || !response.data.purchaseOrderId) {
-            throw new Error('Invalid response from server');
-        }
-
-        // Show success message
-        toast({
-            title: 'Success',
-            description: `Purchase order #${response.data.purchaseOrderId} has been created successfully!`,
-            duration: 5000
-        });
-
-        // Update the automation state
-        setAutomationState(prev => ({
-            ...prev,
-            state: AUTOMATION_STATES.COMPLETED,
-            currentStep: null,
-            processedData: response.data
-        }));
-
-        // Notify parent component of completion
-        if (onProcessingComplete) {
-            onProcessingComplete(response.data);
-        }
-
-    } catch (error) {
-        console.error('Purchase order processing error:', error);
-        
-        // Show error message to user
-        toast({
-            title: 'Error Creating Purchase Order',
-            description: error.message || 'An unexpected error occurred',
-            variant: 'destructive',
-            duration: 5000
-        });
-        
-        // Update error state
-        handleProcessingError(error);
-        
-    } finally {
-        setStatus(prev => ({ ...prev, isProcessing: false }));
-    }
-};
-
   const handleProcessingMessage = (message) => {
       // Prevent duplicate messages
       setMessages(prev => {
@@ -336,23 +244,6 @@ const handleProcessingComplete = (result) => {
     };
   }
 
-  // Define the expected structure based on our backend response
-  const requiredFields = {
-      metadata: {
-        poNumber: 'string',
-        poDate: 'string',
-        vendorName: 'string',
-        paymentTerms: 'string',
-        deliveryMethod: 'string'
-      },
-      items: {
-        existingProducts: ['productId', 'productName', 'sku', 'orderQuantity', 'cost'],
-        newProducts: ['productName', 'suggestedSku', 'orderQuantity', 'cost']
-      },
-      financials: ['subtotal', 'tax', 'shipping', 'total'],
-      status: ['requiresProductCreation', 'canCreatePurchaseOrder']
-    };
-
     // Validate metadata
     if (!result.metadata || typeof result.metadata !== 'object') {
       return {
@@ -397,16 +288,6 @@ const handleProcessingComplete = (result) => {
     return {
       isValid: true
     };
-  };
-
-  const isRecoverableError = (error) => {
-      // Define recoverable error types
-      const recoverableErrors = [
-          'NETWORK_ERROR',
-          'TIMEOUT_ERROR',
-          'VALIDATION_ERROR'
-      ];
-      return recoverableErrors.includes(error.code);
   };
 
   const { toast } = useToast();
@@ -500,53 +381,68 @@ const handleProcessingComplete = (result) => {
   };
 
   const handleProcessingCancel = () => {
-    setAutomationState(prev => {
-      if (prev.state === AUTOMATION_STATES.IDLE) return prev;
-      return {
-        state: AUTOMATION_STATES.IDLE,
-        currentStep: null,
-        processedData: null,
-        isActive: false,
-        error: null
-      };
+    const wasActive = automationState.state !== AUTOMATION_STATES.IDLE;
+  
+    // Clear automation state
+    setAutomationState(prev => ({
+      state: AUTOMATION_STATES.IDLE,
+      currentStep: null,
+      processedData: null,
+      error: null,
+      isActive: false,
+      progress: {
+        current: 0,
+        total: 0,
+        stage: null
+      }
+    }));
+  
+    // Clear processing data from session storage
+    try {
+      const currentMessages = JSON.parse(sessionStorage.getItem(SESSION_MESSAGES_KEY) || '[]');
+      // Remove messages with fileAnalysis and analysis results
+      const updatedMessages = currentMessages.filter(msg => !msg.fileAnalysis && !msg.analysisResult);
+      sessionStorage.setItem(SESSION_MESSAGES_KEY, JSON.stringify(updatedMessages));
+      sessionStorage.removeItem('chatbot_processing_state');
+    } catch (error) {
+      console.error('Error clearing session storage:', error);
+    }
+  
+    // Only add cancellation message if automation was actually active
+    if (wasActive) {
+      setMessages(prev => {
+        // Check if we already have a cancellation message
+        const hasCancellation = prev.some(msg => 
+          msg.text?.includes('Purchase order processing cancelled')
+        );
+        
+        if (!hasCancellation) {
+          return [...prev, {
+            type: 'bot',
+            text: 'Purchase order processing cancelled. You can upload a new document to start again.',
+            timestamp: new Date().toISOString()
+          }];
+        }
+        return prev;
+      });
+    }
+  
+    // Clear message context
+    setMessageContext({
+      type: null,
+      data: null,
+      awaitingResponse: false
     });
   };
 
-  // Helper function to create analysis message
-  const createInitialAnalysisMessage = (analysisResult) => {
-    let message = "I've analyzed your purchase order document. Here's what I found:\n\n";
-    
-    // Add document metadata summary
-    message += `📄 Document Details:\n`;
-    message += `• PO Number: ${analysisResult.metadata.poNumber}\n`;
-    message += `• Date: ${analysisResult.metadata.poDate}\n`;
-    message += `• Vendor: ${analysisResult.metadata.vendorName}\n\n`;
-    
-    // Add inventory analysis
-    if (analysisResult.groupedItems.newProducts.length > 0) {
-      message += "🆕 New Products to Add:\n";
-      analysisResult.groupedItems.newProducts.forEach(product => {
-        message += `• ${product.productName}\n`;
-        message += `  - Suggested SKU: ${product.sku}\n`;
-        message += `  - Quantity: ${product.quantity} units\n`;
-        message += `  - Unit Price: RM${product.price}\n`;
-      });
-      message += "\n";
-    }
-
-    // Add stock level warnings if any
-    if (analysisResult.groupedItems.insufficientStock.length > 0) {
-      message += "⚠️ Stock Level Warnings:\n";
-      analysisResult.groupedItems.insufficientStock.forEach(item => {
-        message += `• ${item.productName}\n`;
-        message += `  - Current Stock: ${item.currentStock} units\n`;
-        message += `  - Needed: ${item.quantity} units\n`;
-        message += `  - Shortage: ${item.quantity - item.currentStock} units\n`;
-      });
-      message += "\n";
-    }
-
-    return message;
+  const handleExplicitCancel = () => {
+    handleProcessingCancel();
+    // Clear any remaining form state
+    setMessageContext({
+      type: null,
+      data: null,
+      awaitingResponse: false
+    });
   };
 
   // First, let's define all the handler functions needed for our actions
@@ -598,19 +494,6 @@ const handleProcessingComplete = (result) => {
     return true;
   };
 
-  const getStateTransitionMessage = (fromState, toState) => {
-      const transitionMessages = {
-          [`${AUTOMATION_STATES.IDLE}_${AUTOMATION_STATES.STARTING}`]: "Starting purchase order automation...",
-          [`${AUTOMATION_STATES.STARTING}_${AUTOMATION_STATES.PROCESSING_DOCUMENT}`]: "Processing your document...",
-          [`${AUTOMATION_STATES.PROCESSING_DOCUMENT}_${AUTOMATION_STATES.ANALYZING}`]: "Analyzing the purchase order...",
-          [`${AUTOMATION_STATES.ANALYZING}_${AUTOMATION_STATES.PROCESSING}`]: "Processing the purchase order...",
-          [`${AUTOMATION_STATES.PROCESSING}_${AUTOMATION_STATES.COMPLETED}`]: "Purchase order processing completed!"
-      };
-
-      return transitionMessages[`${fromState}_${toState}`] || 
-            `Moving from ${fromState} to ${toState}...`;
-  };
-
   const handleReviewStock = async (insufficientStock) => {
     setStatus(prev => ({ ...prev, isProcessing: true }));
     
@@ -650,111 +533,6 @@ const handleProcessingComplete = (result) => {
     }
   };
 
-  const handleSaveDraft = async () => {
-    setStatus(prev => ({ ...prev, isProcessing: true }));
-    
-    try {
-      const response = await axiosInstance.post('/purchase/save-draft', {
-        ...automationState.data,
-        status: 'draft'
-      });
-
-      setMessages(prev => [...prev, {
-        type: 'bot',
-        text: `I've saved this purchase order as a draft. You can find it in your drafts with ID: ${response.data.draftId}. Would you like to continue editing it now or come back later?`,
-        actions: [
-          {
-            label: "Continue Editing",
-            action: "edit_draft",
-            variant: "default"
-          },
-          {
-            label: "Done for Now",
-            action: "finish",
-            variant: "outline"
-          }
-        ],
-        timestamp: new Date().toISOString()
-      }]);
-
-    } catch (error) {
-      console.error('Error saving draft:', error);
-      handleProcessingError(error);
-    } finally {
-      setStatus(prev => ({ ...prev, isProcessing: false }));
-    }
-  };
-
-  const handleModifyOrder = () => {
-    setAutomationState(prev => ({
-      ...prev,
-      step: 'editing'
-    }));
-
-    setMessages(prev => [...prev, {
-      type: 'bot',
-      text: "You can now edit the order details. Click on any field to modify it.",
-      component: 'PurchaseOrderForm',
-      data: automationState.data,
-      timestamp: new Date().toISOString()
-    }]);
-  };
-
-  const handleEditOrder = () => {
-    setAutomationState(prev => ({
-      ...prev,
-      step: 'editing'
-    }));
-
-    setMessages(prev => [...prev, {
-      type: 'bot',
-      text: "You can now edit any details of the purchase order. Make your changes and click 'Save' when you're done.",
-      component: 'PurchaseOrderForm',
-      data: automationState.data,
-      timestamp: new Date().toISOString()
-    }]);
-  };
-
-const determineAvailableActions = (analysisResult) => {
-  const actions = [];
-  
-  // Add products action
-  if (analysisResult.groupedItems.newProducts.length > 0) {
-    actions.push({
-      label: "Add New Products",
-      action: "add_products",
-      variant: "default",
-      description: `Add ${analysisResult.groupedItems.newProducts.length} new products to inventory`,
-      priority: "high"
-    });
-  }
-  
-  // Stock management action
-  if (analysisResult.groupedItems.insufficientStock.length > 0) {
-    actions.push({
-      label: "Update Stock Levels",
-      action: "review_stock",
-      variant: "default",
-      description: "Review and update insufficient stock levels",
-      priority: "high"
-    });
-  }
-
-  // Add review action if ready to process
-  if (analysisResult.groupedItems.readyToProcess.length > 0) {
-    actions.push({
-      label: "Review Order Details",
-      action: "review",
-      variant: analysisResult.groupedItems.newProducts.length === 0 ? "default" : "outline",
-      description: "Review the complete purchase order",
-      priority: "normal"
-    });
-  }
-
-  return actions;
-};
-
-// Add helper function to handle the next steps
 const handleNextStep = async (action) => {
   // First validate the transition
   const nextState = {
@@ -1035,7 +813,7 @@ const send = async (text) => {
             isMobile={isMobile}
             automationState={automationState}
             onProcessingComplete={handleProcessingComplete}  
-            onProcessingCancel={handleProcessingCancel}
+            onProcessingCancel={handleExplicitCancel}
             onMessage={handleProcessingMessage}
             onActionClick={(action) => {
               if (action.handler) {

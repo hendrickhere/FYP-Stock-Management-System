@@ -131,14 +131,14 @@ function Login({ onLoginSuccess }) {
   const handleSubmit = async (event) => {
     event.preventDefault();
     setIsLoading(true);
-    setFormErrors({}); 
-    
+    setFormErrors({});
+
     const formData = isSignUp ? signUpData : signInData;
     if (!validateForm(isSignUp, formData)) {
       setIsLoading(false);
       return;
     }
-    
+
     const userData = isSignUp ? {
       username: signUpData.name,
       created_at: new Date().toISOString(),
@@ -162,7 +162,6 @@ function Login({ onLoginSuccess }) {
         setSignUpData({ name: '', email: '', password: '' });
         setSignInData({ email: '', password: '' });
       } else if (response.data.message === 'Login successful') {
-        // Store user data
         localStorage.setItem('accessToken', response.data.accessToken);
         localStorage.setItem('refreshToken', response.data.refreshToken);
         localStorage.setItem('username', response.data.user.username);
@@ -175,7 +174,7 @@ function Login({ onLoginSuccess }) {
         sessionStorage.setItem('userData', JSON.stringify(userData));
         
         setUsername(response.data.user.username);
-        setOrganizationId(response.data.user.organization_id); 
+        setOrganizationId(response.data.user.organization_id);
         setModalTitle('Welcome Back');
         setModalMessage('Login successful! Redirecting to dashboard...');
         setModalOpen(true);
@@ -185,19 +184,46 @@ function Login({ onLoginSuccess }) {
         }, 1500);
       }
     } catch (error) {
-      console.error('Login error:', error);
+      // Clear password field on error
+      setSignInData(prev => ({
+        ...prev,
+        password: ''
+      }));
+
       let errorMessage = 'An error occurred. Please try again.';
-      
-        if (error.status) {
-          if (error.response.status === 401) {
-            errorMessage = 'Invalid email or password.';
-          } else if (error.response.data && error.response.data.message) {
-            // Use the specific error messages from the backend
-            errorMessage = error.response.data.message;
-          }
+      let errorTitle = 'Error';
+
+      if (error.response) {
+        // Handle different error status codes without throwing runtime errors
+        switch (error.response.status) {
+          case 401:
+            errorTitle = 'Authentication Failed';
+            errorMessage = 'Invalid email or password. Please check your credentials and try again.';
+            break;
+          case 400:
+            errorTitle = 'Invalid Input';
+            errorMessage = 'Please check your email and password format.';
+            break;
+          case 404:
+            errorTitle = 'Service Error';
+            errorMessage = 'Login service not available. Please try again later.';
+            break;
+          case 500:
+            errorTitle = 'Server Error';
+            errorMessage = 'Internal server error. Please try again later.';
+            break;
+          default:
+            if (error.response.data && error.response.data.message) {
+              errorMessage = error.response.data.message;
+            }
         }
-      
-      setModalTitle('Error');
+      } else if (error.request) {
+        errorTitle = 'Connection Error';
+        errorMessage = 'Unable to connect to the server. Please check your internet connection.';
+      }
+
+      // Show error in modal instead of throwing runtime error
+      setModalTitle(errorTitle);
       setModalMessage(errorMessage);
       setModalOpen(true);
     } finally {
