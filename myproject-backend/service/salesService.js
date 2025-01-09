@@ -12,6 +12,9 @@ const {
   SalesOrderDiscount,
   Organization,
   WarrantyUnit,
+  ReturnRecord, 
+  ProductUnitReturn, 
+  Warranty,
   sequelize,
 } = require("../models");
 const {
@@ -159,6 +162,44 @@ exports.getSalesOrderTotal = async (username, salesOrderUUID) => {
   return total;
 };
 
+exports.getSalesOrderReturn = async (organizationId, pageSize, pageNumber) => {
+  let whereClause = {
+    organization_id: organizationId
+  };
+  const offset = (pageNumber - 1) * pageSize;
+  const returns = await ReturnRecord.findAndCountAll({
+    where: whereClause,
+    include: [{
+      model: ProductUnitReturn,
+      include: [{
+        model: ProductUnit,
+        include: [{
+          model: Product,
+          attributes: ['product_name', 'sku_number']
+        }]
+      }]
+    }],
+    order: [['created_at', 'DESC']],
+    limit: pageSize,
+    offset: offset,
+    distinct: true
+  });
+  const totalPages = Math.ceil(returns.count / pageSize);
+  const hasNextPage = pageNumber < totalPages;
+  const hasPreviousPage = pageNumber > 1;
+
+  return {
+    returns: returns.rows,
+    pagination: {
+      totalItems: returns.count,
+      totalPages,
+      currentPage: parseInt(pageNumber),
+      pageSize: parseInt(pageSize),
+      hasNextPage,
+      hasPreviousPage
+    }
+  };
+}
 // exports.getAllSalesOrders = async (username, pageNumber, pageSize) => {
 //   const offset = (pageNumber - 1) * pageSize;
 //   try {
@@ -257,6 +298,191 @@ const validateItemLists = (itemLists) => {
     }
   });
 };
+
+exports.returnSalesOrder = async (validatedData) => {
+  const { products, sales_order_uuid, processed_by, reason, date_of_return } = validatedData;
+  const transaction = await sequelize.transaction();
+  const productIds = products.map(p => p.product_id);
+  try {
+    const salesOrder = await SalesOrder.findOne({
+      where: { sales_order_uuid: sales_order_uuid },
+      include: [
+        {
+          model: SalesOrderInventory,
+          as: 'items',
+          attributes: ['sales_order_item_id', 'quantity', 'price', 'discounted_price', 'product_id'],
+          where: {
+            product_id: {
+              [Op.in]: productIds
+            }
+          },
+          required: false 
+        }
+      ]
+    });
+    
+    if (!salesOrder) {
+      throw new Error('Sales order not found');
+    }
+  
+    const processorUser = await User.findOne({
+      where: { username: processed_by }
+    });
+  
+    if (!processorUser) {
+      throw new Error('User not found');
+    }
+    const productUnitIds = products.flatMap(p => 
+      p.product_units.map(u => u.product_unit_id)
+    );
+
+    const productUnits = await ProductUnit.findAll({
+      where: {
+        product_unit_id: productUnitIds,
+        is_sold: true
+      },
+      include: [{
+        model: SalesOrderInventory,
+        as: "salesOrderItem",
+        where: {
+          sales_order_id: salesOrder.sales_order_id
+        },
+        required: true
+      }],
+      transaction
+    });
+    
+    if (productUnits.length !== productUnitIds.length) {
+     throw new Error('Some product units do not belong to this sales order');
+    }
+    const existingReturns = await ProductUnitReturn.findAll({
+      where: {
+        product_unit_id: productUnitIds,
+      },
+      include: [{
+        model: ReturnRecord,
+        where: {
+          sales_order_id: salesOrder.sales_order_id
+        }
+      }],
+      transaction
+    });
+    
+    if (existingReturns.length > 0) {
+      throw new Error('Some products have already been returned');
+    }
+    await ProductUnit.update(
+      {
+        is_sold: false,
+        date_of_sale: null, 
+        sales_order_id: null,
+        updated_at: new Date()
+      },
+      {
+        where: {
+          product_unit_id: {
+            [Op.in]: productUnitIds
+          }
+        },
+        transaction,
+        validate: false
+      }
+    );
+
+    const warrantyUnits = await WarrantyUnit.findAll({
+      include: [{
+        model: Warranty,
+        where: {
+          warranty_type: 1 
+        },
+        required: true
+      }],
+      where: {
+        product_unit_id: {
+          [Op.in]: productUnitIds
+        },
+        status: 'ACTIVE'
+      },
+      transaction
+    });
+    
+    if (warrantyUnits.length > 0) {
+      await WarrantyUnit.update(
+        {
+          status: 'VOID',
+          updated_at: new Date()
+        },
+        {
+          where: {
+            warranty_unit_id: {
+              [Op.in]: warrantyUnits.map(wu => wu.warranty_unit_id)
+            }
+          },
+          transaction
+        }
+      );
+    }
+
+    const returnedProductCounts = products.reduce((acc, product) => {
+      acc[product.product_id] = product.product_units.length;
+      return acc;
+    }, {});
+
+    console.log('returnedProductCounts:', returnedProductCounts);
+    console.log('salesOrder.items:', JSON.stringify(salesOrder.items, null, 2));
+
+
+
+    let totalRefundAmount = salesOrder.items.reduce((total, item) => {
+      const numUnitsReturned = returnedProductCounts[item.product_id] || 0;
+      const unitPrice = item.discounted_price || item.price;
+      
+      console.log('Product ID:', item.product_id);
+      console.log('Units returned:', numUnitsReturned);
+      console.log('Unit price:', unitPrice);
+      console.log('Subtotal:', unitPrice * numUnitsReturned);
+      
+      return total + (unitPrice * numUnitsReturned);
+    }, 0);
+
+    const taxRate = salesOrder.total_tax / (salesOrder.subtotal - salesOrder.discount_amount) ;
+    const refundedTax = totalRefundAmount * taxRate;
+
+    const returnRecord = await ReturnRecord.create({
+      sales_order_id: salesOrder.sales_order_id,
+      return_date: date_of_return,
+      refund_amount: totalRefundAmount,
+      reason: reason,
+      processed_by: processorUser.user_id,
+      refunded_tax: refundedTax,
+      organization_id: processorUser.organization_id,
+    }, { transaction });
+
+    const productUnitReturns = await Promise.all(
+      products.flatMap(product => {
+        const salesOrderItem = salesOrder.items.find(item => item.product_id === product.product_id);
+        const unitPrice = salesOrderItem.discounted_price || salesOrderItem.price;
+        const unitTax = (unitPrice * taxRate);
+  
+        return product.product_units.map(unit => 
+          ProductUnitReturn.create({
+            return_record_id: returnRecord.return_record_id,
+            product_unit_id: unit.product_unit_id,
+            refund_amount: unitPrice,
+            refunded_tax: unitTax
+          }, { transaction })
+        );
+      })
+    );
+    await transaction.commit();
+    return returnRecord;
+  } catch (err) {
+    await transaction.rollback();
+    console.log(err.message);
+    throw err;
+  }
+}
+
 
 exports.calculateSalesOrderTotal = async (reqBody) => {
   try {

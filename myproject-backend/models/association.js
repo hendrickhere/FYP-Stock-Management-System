@@ -22,6 +22,9 @@ module.exports = (db) => {
         WarrantyNotification, 
         ProductUnit, 
         WarrantyUnit, 
+        ProductUnitReturn, 
+        ReturnRecord,
+        ProductUnitLog,
     } = db;
 
     console.log('Models loaded successfully:', Object.keys(db).filter(key => key !== 'sequelize' && key !== 'Sequelize'));
@@ -315,6 +318,24 @@ module.exports = (db) => {
         onDelete: 'CASCADE'
     });
     console.log('✓ Warranty Notification <-> Warranty associations established');
+    
+    ReturnRecord.belongsTo(SalesOrder, {foreignKey: "sales_order_id", onDelete: "CASCADE"});
+    console.log('✓ Return Record <-> Sales Order associations established');
+    ReturnRecord.belongsTo(User, {foreignKey: "processed_by", onDelete: "CASCADE"});
+    console.log('✓ Return Record <-> Sales Order associations established');
+    ReturnRecord.belongsTo(Organization, {foreignKey: "organization_id", onDelete: "CASCADE"});
+    Organization.hasMany(ReturnRecord, {foreignKey: "organization_id", onDelete: "CASCADE"});
+    console.log('✓ Return Record <-> Organization associations established');
+    ProductUnitReturn.belongsTo(ReturnRecord, {foreignKey: "return_record_id"});
+    ReturnRecord.hasMany(ProductUnitReturn, {foreignKey: "return_record_id"});
+    console.log('✓ Return Record <-> Product Unit associations established');
+    ProductUnitReturn.belongsTo(ProductUnit, {foreignKey: "product_unit_id"});
+    ProductUnit.hasMany(ProductUnitReturn, {foreignKey: "product_unit_id"});
+    console.log('✓ Return Record <-> Product Unit associations established');
+    ProductUnitLog.belongsTo(ProductUnit, {foreignKey: "product_unit_id"});
+    console.log('✓ Product Unit Log <-> Product Unit associations established');
+    ProductUnitLog.belongsTo(User, {foreignKey: "changed_by"});
+    console.log('✓ Product Unit Log <-> User associations established');
 
     console.log('\n=== All Associations Completed Successfully ===\n');
 

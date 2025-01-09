@@ -220,7 +220,7 @@ const productService = {
     const transaction = await db.sequelize.transaction();
 
     try {
-      const itemObj = await getInventoryByUUID(productId);
+      const itemObj = await productService.getInventoryByUUID(productId);
       if (!itemObj) {
         throw new ProductNotFoundException(productId);
       }
@@ -307,7 +307,7 @@ const productService = {
 
   getProductUnitsWithProductId: async (productId, pageNumber, pageSize, searchTerm) => {
     const offset = (pageNumber - 1) * pageSize;
-    const itemObj = await getInventoryByUUID(productId);
+    const itemObj = await productService.getInventoryByUUID(productId);
     if(!itemObj){
       throw ProductNotFoundException(productId);
     }
@@ -341,6 +341,9 @@ const productService = {
       ],
       include: [{
         model: WarrantyUnit,
+        where: {
+          status: "ACTIVE"
+        },
         attributes: [
           "warranty_unit_id",
           "warranty_start",
