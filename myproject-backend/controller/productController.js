@@ -270,4 +270,39 @@ exports.getProductUnitsWithProductId = async (req, res) => {
     });
   }
 
-}
+};
+
+exports.getExpiringProducts = async (req, res) => {
+    try {
+        console.log('Fetching expiring products...');
+        const expiringProducts = await ProductService.getExpiringProducts();
+        console.log('Raw expiring products:', expiringProducts);
+        
+        // Format the response data
+        const formattedProducts = expiringProducts.map(product => {
+            const daysUntilExpiry = Math.ceil((new Date(product.expiry_date) - new Date()) / (1000 * 60 * 60 * 24));
+            
+            const formatted = {
+                id: product.product_id,
+                name: product.product_name,
+                stock: product.product_stock,
+                expiryDate: product.expiry_date,
+                daysUntilExpiry,
+                sku: product.sku_number,
+                brand: product.brand,
+                urgency: daysUntilExpiry <= 30 ? 'high' : 'medium'
+            };
+            console.log('Formatted product:', formatted);
+            return formatted;
+        });
+
+        console.log('Sending formatted products:', formattedProducts.length);
+        res.json(formattedProducts);
+    } catch (error) {
+        console.error('Error fetching expiring products:', error);
+        res.status(500).json({ 
+            error: 'Failed to fetch expiring products',
+            details: error.message 
+        });
+    }
+};

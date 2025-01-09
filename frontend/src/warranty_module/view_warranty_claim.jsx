@@ -115,9 +115,9 @@ const WarrantyClaimsView = ({ isMobile, scrollDirection, isAtTop }) => {
                     }}
                     transition={syncedTransition}
                 >
-                    <div className="bg-white rounded-lg shadow p-4 md:p-6 w-full h-fit">
+                    <div className="bg-white rounded-lg shadow-sm p-4 md:p-6 w-full max-w-[100vw] overflow-hidden">
                         <div className="mb-6">
-                            <h2 className="text-2xl font-bold mb-4">Warranty Claims</h2>
+                            <h2 className="text-xl md:text-2xl font-bold mb-4">Warranty Claims</h2>
                             <div className="flex flex-col md:flex-row gap-4 mb-4">  {/* Changed to stack on mobile */}
                                 <div className="w-full md:w-64">  {/* Full width on mobile */}
                                     <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -157,53 +157,42 @@ const WarrantyClaimsView = ({ isMobile, scrollDirection, isAtTop }) => {
                             </div>
                         </div>
 
-                        <div className="overflow-x-auto -mx-6 md:mx-0"> {/* Negative margin on mobile to allow full-width scroll */}
+                        <div className="overflow-x-auto -mx-4 md:mx-0 pb-4"> {/* Added padding bottom */}
                             <div className="inline-block min-w-full align-middle">
-                                <table className="min-w-full divide-y divide-gray-200">
-                                    <thead className="bg-gray-50">
-                                        <tr>
-                                            {/* Adjust cell padding for better mobile display */}
-                                            <th className="px-2 md:px-6 py-2 md:py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
-                                            <th className="px-2 md:px-6 py-2 md:py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Product</th>
-                                            <th className="px-2 md:px-6 py-2 md:py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">SKU</th>
-                                            <th className="px-2 md:px-6 py-2 md:py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Serial Number</th>
-                                            <th className="px-2 md:px-6 py-2 md:py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Type</th>
-                                            <th className="px-2 md:px-6 py-2 md:py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Priority</th>
-                                            <th className="px-2 md:px-6 py-2 md:py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                                            <th className="px-2 md:px-6 py-2 md:py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Creator</th>
-                                            <th className="px-2 md:px-6 py-2 md:py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Assignee</th>
-                                            <th className="px-2 md:px-6 py-2 md:py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Resolution Details</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody className="bg-white divide-y divide-gray-200">
-                                        {claims.map((claim) => (
-                                             <tr key={claim.claim_id} className="hover:bg-gray-50">
-                                               <td className="px-2 md:px-6 py-2 md:py-4 whitespace-nowrap text-xs md:text-sm text-gray-900">{formatDate(claim.date_of_claim)}</td>
-                                               <td className="px-2 md:px-6 py-2 md:py-4 whitespace-nowrap text-xs md:text-sm text-gray-900">
-                                                 {claim.WarrantyUnit?.ProductUnit?.Product?.product_name || 'N/A'}
-                                             </td>
-                                             <td className="px-2 md:px-6 py-2 md:py-4 whitespace-nowrap text-xs md:text-sm text-gray-900">
-                                                 {claim.WarrantyUnit?.ProductUnit?.Product?.sku_number || 'N/A'}
-                                             </td>
-                                             <td className="px-2 md:px-6 py-2 md:py-4 whitespace-nowrap text-xs md:text-sm text-gray-900">
-                                                 {claim.WarrantyUnit?.ProductUnit?.serial_number || 'N/A'}
-                                             </td>
-                                             <td className="px-2 md:px-6 py-2 md:py-4 whitespace-nowrap text-xs md:text-sm text-gray-900">
-                                                 {claimTypeLabels[claim.claim_type] || `Type ${claim.claim_type}`}
-                                             </td>
-                                             <td className="px-2 md:px-6 py-2 md:py-4 whitespace-nowrap text-xs md:text-sm text-gray-900">{priorityLabels[claim.priority]}</td>
-                                             <td className="px-2 md:px-6 py-2 md:py-4 whitespace-nowrap text-xs md:text-sm text-gray-900">
-                                                 {statusOptions.find(s => s.value === claim.claim_status.toString())?.label}
-                                             </td>
-                                             <td className="px-2 md:px-6 py-2 md:py-4 whitespace-nowrap text-xs md:text-sm text-gray-900">{claim.creator?.username || 'N/A'}</td>
-                                             <td className="px-2 md:px-6 py-2 md:py-4 whitespace-nowrap text-xs md:text-sm text-gray-900">{claim.assignee?.username || 'N/A'}</td>
-                                             <td className="px-2 md:px-6 py-2 md:py-4 whitespace-nowrap text-xs md:text-sm text-gray-900">
-                                                 {claim.resolution_details}
-                                             </td>
-                                         </tr>
-                                        ))}
-                                    </tbody>
-                                </table>
+                                <div className="overflow-hidden shadow ring-1 ring-black ring-opacity-5 md:rounded-lg">
+                                    <table className="min-w-full divide-y divide-gray-200">
+                                        <thead className="bg-gray-50 sticky top-0">
+                                            <tr>
+                                                <th scope="col" className="py-3.5 pl-4 pr-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider sm:pl-6">Date</th>
+                                                <th scope="col" className="px-3 py-3.5 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Product</th>
+                                                <th scope="col" className="px-3 py-3.5 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">SKU</th>
+                                                <th scope="col" className="px-3 py-3.5 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Serial Number</th>
+                                                <th scope="col" className="px-3 py-3.5 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Type</th>
+                                                <th scope="col" className="px-3 py-3.5 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Priority</th>
+                                                <th scope="col" className="px-3 py-3.5 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                                                <th scope="col" className="px-3 py-3.5 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Creator</th>
+                                                <th scope="col" className="px-3 py-3.5 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Assignee</th>
+                                                <th scope="col" className="px-3 py-3.5 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Resolution Details</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody className="bg-white divide-y divide-gray-200">
+                                            {claims.map((claim, index) => (
+                                                <tr key={claim.claim_id || index} className="hover:bg-gray-50">
+                                                    <td className="whitespace-nowrap py-4 pl-4 pr-3 text-xs sm:text-sm text-gray-900 sm:pl-6">{formatDate(claim.date_of_claim)}</td>
+                                                    <td className="whitespace-nowrap px-3 py-4 text-xs sm:text-sm text-gray-900">{claim.WarrantyUnit?.ProductUnit?.Product?.product_name || 'N/A'}</td>
+                                                    <td className="whitespace-nowrap px-3 py-4 text-xs sm:text-sm text-gray-900">{claim.WarrantyUnit?.ProductUnit?.Product?.sku_number || 'N/A'}</td>
+                                                    <td className="whitespace-nowrap px-3 py-4 text-xs sm:text-sm text-gray-900">{claim.WarrantyUnit?.ProductUnit?.serial_number || 'N/A'}</td>
+                                                    <td className="whitespace-nowrap px-3 py-4 text-xs sm:text-sm text-gray-900">{claimTypeLabels[claim.claim_type] || `Type ${claim.claim_type}`}</td>
+                                                    <td className="whitespace-nowrap px-3 py-4 text-xs sm:text-sm text-gray-900">{priorityLabels[claim.priority]}</td>
+                                                    <td className="whitespace-nowrap px-3 py-4 text-xs sm:text-sm text-gray-900">{statusOptions.find(s => s.value === claim.claim_status.toString())?.label}</td>
+                                                    <td className="whitespace-nowrap px-3 py-4 text-xs sm:text-sm text-gray-900">{claim.creator?.username || 'N/A'}</td>
+                                                    <td className="whitespace-nowrap px-3 py-4 text-xs sm:text-sm text-gray-900">{claim.assignee?.username || 'N/A'}</td>
+                                                    <td className="whitespace-nowrap px-3 py-4 text-xs sm:text-sm text-gray-900">{claim.resolution_details}</td>
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
+                                </div>
                             </div>
                         </div>
                     </div>
