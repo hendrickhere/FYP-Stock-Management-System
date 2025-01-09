@@ -83,6 +83,20 @@ const MainContent = ({ isMobile, scrollDirection, isAtTop }) => {
           includeDetails: true
         }
       });
+
+      console.log('Request URL:', axiosInstance.getUri({
+        url: `/sales/${username}/salesOrders`,
+        params: {
+          pageNumber: 1,
+          pageSize: 1,
+          searchConfig: JSON.stringify({
+            term: orderId,
+            activeFilters: ['orderId']
+          }),
+          includeDetails: true
+        }
+      }));
+      
       
       if (response.data && Array.isArray(response.data.salesOrders) && response.data.salesOrders.length > 0) {
         setSelectedOrderDetails(response.data.salesOrders[0]);
@@ -102,34 +116,14 @@ const MainContent = ({ isMobile, scrollDirection, isAtTop }) => {
     }
   };
 
-  const handleReturnComplete = async () => {
+  const handleReturnComplete = async (products, date_of_return, sales_order_uuid, processed_by, reason) => {
     try {
-      const selectedProductsWithSerialNumbers = Object.entries(selectedSerialNumbers).map(([productId, serialNumbers]) => ({
-        product_id: parseInt(productId),
-        product_units: serialNumbers.map(sn => ({
-          serial_number: sn,
-          product_unit_id: selectedOrderDetails.items
-            .find(item => item.Product?.product_id.toString() === productId)
-            ?.productUnits?.find(unit => unit.serial_number === sn)?.product_unit_id
-        }))
-      }));
-
-      if (selectedProductsWithSerialNumbers.length === 0) {
-        toast.error('Please select at least one product to return');
-        return;
-      }
-
-      if (!returnReason.trim()) {
-        toast.error('Please provide a reason for return');
-        return;
-      }
-
       const response = await axiosInstance.post('/sales/return', {
-        sales_order_uuid: selectedOrders[0],
-        products: selectedProductsWithSerialNumbers,
-        date_of_return: new Date().toISOString(),
-        reason: returnReason,
-        processed_by: username
+        sales_order_uuid: sales_order_uuid,
+        products: products,
+        date_of_return: date_of_return,
+        reason: reason,
+        processed_by: processed_by
       });
 
       if (response.status === 201) {
@@ -251,6 +245,7 @@ const MainContent = ({ isMobile, scrollDirection, isAtTop }) => {
         searchConfig: JSON.stringify(searchConfig)
       });
       
+      console.log(`/sales/${username}/salesOrders?${params}`)
       const response = await axiosInstance.get(
         `/sales/${username}/salesOrders?${params}`
       );
@@ -366,6 +361,7 @@ const MainContent = ({ isMobile, scrollDirection, isAtTop }) => {
             setReturnReason={setReturnReason}
             onReturnComplete={handleReturnComplete}
             selectedOrderId={selectedOrders[0]}
+            username={username}
           />
 
         </motion.div>

@@ -2,7 +2,6 @@ const SalesService = require('../service/salesService');
 const { SalesError } = require('../errors/salesError.js');
 const invoiceGenerator = require('../service/invoiceGenerator');
 const Joi = require('joi');
-const { ValidationError } = require('sequelize');
 const { ValidationException } = require('../errors/validationError.js');
 
 exports.getAllSalesOrders = async (req, res) => {
