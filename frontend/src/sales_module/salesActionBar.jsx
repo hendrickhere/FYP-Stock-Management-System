@@ -86,7 +86,11 @@ const SalesActionBar = ({
   // Handle return product
   const handleReturnProduct = () => {
     if (validateReturnProduct()) {
-      onReturnProduct();
+      console.log('Return product clicked, calling onReturnProduct');
+      console.log('Selected orders:', selectedOrders);
+      if (onReturnProduct) {
+        onReturnProduct(selectedOrders[0]);
+      }
     }
   };
 
@@ -109,14 +113,29 @@ const SalesActionBar = ({
             <DropdownMenuTrigger asChild>
               <Button
                 variant="outline"
-                className={`${selectedOrders.length > 0 ? "" : "opacity-50"}`}
+                className={`
+                  flex items-center gap-2 px-4 py-2
+                  border border-blue-500 text-blue-500
+                  hover:bg-blue-500 hover:text-white
+                  transition-all duration-200 ease-in-out
+                  shadow-sm hover:shadow
+                  disabled:opacity-50 disabled:cursor-not-allowed
+                  relative  // Added for badge positioning
+                  ${selectedOrders.length > 0 ? "" : "opacity-50"}
+                `}
               >
                 <Download className="w-4 h-4 mr-2" />
                 Generate Documents
                 {selectedOrders.length > 0 && 
-                  <span className={`ml-2 px-2 py-0.5 rounded-full text-xs ${
-                    selectedOrders.length > 5 ? 'bg-red-100 text-red-600' : 'bg-gray-100'
-                  }`}>
+                  <span className={`
+                    absolute -top-2 -right-2  // Changed positioning
+                    inline-flex items-center justify-center
+                    w-5 h-5  // Fixed size
+                    text-xs font-bold
+                    rounded-full
+                    bg-blue-100 text-blue-600
+                    ${selectedOrders.length > 5 ? 'bg-red-100 text-red-600' : ''}
+                  `}>
                     {selectedOrders.length}
                   </span>
                 }
@@ -149,17 +168,30 @@ const SalesActionBar = ({
 
           <Button
             variant="outline"
-            className={`border-orange-600 text-orange-600 hover:bg-orange-50 ${
-              selectedOrders.length === 1 ? "" : "opacity-50"
-            }`}
+            className={`
+              flex items-center gap-2 px-4 py-2
+              border border-red-500 text-red-500
+              hover:bg-red-500 hover:text-white
+              transition-all duration-200 ease-in-out
+              shadow-sm hover:shadow
+              disabled:opacity-50 disabled:cursor-not-allowed
+              relative  // Added for badge positioning
+              ${selectedOrders.length === 1 ? "" : "opacity-50"}
+            `}
             onClick={handleReturnProduct}
           >
             <RotateCcw className="w-4 h-4 mr-2" />
             Return Product
             {selectedOrders.length > 0 && 
-              <span className={`ml-2 px-2 py-0.5 rounded-full text-xs ${
-                selectedOrders.length !== 1 ? 'bg-red-100 text-red-600' : 'bg-gray-100'
-              }`}>
+              <span className={`
+                absolute -top-2 -right-2  // Changed positioning
+                inline-flex items-center justify-center
+                w-5 h-5  // Fixed size
+                text-xs font-bold
+                rounded-full
+                bg-red-100 text-red-600
+                ${selectedOrders.length !== 1 ? 'bg-red-100 text-red-600' : 'bg-red-50'}
+              `}>
                 {selectedOrders.length}
               </span>
             }

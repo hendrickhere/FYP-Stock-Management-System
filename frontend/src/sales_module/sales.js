@@ -6,13 +6,15 @@ import { GlobalContext } from "../globalContext";
 import axiosInstance from '../axiosConfig';
 import SalesTable from './salesOrderTable';
 import SalesActionBar from "./salesActionBar";
-import { FileText, FileSpreadsheet, Receipt, RotateCcw, Plus } from 'lucide-react';
 import { useScrollDirection } from '../useScrollDirection';
 import { motion } from 'framer-motion';
 import SalesOrderSearch from './salesOrderSearch';
 import Pagination from "../pagination_component/pagination";
 import instance from "../axiosConfig";
-import toast, { Toaster } from "react-hot-toast";const springTransition = {
+import toast, { Toaster } from "react-hot-toast";
+import ReturnModal from './ReturnModal';
+
+const springTransition = {
   type: "spring",
   stiffness: 400,
   damping: 40,
@@ -59,11 +61,90 @@ const MainContent = ({ isMobile, scrollDirection, isAtTop }) => {
   const [totalPage, setTotalPage] = useState(0);
   const [hasNextPage, setHasNextPage] = useState(true);
   const [hasPreviousPage, setHasPreviousPage] = useState(false);
-
-  const filteredData = React.useMemo(() => data, [data]);
-
   const [pageNumber, setPageNumber] = useState(1); 
   const [pageSize, setPageSize] = useState(10);
+
+  // Return Modal States
+  const [isReturnModalOpen, setIsReturnModalOpen] = useState(false);
+  const [selectedOrderDetails, setSelectedOrderDetails] = useState(null);
+  const [returnReason, setReturnReason] = useState("");
+  const [selectedSerialNumbers, setSelectedSerialNumbers] = useState({});
+
+  const fetchOrderDetails = async (orderId) => {
+    try {
+      const response = await axiosInstance.get(`/sales/${username}/salesOrders`, {
+        params: {
+          pageNumber: 1,
+          pageSize: 1,
+          searchConfig: JSON.stringify({
+            term: orderId,
+            activeFilters: ['orderId']
+          }),
+          includeDetails: true
+        }
+      });
+      
+      if (response.data && Array.isArray(response.data.salesOrders) && response.data.salesOrders.length > 0) {
+        setSelectedOrderDetails(response.data.salesOrders[0]);
+      } else {
+        throw new Error('Order not found');
+      }
+    } catch (error) {
+      console.error('Error fetching order details:', error);
+      toast.error('Failed to fetch order details');
+    }
+  };
+
+  const handleReturnProduct = async () => {
+    if (selectedOrders.length === 1) {
+      await fetchOrderDetails(selectedOrders[0]);
+      setIsReturnModalOpen(true);
+    }
+  };
+
+  const handleReturnComplete = async () => {
+    try {
+      const selectedProductsWithSerialNumbers = Object.entries(selectedSerialNumbers).map(([productId, serialNumbers]) => ({
+        product_id: parseInt(productId),
+        product_units: serialNumbers.map(sn => ({
+          serial_number: sn,
+          product_unit_id: selectedOrderDetails.items
+            .find(item => item.Product?.product_id.toString() === productId)
+            ?.productUnits?.find(unit => unit.serial_number === sn)?.product_unit_id
+        }))
+      }));
+
+      if (selectedProductsWithSerialNumbers.length === 0) {
+        toast.error('Please select at least one product to return');
+        return;
+      }
+
+      if (!returnReason.trim()) {
+        toast.error('Please provide a reason for return');
+        return;
+      }
+
+      const response = await axiosInstance.post('/sales/return', {
+        sales_order_uuid: selectedOrders[0],
+        products: selectedProductsWithSerialNumbers,
+        date_of_return: new Date().toISOString(),
+        reason: returnReason,
+        processed_by: username
+      });
+
+      if (response.status === 201) {
+        toast.success('Products returned successfully');
+        setIsReturnModalOpen(false);
+        setSelectedSerialNumbers({});
+        setSelectedOrderDetails(null);
+        setReturnReason("");
+        setRender(prev => !prev);
+      }
+    } catch (error) {
+      console.error('Error processing return:', error);
+      toast.error(error.response?.data?.message || 'Failed to process return');
+    }
+  };
 
   // Document generation handlers
   const handleGenerateInvoice = async () => {
@@ -71,58 +152,38 @@ const MainContent = ({ isMobile, scrollDirection, isAtTop }) => {
     try {
       const orderUuid = selectedOrders[0];
       const response = await instance.get(`/sales/generate-invoice/${orderUuid}`, {
-        responseType: 'arraybuffer',  // Changed from 'blob' to 'arraybuffer'
+        responseType: 'arraybuffer',
         headers: {
           'Accept': 'application/pdf',
         }
       });
   
-      // Create blob from array buffer
       const blob = new Blob([response.data], { type: 'application/pdf' });
       const url = window.URL.createObjectURL(blob);
-      
-      // Create and trigger download
       const link = document.createElement('a');
       link.href = url;
       link.setAttribute('download', `invoice-${orderUuid}.pdf`);
-      
-      // Append to body, click, and cleanup
       document.body.appendChild(link);
       link.click();
       
-      // Cleanup after small delay to ensure download starts
       setTimeout(() => {
         document.body.removeChild(link);
         window.URL.revokeObjectURL(url);
       }, 100);
   
-      toast.success('Invoice generated successfully', {
-        duration: 4000,
-        position: 'bottom-right',
-      });
-  
+      toast.success('Invoice generated successfully');
     } catch (error) {
-      // Handle error if response is arraybuffer
       if (error.response?.data instanceof ArrayBuffer) {
         try {
           const decoder = new TextDecoder('utf-8');
           const errorText = decoder.decode(error.response.data);
           const errorData = JSON.parse(errorText);
-          toast.error(errorData.message || 'Failed to generate invoice', {
-            duration: 4000,
-            position: 'bottom-right',
-          });
+          toast.error(errorData.message || 'Failed to generate invoice');
         } catch (decodeError) {
-          toast.error('Failed to generate invoice', {
-            duration: 4000,
-            position: 'bottom-right',
-          });
+          toast.error('Failed to generate invoice');
         }
       } else {
-        toast.error('Failed to generate invoice', {
-          duration: 4000,
-          position: 'bottom-right',
-        });
+        toast.error('Failed to generate invoice');
       }
       console.error('Error generating invoice:', error);
     }
@@ -136,13 +197,6 @@ const MainContent = ({ isMobile, scrollDirection, isAtTop }) => {
   const handleGenerateReceipt = async () => {
     console.log('Generating receipt for orders:', selectedOrders);
     // TODO: Implement receipt generation logic
-  };
-
-  const handleReturnProduct = () => {
-    if (selectedOrders.length === 1) {
-      console.log('Processing return for order:', selectedOrders[0]);
-      // TODO: Implement return product logic
-    }
   };
 
   const handlePageChange = (newPage) => {
@@ -159,14 +213,12 @@ const MainContent = ({ isMobile, scrollDirection, isAtTop }) => {
   const handleDeleteData = async (salesOrderUUID, managerPassword) => {
     try {
       await axiosInstance.delete(`/${username}/salesOrder/${salesOrderUUID}`, {
-        data: { managerPassword } // Send password in request body
+        data: { managerPassword }
       });
-      
-      // Refresh the sales orders list
       fetchSalesOrder(pageNumber);
     } catch (error) {
       console.error('Error deleting sales order:', error);
-      throw error; // Throw error so it can be caught by the table component
+      throw error;
     }
   };
 
@@ -175,7 +227,7 @@ const MainContent = ({ isMobile, scrollDirection, isAtTop }) => {
   };
 
   const handleHighlightSelections = (highlight) => {
-  setHighlightSelections(highlight);
+    setHighlightSelections(highlight);
   };
 
   function handleFilterChange(event) {
@@ -196,7 +248,7 @@ const MainContent = ({ isMobile, scrollDirection, isAtTop }) => {
       const params = new URLSearchParams({
         pageNumber: pageNumber,
         pageSize: pageSize,
-        searchConfig: JSON.stringify(searchConfig) // Include search configuration
+        searchConfig: JSON.stringify(searchConfig)
       });
       
       const response = await axiosInstance.get(
@@ -224,8 +276,6 @@ const MainContent = ({ isMobile, scrollDirection, isAtTop }) => {
     }
   }
 
-  
-
   return (
     <div className="flex-1 h-[calc(100vh-4rem)]"> 
       <div className="h-full overflow-y-auto">
@@ -240,7 +290,7 @@ const MainContent = ({ isMobile, scrollDirection, isAtTop }) => {
           <div className="mb-6">
             <div className="flex flex-col lg:flex-row lg:items-center gap-4">
               <h1 className="text-xl font-medium">Sales Orders</h1>
-                <div className="lg:ml-20 flex-1">
+              <div className="lg:ml-20 flex-1">
                 <SalesOrderSearch
                   onFilterChange={setSearchConfig}
                   initialFilters={{
@@ -251,7 +301,7 @@ const MainContent = ({ isMobile, scrollDirection, isAtTop }) => {
                     totalPrice: true
                   }}
                 />
-                </div>
+              </div>
             </div>
           </div>
 
@@ -264,6 +314,7 @@ const MainContent = ({ isMobile, scrollDirection, isAtTop }) => {
             onGenerateReceipt={handleGenerateReceipt}
             onReturnProduct={handleReturnProduct}
             onHighlightSelections={handleHighlightSelections}
+            isMobile={isMobile}
           />
 
           {/* Content Area */}
@@ -273,31 +324,50 @@ const MainContent = ({ isMobile, scrollDirection, isAtTop }) => {
                 <p>Loading...</p>
               </div>
             ) : (
-            data && (
-              <SalesTable 
-                salesOrders={data} 
-                selectedOrders={selectedOrders}
-                onSelectionChange={setSelectedOrders}
-                handleDeleteData={handleDeleteData}
-                handleEditData={handleEditData}
-                userRole="Manager"
-                username={username}
-                highlightSelections={highlightSelections}
-                setHighlightSelections={setHighlightSelections}
-              />
+              data && (
+                <SalesTable 
+                  salesOrders={data} 
+                  selectedOrders={selectedOrders}
+                  onSelectionChange={setSelectedOrders}
+                  handleDeleteData={handleDeleteData}
+                  handleEditData={handleEditData}
+                  userRole="Manager"
+                  username={username}
+                  highlightSelections={highlightSelections}
+                  setHighlightSelections={setHighlightSelections}
+                />
               )
             )}
-             <Pagination 
-        currentPage={pageNumber}
-        totalPages={totalPage}
-        onPageChange={handlePageChange}
-        hasNextPage={hasNextPage}
-        hasPreviousPage={hasPreviousPage}
-        pageSize={pageSize}
-        onPageSizeChange={handlePageSizeChange}
-        totalItems={totalCount}
-      />
+            <Pagination 
+              currentPage={pageNumber}
+              totalPages={totalPage}
+              onPageChange={handlePageChange}
+              hasNextPage={hasNextPage}
+              hasPreviousPage={hasPreviousPage}
+              pageSize={pageSize}
+              onPageSizeChange={handlePageSizeChange}
+              totalItems={totalCount}
+            />
           </div>
+
+          {/* Return Modal */}
+          <ReturnModal
+            isOpen={isReturnModalOpen}
+            onClose={() => {
+              setIsReturnModalOpen(false);
+              setSelectedSerialNumbers({});
+              setSelectedOrderDetails(null);
+              setReturnReason("");
+            }}
+            selectedOrderDetails={selectedOrderDetails}
+            selectedSerialNumbers={selectedSerialNumbers}
+            setSelectedSerialNumbers={setSelectedSerialNumbers}
+            returnReason={returnReason}
+            setReturnReason={setReturnReason}
+            onReturnComplete={handleReturnComplete}
+            selectedOrderId={selectedOrders[0]}
+          />
+
         </motion.div>
       </div>
     </div>
