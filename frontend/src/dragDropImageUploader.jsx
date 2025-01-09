@@ -155,7 +155,7 @@ function DragDropImageUploader(props) {
                       </span>
                       <img
                           className="w-full h-full rounded-lg object-cover"
-                          src={typeof image === 'string' ? image : image.url || image.base64}
+                          src={image.base64 || image.url}
                           alt={image.name || `Image ${index}`}
                       />
                   </div>

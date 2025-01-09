@@ -427,7 +427,17 @@ exports.returnSalesOrder = async (validatedData) => {
       acc[product.product_id] = product.product_units.length;
       return acc;
     }, {});
-
+    
+    
+    await Promise.all(
+      Object.entries(returnedProductCounts).map(([productId, quantity]) => 
+        Product.increment('product_stock', {
+          by: quantity,
+          where: { product_id: productId },
+          transaction
+        })
+      )
+    );
     console.log('returnedProductCounts:', returnedProductCounts);
     console.log('salesOrder.items:', JSON.stringify(salesOrder.items, null, 2));
 

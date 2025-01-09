@@ -194,11 +194,6 @@ const ProductDetailModal = ({
       case "sku_number":
         if (!value?.trim()) {
           newErrors[name] = "SKU is required";
-        } else if (!/^[A-Za-z0-9]+$/.test(value)) {
-          newErrors[name] = "SKU can only contain letters and numbers";
-        } else if (value.length > 20) {
-          // Optional: add a max length check
-          newErrors[name] = "SKU cannot be longer than 20 characters";
         } else {
           delete newErrors[name];
         }
@@ -288,7 +283,7 @@ const ProductDetailModal = ({
   };
 
   const handleWeightChange = (value) => {
-    validateField("weight.value", value);
+    validateField("weight", value);
     setFormData((prev) => ({
       ...prev,
       weight: {
@@ -357,12 +352,12 @@ const ProductDetailModal = ({
         price: parseFloat(formData.price),
         cost: parseFloat(formData.cost),
         description: formData.description,
-        images: {
+        images: {images: {
           images: formData.images.map((img) => {
             // If the image is too large, you might want to compress it here
             return img;
           }),
-        },
+        },}
       };
       console.log("Form Data before send:", formData);
       console.log("Update Data being sent:", updateData);
