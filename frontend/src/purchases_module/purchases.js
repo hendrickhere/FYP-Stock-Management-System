@@ -9,7 +9,8 @@ import { useScrollDirection } from '../useScrollDirection';
 import { motion } from 'framer-motion';
 import PurchasesActionBar from "./purchasesActionBar";
 import PurchasesSearch from "./purchasesSearchBar";
-
+import Pagination
+ from "../pagination_component/pagination";
 const springTransition = {
   type: "spring",
   stiffness: 400,
@@ -32,7 +33,7 @@ function Purchases() {
 
   return (
     <div className="flex flex-col h-screen w-full">
-      <Header scrollDirection={scrollDirection} isAtTop={isAtTop} /> 
+      <Header scrollDirection={scrollDirection} isAtTop={isAtTop} />
       <div className="flex flex-row flex-grow">
         <Sidebar scrollDirection={scrollDirection} isAtTop={isAtTop} />
         <MainContent isMobile={isMobile} scrollDirection={scrollDirection} isAtTop={isAtTop} />
@@ -49,46 +50,79 @@ const MainContent = ({ isMobile, scrollDirection, isAtTop }) => {
   const navigation = useNavigate();
   const [highlightSelections, setHighlightSelections] = useState(false);
   const [searchConfig, setSearchConfig] = useState({ term: '', activeFilters: [] });
-
+  const [totalCount, setTotalCount] = useState(0);
+  const [totalPage, setTotalPage] = useState(0);
+  const [hasNextPage, setHasNextPage] = useState(true);
+  const [hasPreviousPage, setHasPreviousPage] = useState(false);
+  const [pageNumber, setPageNumber] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
   const filterPurchaseOrders = (orders, searchConfig) => {
-  if (!searchConfig?.term || !orders) return orders;
-  
-  const searchTerm = searchConfig.term.toLowerCase().trim();
-  const activeFilters = searchConfig.activeFilters || [];
-  
-  return orders.filter(order => {
-    return activeFilters.some(filter => {
-      switch (filter) {
-        case 'purchaseOrderId':
-          return order.purchase_order_id.toString().toLowerCase().includes(searchTerm);
-        case 'vendorName':
-          return order.Vendor?.vendor_name?.toLowerCase().includes(searchTerm);
-        case 'orderDate':
-          return order.order_date?.toLowerCase().includes(searchTerm);
-        case 'deliveredDate':
-          return order.delivered_date?.toLowerCase().includes(searchTerm);
-        case 'totalAmount':
-          return order.total_amount?.toString().toLowerCase().includes(searchTerm);
-        // Add other cases for remaining filters
-        default:
-          return false;
-      }
+    if (!searchConfig?.term || !orders) return orders;
+
+    const searchTerm = searchConfig.term.toLowerCase().trim();
+    const activeFilters = searchConfig.activeFilters || [];
+
+    return orders.filter(order => {
+      return activeFilters.some(filter => {
+        switch (filter) {
+          case 'purchaseOrderId':
+            return order.purchase_order_id.toString().toLowerCase().includes(searchTerm);
+          case 'vendorName':
+            return order.Vendor?.vendor_name?.toLowerCase().includes(searchTerm);
+          case 'orderDate':
+            return order.order_date?.toLowerCase().includes(searchTerm);
+          case 'deliveredDate':
+            return order.delivered_date?.toLowerCase().includes(searchTerm);
+          case 'totalAmount':
+            return order.total_amount?.toString().toLowerCase().includes(searchTerm);
+          // Add other cases for remaining filters
+          default:
+            return false;
+        }
+      });
     });
-  });
-};
+  };
 
   const filteredData = React.useMemo(() => ({
     ...data,
     purchases: data?.purchases ? filterPurchaseOrders(data.purchases, searchConfig) : []
   }), [data, searchConfig]);
 
-  async function fetchPurchases() {
+  const handlePageChange = (newPage) => {
+    setPageNumber(newPage);
+    fetchPurchases(newPage, pageSize);
+  };
+
+  const handlePageSizeChange = (newPageSize) => {
+    setPageSize(newPageSize);
+    setPageNumber(1);
+    fetchPurchases(1, newPageSize);
+  };
+  async function fetchPurchases(page = pageNumber, size = pageSize) {
     try {
       setLoading(true);
+      const params = new URLSearchParams({
+        pageNumber: page,
+        pageSize: size,
+      });
+
       const response = await axiosInstance.get(
-        `/purchases/${username}`
+        `/purchases/${username}?${params}`
       );
-      setData(response.data);
+
+      if (response.data && Array.isArray(response.data.purchases)) {
+        setData(response.data);
+      } else {
+        setData({ purchases: [] });
+      }
+
+      if (response.data.pagination) {
+        setPageNumber(response.data.pagination.currentPage);
+        setTotalPage(response.data.pagination.totalPages);
+        setTotalCount(response.data.pagination.totalItems);
+        setHasNextPage(response.data.pagination.hasNextPage);
+        setHasPreviousPage(response.data.pagination.hasPreviousPage);
+      }
     } catch (error) {
       console.error('Error fetching purchase orders:', error);
       setData({ purchases: [] });
@@ -130,26 +164,26 @@ const MainContent = ({ isMobile, scrollDirection, isAtTop }) => {
   };
 
   const handleManageTax = () => {
-  // TODO: Implement tax management
-  console.log('Managing tax...');
+    // TODO: Implement tax management
+    console.log('Managing tax...');
   };
 
   const handleRecordExpenses = () => {
-  // TODO: Implement expense recording
-  console.log('Recording expenses...');
+    // TODO: Implement expense recording
+    console.log('Recording expenses...');
   };
 
   const handleCreateBill = (type) => {
-  // TODO: Implement bill creation
-  console.log('Creating', type);
+    // TODO: Implement bill creation
+    console.log('Creating', type);
   };
 
   return (
     <div className="flex-1 h-[calc(100vh-4rem)]">
       <div className="h-full overflow-y-auto custom-scrollbar">
-        <motion.div 
+        <motion.div
           className="p-6"
-          animate={{ 
+          animate={{
             marginLeft: isMobile ? '0' : (scrollDirection === 'down' && !isAtTop ? '4rem' : '13rem'),
           }}
           transition={springTransition}
@@ -174,17 +208,17 @@ const MainContent = ({ isMobile, scrollDirection, isAtTop }) => {
           </div>
 
           {/* Action Buttons */}
-            <PurchasesActionBar 
-              selectedOrders={selectedOrders}
-              onCreateNew={navigateToAddPurchasePage}
-              onManageTax={handleManageTax}
-              onRecordExpenses={handleRecordExpenses}
-              onCreateBill={handleCreateBill}
-              onHighlightSelections={(highlight) => {
-                // TODO: Implement highlight logic similar to sales
-                console.log('Highlighting selections:', highlight);
-              }}
-            />
+          <PurchasesActionBar
+            selectedOrders={selectedOrders}
+            onCreateNew={navigateToAddPurchasePage}
+            onManageTax={handleManageTax}
+            onRecordExpenses={handleRecordExpenses}
+            onCreateBill={handleCreateBill}
+            onHighlightSelections={(highlight) => {
+              // TODO: Implement highlight logic similar to sales
+              console.log('Highlighting selections:', highlight);
+            }}
+          />
 
           {/* Content Area */}
           <div className="mt-4">
@@ -193,7 +227,7 @@ const MainContent = ({ isMobile, scrollDirection, isAtTop }) => {
                 <p>Loading...</p>
               </div>
             ) : (
-              <PurchaseTable 
+              <PurchaseTable
                 purchases={data}
                 selectedOrders={selectedOrders}
                 onSelectionChange={setSelectedOrders}
@@ -201,9 +235,19 @@ const MainContent = ({ isMobile, scrollDirection, isAtTop }) => {
                 username={username}
                 highlightSelections={highlightSelections}
                 setHighlightSelections={setHighlightSelections}
-                userRole="Manager" 
+                userRole="Manager"
               />
             )}
+            <Pagination
+              currentPage={pageNumber}
+              totalPages={totalPage}
+              onPageChange={handlePageChange}
+              hasNextPage={hasNextPage}
+              hasPreviousPage={hasPreviousPage}
+              pageSize={pageSize}
+              onPageSizeChange={handlePageSizeChange}
+              totalItems={totalCount}
+            />
           </div>
         </motion.div>
       </div>

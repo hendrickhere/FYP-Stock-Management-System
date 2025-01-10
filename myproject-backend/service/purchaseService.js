@@ -134,7 +134,10 @@ exports.getAllPurchases = async (username, pageNumber, pageSize) => {
       order: [['created_at', 'DESC']]
     });
 
-    // Add logging to debug the structure
+    const totalPages = Math.ceil(count / pageSize);
+    const hasNextPage = pageNumber < totalPages;
+    const hasPreviousPage = pageNumber > 1;
+
     console.log('Purchase orders with items:', 
       JSON.stringify(purchases.map(po => ({
         id: po.purchase_order_id,
@@ -145,7 +148,17 @@ exports.getAllPurchases = async (username, pageNumber, pageSize) => {
       })), null, 2)
     );
 
-    return { purchases, totalPage: Math.ceil(count / pageSize), currentPage: pageNumber };
+    return {
+      purchases,
+      pagination: {
+        totalItems: count,
+        totalPages: totalPages,
+        currentPage: pageNumber,
+        pageSize: pageSize,
+        hasNextPage: hasNextPage,
+        hasPreviousPage: hasPreviousPage
+      }
+    };
 
   } catch (err) {
     console.error("Error fetching purchase orders:", err);
