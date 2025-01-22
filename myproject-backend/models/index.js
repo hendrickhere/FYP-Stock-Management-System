@@ -8,6 +8,28 @@ const config = DB_CONFIG[env];
 const sequelize = require('../config/db-config');
 const db = {};
 
+// If database is disabled, return mock db object
+if (process.env.INITIALIZE_DB === 'false') {
+    console.log('Database initialization skipped, using mock models');
+    db.sequelize = sequelize;
+    db.Sequelize = Sequelize;
+    // Add mock models
+    const mockModel = {
+        findAll: () => Promise.resolve([]),
+        findOne: () => Promise.resolve(null),
+        create: (data) => Promise.resolve(data),
+        update: () => Promise.resolve([1]),
+        destroy: () => Promise.resolve(1)
+    };
+    // Add commonly used models
+    db.User = mockModel;
+    db.Organization = mockModel;
+    db.Product = mockModel;
+    db.Order = mockModel;
+    module.exports = db;
+    return;
+}
+
 console.log('Files in directory:', fs.readdirSync(__dirname));
 // Load all models
 fs.readdirSync(__dirname)
@@ -21,35 +43,17 @@ fs.readdirSync(__dirname)
     );
   })
   .forEach(file => {
-      console.log(`Loading model from file: ${file}`);
-      const Model = require(path.join(__dirname, file));
-      if (typeof Model === 'function') {
-        const model = Model.init(sequelize);
-        const modelName = Model.name;
-        db[modelName] = model;
-        console.log(`Model ${modelName} loaded and initialized:`, !!db[modelName]);
-      }
-    });
+    const model = require(path.join(__dirname, file))(sequelize, Sequelize);
+    db[model.name] = model;
+  });
 
-console.log('\nVerifying loaded models:');
-['User', 'Customer', 'SalesOrder', 'Product', 'Organization', 'SalesOrderInventory'].forEach(modelName => {
-  console.log(`${modelName} model loaded:`, !!db[modelName]);
-});
-
-// Load associations after all models are initialized
-require('./association')(db);
+// Load associations after all models are loaded
+const associationPath = path.join(__dirname, 'association.js');
+if (fs.existsSync(associationPath)) {
+  require(associationPath)(db);
+}
 
 db.sequelize = sequelize;
 db.Sequelize = Sequelize;
-
-// Test the database connection
-sequelize
-  .authenticate()
-  .then(() => {
-    console.log('Database connection has been established successfully.');
-  })
-  .catch(err => {
-    console.error('Unable to connect to the database:', err);
-  });
 
 module.exports = db;

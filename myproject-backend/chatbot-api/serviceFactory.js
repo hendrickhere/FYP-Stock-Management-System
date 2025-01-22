@@ -17,6 +17,35 @@ async function createChatbotServices() {
 
     // Database connection check - using a single try/catch block
     try {
+        if (process.env.INITIALIZE_DB === 'false') {
+            console.log('Database initialization skipped');
+            return {
+                // Return mock services or minimal implementation
+                documentProcessor: {
+                    processDocument: () => Promise.resolve({}),
+                    extractItems: () => Promise.resolve([]),
+                },
+                purchaseOrderProcessor: {
+                    processDocument: () => Promise.resolve({}),
+                    extractItems: () => Promise.resolve([]),
+                },
+                chatbotService: {
+                    processDocument: () => Promise.resolve({}),
+                    generateAnalysisExplanation: () => Promise.resolve(''),
+                },
+                chatbotIntelligence: {
+                    handleUserResponse: () => Promise.resolve(''),
+                    generateAnalysisMessage: () => Promise.resolve(''),
+                },
+                queryBuilder: {},
+                chatIntegration: {},
+                openai: {}
+            };
+        }
+
+        await db.sequelize.sync();
+        console.log('Database synced successfully');
+
         await db.sequelize.authenticate();
     } catch (error) {
         throw new Error(`Database connection failed: ${error.message}`);

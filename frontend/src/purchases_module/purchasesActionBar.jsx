@@ -30,20 +30,6 @@ const PurchasesActionBar = ({
             <Plus className="w-4 h-4 mr-2" />
             Create Purchase Order
           </Button>
-
-          <Button
-            variant="outline"
-            onClick={onRecordExpenses}
-            className="flex items-center space-x-2 px-4 py-2"
-          >
-            <ClipboardList className="w-4 h-4 mr-2" />
-            Record Expenses
-            {selectedOrders.length > 0 && 
-              <span className="ml-2 px-2 py-0.5 rounded-full text-xs bg-gray-100">
-                {selectedOrders.length}
-              </span>
-            }
-          </Button>
         </div>
 
         {selectedOrders.length > 0 && (

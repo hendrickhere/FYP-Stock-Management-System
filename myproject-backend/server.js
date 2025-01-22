@@ -42,7 +42,7 @@ console.log('Final model state:', Object.keys(db).filter(key => key !== 'sequeli
 require('dotenv').config({ path: path.join(__dirname, '.env') });
 
 const app = express();
-const PORT = 3002;
+const PORT = process.env.PORT || 3002;
 
 // Middleware
 app.use(express.json({limit: '50mb'}));
@@ -72,6 +72,11 @@ app.use((req, res, next) => {
         body: req.method === 'POST' || req.method === "PUT" ? req.body : undefined
     });
     next();
+});
+
+// Root route
+app.get('/', (req, res) => {
+    res.json({ message: 'Stock Management System API is running' });
 });
 
 // 
