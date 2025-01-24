@@ -1,179 +1,112 @@
-const db = require("../models");
-const TaxError = require("../errors/taxError");
+const db = require('../models');
+const TaxError = require('../errors/taxError');
 
-const Tax = db.Tax;
+class TaxService {
+  static async createTax({ organizationId, taxName, taxRate, description }) {
+    try {
+      if (isNaN(parseFloat(taxRate))) {
+        throw new TaxError('Tax rate must be a valid number', 'INVALID_INPUT', 400);
+      }
 
-exports.getTaxes = async (organizationId) => {
-  try {
-    const taxes = await Tax.findAll({
-      where: {
+      if (parseFloat(taxRate) < 0) {
+        throw new TaxError('Tax rate cannot be negative', 'INVALID_INPUT', 400);
+      }
+
+      const organization = await db.Organization.findOne({
+        where: { organization_id: organizationId }
+      });
+
+      if (!organization) {
+        throw new TaxError('Organization not found', 'NOT_FOUND', 404);
+      }
+
+      const tax = await db.Tax.create({
         organization_id: organizationId,
-        tax_status: 1,
-      },
-      order: [["created_at", "DESC"]],
-    });
+        tax_name: taxName,
+        tax_rate: taxRate,
+        description: description,
+        tax_status: 1
+      });
 
-    return taxes;
-  } catch (err) {
-    console.error("Tax Service Error:", err);
-
-    if (err.name === "SequelizeDatabaseError") {
-      throw new TaxError(
-        "Database error occurred while retrieving taxes",
-        "DATABASE_ERROR",
-        500
-      );
-    }
-
-    throw new TaxError(
-      "Failed to retrieve taxes",
-      "INTERNAL_SERVER_ERROR",
-      500
-    );
-  }
-};
-exports.createTax = async (requestBody) => {
-  const { taxName, taxRate, description, organizationId } = requestBody;
-
-  try {
-    if (isNaN(parseFloat(taxRate))) {
-      throw new TaxError(
-        "Tax rate must be a valid number",
-        "VALIDATION_ERROR",
-        400
-      );
-    }
-
-    if (parseFloat(taxRate) < 0) {
-      throw new TaxError(
-        "Tax rate cannot be negative",
-        "VALIDATION_ERROR",
-        400
-      );
-    }
-
-    const tax = await Tax.create({
-      tax_name: taxName,
-      tax_rate: taxRate,
-      description: description,
-      organization_id: organizationId,
-      tax_status: 1,
-      created_at: new Date().toISOString(),
-    });
-
-    return tax.dataValues;
-  } catch (err) {
-    console.error("Tax Service Error:", err);
-
-    // If it's already our custom error, throw it as is
-    if (err instanceof TaxError) {
-      throw err;
-    }
-
-    // Handle Sequelize specific errors
-    if (err.name === "SequelizeValidationError") {
-      throw new TaxError(
-        `Validation error: ${err.errors.map((e) => e.message).join(", ")}`,
-        "VALIDATION_ERROR",
-        400
-      );
-    }
-
-    if (err.name === "SequelizeUniqueConstraintError") {
-      throw new TaxError(
-        "A tax with this name already exists",
-        "DUPLICATE_ERROR",
-        409
-      );
-    }
-
-    if (err.name === "SequelizeForeignKeyConstraintError") {
-      throw new TaxError(
-        "Invalid organization ID provided",
-        "FOREIGN_KEY_ERROR",
-        400
-      );
-    }
-
-    if (err.name === "SequelizeDatabaseError") {
-      throw new TaxError("Database error occurred", "DATABASE_ERROR", 500);
-    }
-
-    // For any other unexpected errors
-    throw new TaxError(
-      "An unexpected error occurred while creating the tax",
-      "INTERNAL_SERVER_ERROR",
-      500
-    );
-  }
-};
-
-exports.updateTax = async (taxId, updates) => {
-  try {
-    const tax = await Tax.findByPk(taxId);
-
-    if (!tax) {
-      throw new TaxError("Tax not found", "NOT_FOUND", 404);
-    }
-
-    if (updates.tax_rate !== undefined) {
-      const rate = parseFloat(updates.tax_rate);
-      if (isNaN(rate)) {
-        throw new TaxError("Invalid tax rate format", "VALIDATION_ERROR", 400);
+      return tax.dataValues;
+    } catch (error) {
+      if (error instanceof TaxError) {
+        throw error;
       }
-      if (rate < 0) {
-        throw new TaxError(
-          "Tax rate cannot be negative",
-          "VALIDATION_ERROR",
-          400
-        );
+      throw new TaxError('Database error occurred while creating tax', 'INTERNAL_SERVER_ERROR', 500);
+    }
+  }
+
+  static async getTaxes(organizationId) {
+    try {
+      const organization = await db.Organization.findOne({
+        where: { organization_id: organizationId }
+      });
+
+      if (!organization) {
+        throw new TaxError('Organization not found', 'NOT_FOUND', 404);
       }
-      updates.tax_rate = rate;
+
+      const taxes = await db.Tax.findAll({
+        where: {
+          organization_id: organizationId,
+          tax_status: 1
+        },
+        order: [["created_at", "DESC"]]
+      });
+
+      return taxes.map(tax => tax.dataValues);
+    } catch (error) {
+      if (error instanceof TaxError) {
+        throw error;
+      }
+      throw new TaxError('Database error occurred while retrieving taxes', 'INTERNAL_SERVER_ERROR', 500);
     }
-
-    await tax.update(updates);
-
-    await tax.reload();
-
-    return tax;
-  } catch (err) {
-    console.error("Tax Service Update Error:", err);
-
-    if (err instanceof TaxError) {
-      throw err;
-    }
-
-    if (err.name === "SequelizeUniqueConstraintError") {
-      throw new TaxError(
-        "A tax with this name already exists",
-        "DUPLICATE_ERROR",
-        409
-      );
-    }
-
-    if (err.name === "SequelizeValidationError") {
-      throw new TaxError(
-        `Validation error: ${err.errors.map((e) => e.message).join(", ")}`,
-        "VALIDATION_ERROR",
-        400
-      );
-    }
-
-    throw new TaxError("Failed to update tax", "INTERNAL_SERVER_ERROR", 500);
   }
-};
 
-exports.deleteTax = async (taxId) => {
-  try {
-    const tax = await Tax.findByPk(taxId);
-    if (!tax) {
-      return { success: true }; 
+  static async updateTax(taxId, updateData) {
+    try {
+      const tax = await db.Tax.findByPk(taxId);
+
+      if (!tax) {
+        throw new TaxError('Tax not found', 'NOT_FOUND', 404);
+      }
+
+      if (updateData.tax_rate && parseFloat(updateData.tax_rate) < 0) {
+        throw new TaxError('Tax rate cannot be negative', 'INVALID_INPUT', 400);
+      }
+
+      await tax.update(updateData);
+      await tax.reload();
+
+      return tax.dataValues;
+    } catch (error) {
+      if (error instanceof TaxError) {
+        throw error;
+      }
+      throw new TaxError('Database error occurred while updating tax', 'INTERNAL_SERVER_ERROR', 500);
     }
-
-    await tax.destroy();
-    return { success: true };
-  } catch (err) {
-    console.error("Tax Service Delete Error:", err);
-    throw new TaxError("Failed to delete tax", "INTERNAL_SERVER_ERROR", 500);
   }
-};
+
+  static async deleteTax(taxId) {
+    try {
+      const tax = await db.Tax.findByPk(taxId);
+
+      // If tax doesn't exist or is already deleted, return success
+      if (!tax || tax.tax_status === 0) {
+        return { success: true };
+      }
+
+      // Soft delete by updating tax_status to 0
+      await tax.update({ tax_status: 0 });
+      return { success: true };
+    } catch (error) {
+      if (error instanceof TaxError) {
+        throw error;
+      }
+      throw new TaxError('Database error occurred while deleting tax', 'INTERNAL_SERVER_ERROR', 500);
+    }
+  }
+}
+
+module.exports = TaxService;

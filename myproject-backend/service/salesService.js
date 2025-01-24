@@ -134,32 +134,40 @@ async function getUserByUsername(username) {
 }
 
 exports.getSalesOrderTotal = async (username, salesOrderUUID) => {
-  const user = await getUserByUsername(username);
-  if (!user) {
-    throw new Error("User not found");
+  // First find the user
+  const user = await User.findOne({
+    where: { username }
+  });
+
+  // Check user existence before trying to access dataValues
+  if (!user || !user.dataValues) {
+    throw new Error('User not found');
   }
 
   const salesOrder = await SalesOrder.findOne({
     where: {
       sales_order_uuid: salesOrderUUID,
-      organization_id: user.organization_id,
-    },
+      organization_id: user.dataValues.organization_id
+    }
   });
 
-  if (!salesOrder) {
+  if (!salesOrder || !salesOrder.dataValues) {
     throw new Error(`No sales order found under user ${username}`);
   }
 
-  const salesOrdersInventories = SalesOrderInventory.findAll({
+  // Get all inventory items for this sales order
+  const salesOrdersInventories = await SalesOrderInventory.findAll({
     where: {
-      sales_order_id: salesOrder.sales_order_id,
-    },
+      sales_order_id: salesOrder.dataValues.sales_order_id
+    }
   });
-  let total = 0;
-  for (const salesOrder of salesOrdersInventories) {
-    total += salesOrder.price;
+
+  if (!salesOrdersInventories || !Array.isArray(salesOrdersInventories)) {
+    return 0;
   }
-  return total;
+
+  // Calculate total using reduce
+  return salesOrdersInventories.reduce((total, item) => total + (item.price || 0), 0);
 };
 
 exports.getSalesOrderReturn = async (organizationId, pageSize, pageNumber) => {
